@@ -1,12 +1,30 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { Activity, Bot, Database, FilePlus, FileSearch, KeyRound, LogOut, Mail, Radio, ShieldCheck, Zap } from "lucide-react";
-import { apiGet, apiPost, setApiAccessToken } from "./api/client";
+import {
+  Activity,
+  Bot,
+  Database,
+  FilePlus,
+  FileSearch,
+  KeyRound,
+  LogOut,
+  Mail,
+  MessageSquare,
+  Pencil,
+  Radio,
+  Search,
+  Settings,
+  ShieldCheck,
+  Trash2,
+  Upload,
+  Zap
+} from "lucide-react";
+import { apiDelete, apiGet, apiPost, apiPut, setApiAccessToken } from "./api/client";
 import { isAuthConfigured, supabase, type AuthSession } from "./api/supabaseClient";
 import type { ActivityLog, Agent, HitlRequest, VaultDocument, VaultSchema } from "./api/types";
 import { StatusPill } from "./components/StatusPill";
 
 type RealtimeEvent = { type: string; payload: unknown };
-type SectionId = "agents" | "vault" | "clearance" | "activity";
+type SectionId = "agents" | "vault" | "clearance" | "activity" | "settings";
 type AgentDraft = {
   name: string;
   category: string;
@@ -26,7 +44,8 @@ const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
   { id: "agents", label: "Agents", icon: Bot },
   { id: "vault", label: "Information Vault", icon: Database },
   { id: "clearance", label: "Access Clearance", icon: KeyRound },
-  { id: "activity", label: "Activity Log", icon: Activity }
+  { id: "activity", label: "Activity Log", icon: Activity },
+  { id: "settings", label: "Settings", icon: Settings }
 ];
 
 const categoryOptions = ["Financial", "Executive", "Wellness", "Domestic", "Legal", "Travel", "Maintenance", "Custom"];
@@ -83,6 +102,15 @@ export function App() {
   const [vaultItemDraft, setVaultItemDraft] = useState<VaultItemDraft>(initialVaultItemDraft);
   const [isCreatingVaultItem, setIsCreatingVaultItem] = useState(false);
   const [createVaultItemError, setCreateVaultItemError] = useState("");
+  const [editingDocumentId, setEditingDocumentId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchSchemaId, setSearchSchemaId] = useState("");
+  const [searchResults, setSearchResults] = useState<VaultDocument[]>([]);
+  const [isSearchingVault, setIsSearchingVault] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatTranscript, setChatTranscript] = useState<Array<{ role: "user" | "agent"; content: string }>>([]);
+  const [grantDuration, setGrantDuration] = useState("3600000");
+  const [permissionDetailsOpen, setPermissionDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -168,7 +196,7 @@ export function App() {
       permissionType: "read",
       enabled,
       restrictionRules: { deniedPaths: [], maxRecords: 8, uiGranted: true },
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+      expiresAt: enabled && grantDuration !== "always" ? new Date(Date.now() + Number(grantDuration)).toISOString() : undefined
     });
     await refresh();
   }
@@ -228,6 +256,45 @@ export function App() {
     await refresh();
   }
 
+  async function searchVault(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedAgent) return;
+    setIsSearchingVault(true);
+    try {
+      const schema = schemas.find((item) => item.id === searchSchemaId);
+      const result = await apiPost<{ status: string; documents?: VaultDocument[]; reason?: string }>("/api/mcp/tool-call", {
+        agentId: selectedAgent.id,
+        toolName: "vault.search",
+        arguments: { query: searchQuery, schema: schema?.name }
+      });
+      setSearchResults(result.documents ?? []);
+      setToolResult(JSON.stringify(result, null, 2));
+      await refresh();
+    } finally {
+      setIsSearchingVault(false);
+    }
+  }
+
+  async function runAgentChat(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedAgent || !chatInput.trim()) return;
+    const prompt = chatInput.trim();
+    setChatTranscript((current) => [...current, { role: "user", content: prompt }]);
+    setChatInput("");
+
+    const wantsAction = /book|buy|transfer|execute|approve|reserve|pay/i.test(prompt);
+    const result = await apiPost<Record<string, unknown>>("/api/mcp/tool-call", {
+      agentId: selectedAgent.id,
+      toolName: wantsAction ? "action.execute" : "vault.search",
+      arguments: wantsAction
+        ? { actionName: "book_non_refundable_travel", request: prompt }
+        : { query: prompt, schema: selectedAgent.capabilityManifest.requestedSchemas?.[0] }
+    });
+    setChatTranscript((current) => [...current, { role: "agent", content: JSON.stringify(result, null, 2) }]);
+    setToolResult(JSON.stringify(result, null, 2));
+    await refresh();
+  }
+
   async function createVaultItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCreateVaultItemError("");
@@ -248,6 +315,71 @@ export function App() {
     } finally {
       setIsCreatingVaultItem(false);
     }
+  }
+
+  async function saveVaultEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingDocumentId) return;
+    setCreateVaultItemError("");
+    setIsCreatingVaultItem(true);
+    try {
+      const result = await apiPut<{ document: VaultDocument }>(`/api/vault/documents/${editingDocumentId}`, {
+        title: vaultItemDraft.title,
+        vaultSchemaId: vaultItemDraft.vaultSchemaId || null,
+        content: vaultItemDraft.content
+      });
+      setVaultItemDraft(initialVaultItemDraft);
+      setEditingDocumentId("");
+      setIsAddingVaultItem(false);
+      setToolResult(JSON.stringify({ status: "vault_item_updated", document: result.document }, null, 2));
+      await refresh();
+    } catch (error) {
+      setCreateVaultItemError(error instanceof Error ? error.message : "Vault item update failed.");
+    } finally {
+      setIsCreatingVaultItem(false);
+    }
+  }
+
+  function beginEditVaultItem(document: VaultDocument) {
+    setEditingDocumentId(document.id);
+    setVaultItemDraft({
+      title: document.title,
+      vaultSchemaId: document.vaultSchema?.id ?? "",
+      content: String(document.frontmatter.content ?? document.excerpt)
+    });
+    setIsAddingVaultItem(true);
+    scrollToSection("vault");
+  }
+
+  async function deleteVaultItem(document: VaultDocument) {
+    const confirmed = window.confirm(`Delete "${document.title}" from your vault?`);
+    if (!confirmed) return;
+    await apiDelete(`/api/vault/documents/${document.id}`);
+    setToolResult(JSON.stringify({ status: "vault_item_deleted", documentId: document.id }, null, 2));
+    await refresh();
+  }
+
+  async function uploadVaultFile(event: FormEvent) {
+    const input = event.currentTarget as unknown as {
+      files?: { [index: number]: { name: string; text: () => Promise<string> } | undefined };
+      value: string;
+    };
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    if (!/(\.txt|\.md)$/i.test(file.name)) {
+      setToolResult(JSON.stringify({ status: "upload_blocked", reason: "Only .txt and .md files are supported in this MVP." }, null, 2));
+      return;
+    }
+    const content = await file.text();
+    const result = await apiPost<{ document: VaultDocument }>("/api/vault/documents", {
+      title: file.name.replace(/\.(txt|md)$/i, ""),
+      vaultSchemaId: searchSchemaId || null,
+      content
+    });
+    setToolResult(JSON.stringify({ status: "vault_file_uploaded", document: result.document }, null, 2));
+    await refresh();
+    scrollToSection("vault");
   }
 
   async function decideHitl(id: string, approved: boolean) {
@@ -395,6 +527,10 @@ export function App() {
             {session ? <span className="user-chip">{session.user.email}</span> : null}
             <button onClick={() => setIsAddingAgent((current) => !current)} type="button"><Bot size={16} /> Add Agent</button>
             <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Vault Item</button>
+            <label className="upload-button">
+              <Upload size={16} /> Upload
+              <input accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void uploadVaultFile(event)} type="file" />
+            </label>
             <button onClick={reindexVault}><FileSearch size={16} /> Reindex vault</button>
             {session ? <button onClick={() => void signOut()} type="button"><LogOut size={16} /> Sign out</button> : null}
           </div>
@@ -493,8 +629,8 @@ export function App() {
         ) : null}
 
         {isAddingVaultItem ? (
-          <form className="panel add-vault-panel" onSubmit={(event) => void createVaultItem(event)}>
-            <div className="panel-title">Add Vault Item</div>
+          <form className="panel add-vault-panel" onSubmit={(event) => editingDocumentId ? void saveVaultEdit(event) : void createVaultItem(event)}>
+            <div className="panel-title">{editingDocumentId ? "Edit Vault Item" : "Add Vault Item"}</div>
             <div className="form-grid vault-form-grid">
               <label>
                 <span>Title</span>
@@ -532,9 +668,13 @@ export function App() {
             {createVaultItemError ? <p className="error-text">{createVaultItemError}</p> : null}
             <div className="button-row">
               <button disabled={isCreatingVaultItem} type="submit">
-                <FilePlus size={16} /> {isCreatingVaultItem ? "Saving..." : "Save vault item"}
+                <FilePlus size={16} /> {isCreatingVaultItem ? "Saving..." : editingDocumentId ? "Update vault item" : "Save vault item"}
               </button>
-              <button onClick={() => setIsAddingVaultItem(false)} type="button">Cancel</button>
+              <button onClick={() => {
+                setIsAddingVaultItem(false);
+                setEditingDocumentId("");
+                setVaultItemDraft(initialVaultItemDraft);
+              }} type="button">Cancel</button>
             </div>
           </form>
         ) : null}
@@ -583,7 +723,23 @@ export function App() {
                     >
                       <KeyRound size={16} /> Grant requested access
                     </button>
+                    <button onClick={() => setPermissionDetailsOpen((current) => !current)} type="button">
+                      <KeyRound size={16} /> Details
+                    </button>
                   </div>
+                  {permissionDetailsOpen ? (
+                    <div className="permission-details">
+                      <label>
+                        <span>Grant duration</span>
+                        <select onChange={(event) => setGrantDuration(event.currentTarget.value)} value={grantDuration}>
+                          <option value="3600000">1 hour</option>
+                          <option value="86400000">1 day</option>
+                          <option value="always">Always</option>
+                        </select>
+                      </label>
+                      <p className="empty">Access is scoped to your account, the selected agent, schema, and expiry.</p>
+                    </div>
+                  ) : null}
                   {permissionReview.length === 0 ? (
                     <p className="empty">This agent has not requested vault access.</p>
                   ) : permissionReview.map((item) => (
@@ -602,8 +758,29 @@ export function App() {
                       >
                         Grant
                       </button>
+                      {item.schema && item.granted ? (
+                        <button onClick={() => void togglePermission(item.schema!, false)} type="button">Revoke</button>
+                      ) : null}
                     </div>
                   ))}
+                </div>
+                <div className="chat-panel">
+                  <div className="panel-title">Agent Task Console</div>
+                  <form className="chat-form" onSubmit={(event) => void runAgentChat(event)}>
+                    <input
+                      onChange={(event) => setChatInput(event.currentTarget.value)}
+                      placeholder="Ask this agent to search or perform a high-risk action..."
+                      value={chatInput}
+                    />
+                    <button type="submit"><MessageSquare size={16} /> Send</button>
+                  </form>
+                  {chatTranscript.length ? (
+                    <div className="chat-transcript">
+                      {chatTranscript.slice(-4).map((message, index) => (
+                        <pre className={message.role === "user" ? "chat-user" : "chat-agent"} key={`${message.role}-${index}`}>{message.content}</pre>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="button-row">
                   <button onClick={runVaultSearch}><Database size={16} /> Simulate vault.search</button>
@@ -631,11 +808,40 @@ export function App() {
 
           <div className="panel vault-panel" id="vault">
             <div className="panel-title">Information Vault</div>
+            <form className="vault-search" onSubmit={(event) => void searchVault(event)}>
+              <input
+                onChange={(event) => setSearchQuery(event.currentTarget.value)}
+                placeholder="Search private vault through selected agent..."
+                required
+                value={searchQuery}
+              />
+              <select onChange={(event) => setSearchSchemaId(event.currentTarget.value)} value={searchSchemaId}>
+                <option value="">All requested schemas</option>
+                {schemas.map((schema) => <option key={schema.id} value={schema.id}>{schema.name}</option>)}
+              </select>
+              <button disabled={isSearchingVault} type="submit"><Search size={16} /> {isSearchingVault ? "Searching..." : "Search Vault"}</button>
+            </form>
+            {searchResults.length ? (
+              <div className="search-results">
+                <strong>Search Results</strong>
+                {searchResults.map((document) => (
+                  <article className="doc-row" key={`result-${document.id}`}>
+                    <strong>{document.title}</strong>
+                    <span>{document.vaultSchema?.name ?? "Uncategorized"} / {document.relativePath}</span>
+                    <p>{document.excerpt}</p>
+                  </article>
+                ))}
+              </div>
+            ) : null}
             {documents.map((document) => (
               <article className="doc-row" key={document.id}>
                 <strong>{document.title}</strong>
-                <span>{document.relativePath}</span>
+                <span>{document.vaultSchema?.name ?? "Uncategorized"} / {document.relativePath}</span>
                 <p>{document.excerpt}</p>
+                <div className="button-row compact-row">
+                  <button onClick={() => beginEditVaultItem(document)} type="button"><Pencil size={15} /> Edit</button>
+                  <button className="danger" onClick={() => void deleteVaultItem(document)} type="button"><Trash2 size={15} /> Delete</button>
+                </div>
               </article>
             ))}
           </div>
@@ -664,6 +870,17 @@ export function App() {
               </div>
             ))}
             <pre>{toolResult}</pre>
+          </div>
+
+          <div className="panel settings-panel" id="settings">
+            <div className="panel-title">User Settings + Security</div>
+            <div className="settings-grid">
+              <div><strong>Account</strong><span>{session?.user.email ?? "Local development user"}</span></div>
+              <div><strong>Agents</strong><span>{agents.length}</span></div>
+              <div><strong>Vault Items</strong><span>{documents.length}</span></div>
+              <div><strong>Activity Events</strong><span>{logs.length}</span></div>
+            </div>
+            <p className="empty">Workspace data is scoped to your signed-in Supabase user and sent to the backend with your session token.</p>
           </div>
         </section>
       </section>

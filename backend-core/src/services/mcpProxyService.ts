@@ -14,6 +14,63 @@ export async function handleToolCall(input: {
     const schemaName = typeof input.arguments.schema === "string" ? input.arguments.schema : undefined;
     const query = typeof input.arguments.query === "string" ? input.arguments.query : "";
     const schema = schemaName ? await prisma.vaultSchema.findUnique({ where: { name: schemaName } }) : null;
+    if (!schemaName) {
+      const permissions = await prisma.agentPermission.findMany({
+        where: {
+          userId: input.userId,
+          agentId: input.agentId,
+          permissionType: "read",
+          vaultSchemaId: { not: null }
+        },
+        select: { vaultSchemaId: true, expiresAt: true }
+      });
+      const now = new Date();
+      const grantedSchemaIds = Array.from(new Set(
+        permissions
+          .filter((permission) => permission.vaultSchemaId && (!permission.expiresAt || permission.expiresAt > now))
+          .map((permission) => String(permission.vaultSchemaId))
+      ));
+      const allowedSchemaIds = (await Promise.all(grantedSchemaIds.map(async (schemaId) => ({
+        schemaId,
+        decision: await evaluateVaultPermission({
+          userId: input.userId,
+          agentId: input.agentId,
+          permissionType: "read",
+          vaultSchemaId: schemaId
+        })
+      })))).filter((item) => item.decision.allowed).map((item) => item.schemaId);
+
+      if (!allowedSchemaIds.length) {
+        const decision = await evaluateVaultPermission({
+          userId: input.userId,
+          agentId: input.agentId,
+          permissionType: "read"
+        });
+        await logDecision({
+          userId: input.userId,
+          agentId: input.agentId,
+          actionType: "vault_read",
+          decision,
+          dataAccessed: "semantic-search",
+          metadata: { toolName: input.toolName, query }
+        });
+        return { status: "blocked", reason: decision.reason };
+      }
+
+      const documents = (await Promise.all(allowedSchemaIds.map((schemaId) => searchVaultDocuments(input.userId, query, schemaId))))
+        .flat()
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8);
+      await logDecision({
+        userId: input.userId,
+        agentId: input.agentId,
+        actionType: "vault_read",
+        decision: { allowed: true, reason: "Permission, connection, expiry, and restriction rules passed." },
+        dataAccessed: "semantic-search",
+        metadata: { toolName: input.toolName, query, schemas: allowedSchemaIds.length }
+      });
+      return { status: "ok", documents: documents.map(serializeVaultDocument) };
+    }
     const decision = await evaluateVaultPermission({
       userId: input.userId,
       agentId: input.agentId,

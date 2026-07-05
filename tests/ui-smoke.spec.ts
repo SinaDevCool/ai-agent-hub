@@ -35,11 +35,6 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await addVaultForm.getByRole("button", { name: "Save vault item" }).click();
   await expect(page.locator("#vault").getByText(vaultTitle, { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Activity Log" }).click();
-  await expect(page.getByRole("button", { name: "Activity Log" })).toHaveClass(/nav-active/);
-  await expect(page.getByText("Cryptographic Activity Log")).toBeVisible();
-  await expect(page.locator(".audit-panel")).toContainText("vault_write");
-
   await page.getByRole("button", { name: "Agents" }).click();
   await expect(page.getByRole("button", { name: "Agents" })).toHaveClass(/nav-active/);
   const agentName = `Smoke Agent ${Date.now()}`;
@@ -60,6 +55,41 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await page.getByRole("button", { name: "Grant requested access" }).click();
   await expect(page.locator(".permission-review")).toContainText("1 requested / 1 granted");
   await expect(page.locator(".audit-panel")).toContainText("permission_requested");
+
+  await page.getByRole("button", { name: "Information Vault" }).click();
+  await page.getByPlaceholder("Search private vault through selected agent...").fill("low-risk card approval 250");
+  await page.getByRole("button", { name: "Search Vault" }).click();
+  await expect(page.locator(".search-results")).toContainText(vaultTitle);
+
+  await page.getByPlaceholder("Ask this agent to search or perform a high-risk action...").fill("Find my approval threshold");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.locator(".chat-transcript")).toContainText("\"status\": \"ok\"");
+
+  const uploadTitle = `Smoke Upload ${Date.now()}`;
+  await page.locator(".upload-button input").setInputFiles({
+    name: `${uploadTitle}.md`,
+    mimeType: "text/markdown",
+    buffer: Buffer.from("Uploaded smoke vault note with a reusable approval phrase.")
+  });
+  await expect(page.locator("#vault").getByText(uploadTitle, { exact: true })).toBeVisible();
+
+  const uploadedDocument = page.locator(".doc-row").filter({ hasText: uploadTitle }).first();
+  await uploadedDocument.getByRole("button", { name: "Edit" }).click();
+  await page.locator(".add-vault-panel").getByLabel("Title").fill(`${uploadTitle} Edited`);
+  await page.locator(".add-vault-panel").getByRole("button", { name: "Update vault item" }).click();
+  await expect(page.locator("#vault").getByText(`${uploadTitle} Edited`, { exact: true })).toBeVisible();
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator(".doc-row").filter({ hasText: `${uploadTitle} Edited` }).first().getByRole("button", { name: "Delete" }).click();
+  await expect(page.locator("#vault").getByText(`${uploadTitle} Edited`, { exact: true })).toBeHidden();
+
+  await page.getByRole("button", { name: "Activity Log" }).click();
+  await expect(page.getByRole("button", { name: "Activity Log" })).toHaveClass(/nav-active/);
+  await expect(page.getByText("Cryptographic Activity Log")).toBeVisible();
+  await expect(page.locator(".audit-panel")).toContainText("vault_write");
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.locator("#settings")).toContainText("User Settings + Security");
 
   await page.getByRole("button", { name: "The Banker Financial / Trust 81" }).click();
   await expect(page.getByRole("heading", { name: "The Banker" })).toBeVisible();

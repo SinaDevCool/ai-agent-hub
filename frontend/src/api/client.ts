@@ -28,3 +28,22 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   if (!response.ok) throw new Error(`POST ${path} failed: ${response.status}`);
   return response.json() as Promise<T>;
 }
+
+export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "PUT",
+    headers: getHeaders(),
+    body: JSON.stringify(body ?? {})
+  });
+  if (!response.ok) throw new Error(`PUT ${path} failed: ${response.status}`);
+  return response.json() as Promise<T>;
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "DELETE",
+    headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
+  });
+  if (!response.ok) throw new Error(`DELETE ${path} failed: ${response.status}`);
+  return response.json() as Promise<T>;
+}

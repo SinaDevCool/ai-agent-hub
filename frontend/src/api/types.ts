@@ -33,6 +33,7 @@ export type VaultDocument = {
   id: string;
   title: string;
   relativePath: string;
+  frontmatter: Record<string, unknown>;
   excerpt: string;
   indexedAt: string;
   vaultSchema?: VaultSchema | null;
