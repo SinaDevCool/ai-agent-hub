@@ -354,6 +354,57 @@ legend {
   line-height: 1.35;
 }
 
+.permission-review {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.permission-review-header,
+.permission-review-row {
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  padding: 10px;
+}
+
+.permission-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.permission-review-header div {
+  display: grid;
+  gap: 4px;
+}
+
+.permission-review-header strong,
+.permission-review-row strong {
+  color: #f6d18d;
+}
+
+.permission-review-header span {
+  color: #91a4ba;
+  font-size: 13px;
+}
+
+.permission-review-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.permission-review-row div {
+  display: grid;
+  gap: 4px;
+}
+
+.permission-review-row small {
+  line-height: 1.35;
+}
+
 .clearance-row {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
@@ -493,7 +544,8 @@ pre {
   }
 
   .topbar,
-  .detail-heading {
+  .detail-heading,
+  .permission-review-header {
     display: grid;
   }
 
@@ -503,6 +555,10 @@ pre {
   .form-grid,
   .choice-grid,
   .review-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .permission-review-row {
     grid-template-columns: 1fr;
   }
 }

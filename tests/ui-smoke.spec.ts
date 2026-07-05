@@ -45,6 +45,10 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await addAgentForm.getByRole("button", { name: "Create agent" }).click();
   await expect(page.getByRole("heading", { name: agentName })).toBeVisible();
   await expect(page.locator(".audit-panel")).toContainText("agent_created");
+  await expect(page.locator(".permission-review")).toContainText("1 requested / 0 granted");
+  await page.getByRole("button", { name: "Grant requested access" }).click();
+  await expect(page.locator(".permission-review")).toContainText("1 requested / 1 granted");
+  await expect(page.locator(".audit-panel")).toContainText("permission_requested");
 
   await page.getByRole("button", { name: "The Banker Financial / Trust 81" }).click();
   await expect(page.getByRole("heading", { name: "The Banker" })).toBeVisible();

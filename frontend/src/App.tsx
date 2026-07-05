@@ -61,6 +61,7 @@ export function App() {
   const [agentDraft, setAgentDraft] = useState<AgentDraft>(initialAgentDraft);
   const [createAgentError, setCreateAgentError] = useState("");
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
+  const [grantingSchemaName, setGrantingSchemaName] = useState("");
 
   async function refresh() {
     const [agentData, schemaData, documentData, logData, hitlData] = await Promise.all([
@@ -95,6 +96,29 @@ export function App() {
     [agents, selectedAgentId]
   );
 
+  const permissionReview = useMemo(() => {
+    if (!selectedAgent) return [];
+    const requestedSchemas = selectedAgent.capabilityManifest.requestedSchemas ?? [];
+    const grantedSchemaIds = new Set(
+      selectedAgent.permissions
+        .filter((permission) => permission.permissionType === "read" && permission.vaultSchemaId)
+        .map((permission) => permission.vaultSchemaId)
+    );
+    return requestedSchemas.map((schemaName) => {
+      const schema = schemas.find((item) => item.name === schemaName);
+      return {
+        schema,
+        schemaName,
+        granted: Boolean(schema?.id && grantedSchemaIds.has(schema.id))
+      };
+    });
+  }, [schemas, selectedAgent]);
+
+  const ungrantedRequestedSchemas = useMemo(
+    () => permissionReview.filter((item) => item.schema && !item.granted),
+    [permissionReview]
+  );
+
   async function togglePermission(schema: VaultSchema, enabled: boolean) {
     if (!selectedAgent) return;
     await apiPost("/api/permissions/clearance", {
@@ -106,6 +130,33 @@ export function App() {
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString()
     });
     await refresh();
+  }
+
+  async function grantRequestedSchema(schema: VaultSchema) {
+    setGrantingSchemaName(schema.name);
+    try {
+      await togglePermission(schema, true);
+      setToolResult(JSON.stringify({ status: "permission_granted", schema: schema.name, agent: selectedAgent?.name }, null, 2));
+    } finally {
+      setGrantingSchemaName("");
+    }
+  }
+
+  async function grantAllRequestedSchemas() {
+    if (ungrantedRequestedSchemas.length === 0) return;
+    setGrantingSchemaName("all");
+    try {
+      for (const item of ungrantedRequestedSchemas) {
+        if (item.schema) await togglePermission(item.schema, true);
+      }
+      setToolResult(JSON.stringify({
+        status: "permissions_granted",
+        schemas: ungrantedRequestedSchemas.map((item) => item.schemaName),
+        agent: selectedAgent?.name
+      }, null, 2));
+    } finally {
+      setGrantingSchemaName("");
+    }
   }
 
   async function runVaultSearch() {
@@ -332,6 +383,41 @@ export function App() {
                   <div><strong>Tools</strong><span>{selectedAgent.capabilityManifest.tools?.join(", ")}</span></div>
                   <div><strong>High risk</strong><span>{selectedAgent.capabilityManifest.highRiskActions?.join(", ") || "None"}</span></div>
                   <div><strong>Connection</strong><span>{selectedAgent.connections[0]?.connectionStatus ?? "none"}</span></div>
+                </div>
+                <div className="permission-review">
+                  <div className="permission-review-header">
+                    <div>
+                      <strong>Permission Review</strong>
+                      <span>{permissionReview.length} requested / {permissionReview.filter((item) => item.granted).length} granted</span>
+                    </div>
+                    <button
+                      disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"}
+                      onClick={() => void grantAllRequestedSchemas()}
+                      type="button"
+                    >
+                      <KeyRound size={16} /> Grant requested access
+                    </button>
+                  </div>
+                  {permissionReview.length === 0 ? (
+                    <p className="empty">This agent has not requested vault access.</p>
+                  ) : permissionReview.map((item) => (
+                    <div className="permission-review-row" key={item.schemaName}>
+                      <div>
+                        <strong>{item.schemaName}</strong>
+                        <small>{item.schema?.description ?? "Unknown vault schema"}</small>
+                      </div>
+                      <StatusPill tone={item.granted ? "green" : item.schema ? "amber" : "red"}>
+                        {item.granted ? "granted" : item.schema ? "requested" : "unknown"}
+                      </StatusPill>
+                      <button
+                        disabled={!item.schema || item.granted || grantingSchemaName === item.schemaName || grantingSchemaName === "all"}
+                        onClick={() => item.schema ? void grantRequestedSchema(item.schema) : undefined}
+                        type="button"
+                      >
+                        Grant
+                      </button>
+                    </div>
+                  ))}
                 </div>
                 <div className="button-row">
                   <button onClick={runVaultSearch}><Database size={16} /> Simulate vault.search</button>
