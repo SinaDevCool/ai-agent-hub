@@ -25,7 +25,7 @@ Create a Render Web Service from this repository.
 
 Use the root directory of the repo and these settings:
 
-- Build command: `npm install && npm --workspace backend-core run prisma:generate:postgres && npm --workspace backend-core run db:push:postgres && npm --workspace backend-core run db:seed:postgres && npm --workspace backend-core run build`
+- Build command: `npm install --include=dev && npm --workspace backend-core run prisma:generate:postgres && npm --workspace backend-core run db:push:postgres && npm --workspace backend-core run db:seed:postgres && npm --workspace backend-core run build`
 - Start command: `npm --workspace backend-core run start`
 - Health check path: `/health`
 - Plan: Free
