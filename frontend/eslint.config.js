@@ -16,6 +16,7 @@ export default [
       globals: {
         document: "readonly",
         fetch: "readonly",
+        HTMLFormElement: "readonly",
         WebSocket: "readonly",
         window: "readonly"
       }

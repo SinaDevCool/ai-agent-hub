@@ -15,6 +15,7 @@ enum AgentCategory {
   Legal
   Travel
   Maintenance
+  Custom
 }
 
 enum ApiProtocol {
@@ -35,6 +36,7 @@ enum ConnectionStatus {
 }
 
 enum ActivityActionType {
+  agent_created
   vault_read
   vault_write
   api_callback

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Activity, Bot, Database, FileSearch, KeyRound, Radio, ShieldCheck, Zap } from "lucide-react";
 import { apiGet, apiPost } from "./api/client";
 import type { ActivityLog, Agent, HitlRequest, VaultDocument, VaultSchema } from "./api/types";
@@ -6,6 +6,15 @@ import { StatusPill } from "./components/StatusPill";
 
 type RealtimeEvent = { type: string; payload: unknown };
 type SectionId = "agents" | "vault" | "clearance" | "activity";
+type AgentDraft = {
+  name: string;
+  category: string;
+  apiProtocol: string;
+  description: string;
+  tools: string[];
+  requestedSchemas: string[];
+  highRiskActionsText: string;
+};
 
 const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
   { id: "agents", label: "Agents", icon: Bot },
@@ -13,6 +22,30 @@ const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
   { id: "clearance", label: "Access Clearance", icon: KeyRound },
   { id: "activity", label: "Activity Log", icon: Activity }
 ];
+
+const categoryOptions = ["Financial", "Executive", "Wellness", "Domestic", "Legal", "Travel", "Maintenance", "Custom"];
+const toolOptions = ["vault.search", "action.execute", "calendar.read", "email.draft", "web.fetch"];
+
+const initialAgentDraft: AgentDraft = {
+  name: "",
+  category: "Custom",
+  apiProtocol: "MCP",
+  description: "",
+  tools: ["vault.search"],
+  requestedSchemas: [],
+  highRiskActionsText: ""
+};
+
+function toggleListValue(values: string[], value: string) {
+  return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+}
+
+function parseHighRiskActions(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
 
 export function App() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -24,6 +57,10 @@ export function App() {
   const [connectionState, setConnectionState] = useState("connecting");
   const [toolResult, setToolResult] = useState<string>("No tool call executed yet.");
   const [activeSection, setActiveSection] = useState<SectionId>("agents");
+  const [isAddingAgent, setIsAddingAgent] = useState(false);
+  const [agentDraft, setAgentDraft] = useState<AgentDraft>(initialAgentDraft);
+  const [createAgentError, setCreateAgentError] = useState("");
+  const [isCreatingAgent, setIsCreatingAgent] = useState(false);
 
   async function refresh() {
     const [agentData, schemaData, documentData, logData, hitlData] = await Promise.all([
@@ -105,6 +142,38 @@ export function App() {
     await refresh();
   }
 
+  async function createAgent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCreateAgentError("");
+    setIsCreatingAgent(true);
+    try {
+      const result = await apiPost<{ agent: Agent }>("/api/agents", {
+        name: agentDraft.name,
+        category: agentDraft.category,
+        apiProtocol: agentDraft.apiProtocol,
+        description: agentDraft.description,
+        tools: agentDraft.tools,
+        requestedSchemas: agentDraft.requestedSchemas,
+        highRiskActions: parseHighRiskActions(agentDraft.highRiskActionsText)
+      });
+      setAgentDraft(initialAgentDraft);
+      setIsAddingAgent(false);
+      setSelectedAgentId(result.agent.id);
+      setToolResult(JSON.stringify({ agent: result.agent, status: "created" }, null, 2));
+      await refresh();
+      setSelectedAgentId(result.agent.id);
+      scrollToSection("agents");
+    } catch (error) {
+      setCreateAgentError(error instanceof Error ? error.message : "Agent creation failed.");
+    } finally {
+      setIsCreatingAgent(false);
+    }
+  }
+
+  function updateAgentDraft(patch: Partial<AgentDraft>) {
+    setAgentDraft((current) => ({ ...current, ...patch }));
+  }
+
   function scrollToSection(id: SectionId) {
     setActiveSection(id);
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -136,9 +205,102 @@ export function App() {
           </div>
           <div className="topbar-actions">
             <StatusPill tone={connectionState === "live" ? "green" : "amber"}><Radio size={14} /> {connectionState}</StatusPill>
+            <button onClick={() => setIsAddingAgent((current) => !current)} type="button"><Bot size={16} /> Add Agent</button>
             <button onClick={reindexVault}><FileSearch size={16} /> Reindex vault</button>
           </div>
         </header>
+
+        {isAddingAgent ? (
+          <form className="panel add-agent-panel" onSubmit={(event) => void createAgent(event)}>
+            <div className="panel-title">Add Agent</div>
+            <div className="form-grid">
+              <label>
+                <span>Name</span>
+                <input
+                  maxLength={80}
+                  onChange={(event) => updateAgentDraft({ name: event.currentTarget.value })}
+                  placeholder="Portfolio Scout"
+                  required
+                  value={agentDraft.name}
+                />
+              </label>
+              <label>
+                <span>Category</span>
+                <select onChange={(event) => updateAgentDraft({ category: event.currentTarget.value })} value={agentDraft.category}>
+                  {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Protocol</span>
+                <select onChange={(event) => updateAgentDraft({ apiProtocol: event.currentTarget.value })} value={agentDraft.apiProtocol}>
+                  <option value="MCP">MCP</option>
+                  <option value="OpenAPI">OpenAPI</option>
+                </select>
+              </label>
+              <label className="wide-field">
+                <span>Description</span>
+                <textarea
+                  maxLength={500}
+                  minLength={10}
+                  onChange={(event) => updateAgentDraft({ description: event.currentTarget.value })}
+                  placeholder="Summarizes portfolio context and flags spending decisions for approval."
+                  required
+                  rows={3}
+                  value={agentDraft.description}
+                />
+              </label>
+            </div>
+
+            <div className="choice-grid">
+              <fieldset>
+                <legend>Tools</legend>
+                {toolOptions.map((tool) => (
+                  <label className="choice-row" key={tool}>
+                    <input
+                      checked={agentDraft.tools.includes(tool)}
+                      onChange={() => updateAgentDraft({ tools: toggleListValue(agentDraft.tools, tool) })}
+                      type="checkbox"
+                    />
+                    <span>{tool}</span>
+                  </label>
+                ))}
+              </fieldset>
+              <fieldset>
+                <legend>Requested Vault Schemas</legend>
+                {schemas.map((schema) => (
+                  <label className="choice-row" key={schema.id}>
+                    <input
+                      checked={agentDraft.requestedSchemas.includes(schema.name)}
+                      onChange={() => updateAgentDraft({ requestedSchemas: toggleListValue(agentDraft.requestedSchemas, schema.name) })}
+                      type="checkbox"
+                    />
+                    <span>{schema.name}</span>
+                  </label>
+                ))}
+              </fieldset>
+              <label className="risk-field">
+                <span>High-Risk Actions</span>
+                <textarea
+                  onChange={(event) => updateAgentDraft({ highRiskActionsText: event.currentTarget.value })}
+                  placeholder="transfer_funds, book_non_refundable_travel"
+                  rows={4}
+                  value={agentDraft.highRiskActionsText}
+                />
+              </label>
+            </div>
+
+            <div className="review-strip">
+              <div><strong>Connection</strong><span>restricted</span></div>
+              <div><strong>Vault access</strong><span>{agentDraft.requestedSchemas.length} requested, 0 granted</span></div>
+              <div><strong>Actions</strong><span>{parseHighRiskActions(agentDraft.highRiskActionsText).length} high-risk</span></div>
+            </div>
+            {createAgentError ? <p className="error-text">{createAgentError}</p> : null}
+            <div className="button-row">
+              <button disabled={isCreatingAgent} type="submit"><Bot size={16} /> {isCreatingAgent ? "Creating..." : "Create agent"}</button>
+              <button onClick={() => setIsAddingAgent(false)} type="button">Cancel</button>
+            </div>
+          </form>
+        ) : null}
 
         <section className="grid">
           <div className="panel agent-list" id="agents">
