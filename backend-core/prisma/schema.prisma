@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum AgentCategory {
+  Financial
+  Executive
+  Wellness
+  Domestic
+  Legal
+  Travel
+  Maintenance
+}
+
+enum ApiProtocol {
+  OpenAPI
+  MCP
+}
+
+enum PermissionType {
+  read
+  write
+  execute_action
+}
+
+enum ConnectionStatus {
+  active
+  restricted
+  revoked
+}
+
+enum ActivityActionType {
+  vault_read
+  vault_write
+  api_callback
+  execution_triggered
+  permission_requested
+  hitl_requested
+  hitl_approved
+  hitl_denied
+  indexing_completed
+}
+
+enum ActivityStatus {
+  success
+  blocked_by_policy
+  pending_human_approval
+  error
+}
+
+enum RiskLevel {
+  low
+  medium
+  high
+}
+
+model User {
+  id                  String           @id @default(cuid())
+  email               String           @unique
+  vaultLocalPath      String           @map("vault_local_path")
+  vaultEncryptionSalt String           @map("vault_encryption_salt")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  connections         UserConnection[]
+  activityLogs        ActivityLog[]
+  vaultDocuments      VaultDocument[]
+  hitlRequests        HitlRequest[]
+
+  @@map("users")
+}
+
+model Agent {
+  id                 String            @id @default(cuid())
+  name               String            @unique
+  category           AgentCategory
+  apiProtocol        ApiProtocol        @map("api_protocol")
+  trustScore         Int               @default(70) @map("trust_score")
+  capabilityManifest String            @map("capability_manifest")
+  permissions        AgentPermission[]
+  connections        UserConnection[]
+  activityLogs       ActivityLog[]
+  hitlRequests       HitlRequest[]
+
+  @@map("agents")
+}
+
+model VaultSchema {
+  id                 String            @id @default(cuid())
+  name               String            @unique
+  description        String
+  structuralTemplate String            @map("structural_template")
+  permissions        AgentPermission[]
+  documents          VaultDocument[]
+
+  @@map("vault_schemas")
+}
+
+model AgentPermission {
+  id               String         @id @default(cuid())
+  agentId          String         @map("agent_id")
+  vaultSchemaId    String?        @map("vault_schema_id")
+  permissionType   PermissionType @map("permission_type")
+  restrictionRules String         @map("restriction_rules")
+  expiresAt        DateTime?      @map("expires_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  agent            Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  vaultSchema      VaultSchema?   @relation(fields: [vaultSchemaId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, vaultSchemaId, permissionType])
+  @@map("agent_permissions")
+}
+
+model UserConnection {
+  id               String           @id @default(cuid())
+  userId           String           @map("user_id")
+  agentId          String           @map("agent_id")
+  connectionStatus ConnectionStatus @default(restricted) @map("connection_status")
+  tokenExpiresAt   DateTime?        @map("token_expires_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent            Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agentId])
+  @@map("user_connections")
+}
+
+model VaultDocument {
+  id             String       @id @default(cuid())
+  userId         String       @map("user_id")
+  vaultSchemaId  String?      @map("vault_schema_id")
+  title          String
+  relativePath   String       @unique @map("relative_path")
+  contentHash    String       @map("content_hash")
+  frontmatter    String
+  excerpt        String
+  vectorProvider String       @map("vector_provider")
+  embedding      String
+  indexedAt      DateTime     @default(now()) @map("indexed_at")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vaultSchema    VaultSchema? @relation(fields: [vaultSchemaId], references: [id], onDelete: SetNull)
+
+  @@index([userId, vaultSchemaId])
+  @@map("vault_documents")
+}
+
+model ActivityLog {
+  id              String             @id @default(cuid())
+  userId          String             @map("user_id")
+  agentId         String?            @map("agent_id")
+  actionType      ActivityActionType @map("action_type")
+  status          ActivityStatus
+  dataAccessed    String?            @map("data_accessed")
+  dynamicMetadata String             @map("dynamic_metadata")
+  hash            String
+  previousHash    String?            @map("previous_hash")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent           Agent?             @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([userId, agentId, createdAt])
+  @@map("activity_logs")
+}
+
+model HitlRequest {
+  id             String         @id @default(cuid())
+  userId         String         @map("user_id")
+  agentId        String         @map("agent_id")
+  actionName     String         @map("action_name")
+  riskLevel      RiskLevel      @default(high) @map("risk_level")
+  payload        String
+  status         ActivityStatus @default(pending_human_approval)
+  expiresAt      DateTime       @map("expires_at")
+  decidedAt      DateTime?      @map("decided_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent          Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([userId, agentId, status])
+  @@map("hitl_requests")
+}

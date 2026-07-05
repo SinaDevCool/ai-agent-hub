@@ -1,0 +1,23 @@
+import dotenv from "dotenv";
+import path from "node:path";
+import { z } from "zod";
+
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
+const schema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  PORT: z.coerce.number().int().positive().default(4141),
+  DATABASE_URL: z.string().min(1),
+  FRONTEND_ORIGIN: z.string().url().default("http://localhost:5173"),
+  VAULT_LOCAL_PATH: z.string().min(1).default("./vault-samples/personal-vault"),
+  VAULT_ENCRYPTION_KEY: z.string().min(24),
+  SYNC_MODE: z.enum(["local", "self_hosted", "encrypted_cloud_backup"]).default("local"),
+  LOG_LEVEL: z.string().default("info"),
+  EMBEDDING_PROVIDER: z.enum(["local-hash", "ollama"]).default("local-hash"),
+  OLLAMA_EMBEDDING_URL: z.string().url().default("http://localhost:11434/api/embeddings"),
+  OLLAMA_EMBEDDING_MODEL: z.string().default("nomic-embed-text")
+});
+
+export const env = schema.parse(process.env);
+
+export const resolvedVaultPath = path.resolve(process.cwd(), env.VAULT_LOCAL_PATH);
