@@ -8,7 +8,15 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4141),
   DATABASE_URL: z.string().min(1),
-  FRONTEND_ORIGIN: z.string().url().default("http://localhost:5173"),
+  FRONTEND_ORIGIN: z.string().refine(
+    (value) =>
+      value
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+        .every((origin) => z.string().url().safeParse(origin).success),
+    "FRONTEND_ORIGIN must be one or more comma-separated URLs"
+  ).default("http://localhost:5173"),
   VAULT_LOCAL_PATH: z.string().min(1).default("./vault-samples/personal-vault"),
   VAULT_ENCRYPTION_KEY: z.string().min(24),
   SYNC_MODE: z.enum(["local", "self_hosted", "encrypted_cloud_backup"]).default("local"),
