@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { Activity, Bot, Database, FileSearch, KeyRound, Radio, ShieldCheck, Zap } from "lucide-react";
-import { apiGet, apiPost } from "./api/client";
+import { Activity, Bot, Database, FileSearch, KeyRound, LogOut, Mail, Radio, ShieldCheck, Zap } from "lucide-react";
+import { apiGet, apiPost, setApiAccessToken } from "./api/client";
+import { isAuthConfigured, supabase, type AuthSession } from "./api/supabaseClient";
 import type { ActivityLog, Agent, HitlRequest, VaultDocument, VaultSchema } from "./api/types";
 import { StatusPill } from "./components/StatusPill";
 
@@ -49,6 +50,11 @@ function parseHighRiskActions(value: string) {
 }
 
 export function App() {
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(isAuthConfigured);
+  const [email, setEmail] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+  const [isSendingMagicLink, setIsSendingMagicLink] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [schemas, setSchemas] = useState<VaultSchema[]>([]);
   const [documents, setDocuments] = useState<VaultDocument[]>([]);
@@ -63,6 +69,24 @@ export function App() {
   const [createAgentError, setCreateAgentError] = useState("");
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [grantingSchemaName, setGrantingSchemaName] = useState("");
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    void supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setApiAccessToken(data.session?.access_token);
+      setIsAuthLoading(false);
+    });
+
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setApiAccessToken(nextSession?.access_token);
+      setIsAuthLoading(false);
+    });
+
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   async function refresh() {
     const [agentData, schemaData, documentData, logData, hitlData] = await Promise.all([
@@ -81,6 +105,8 @@ export function App() {
   }
 
   useEffect(() => {
+    if (isAuthConfigured && !session) return;
+
     void refresh();
     const socket = new WebSocket(WS_URL);
     socket.onopen = () => setConnectionState("live");
@@ -90,7 +116,7 @@ export function App() {
       if (["activity.created", "vault.indexed", "hitl.requested"].includes(event.type)) void refresh();
     };
     return () => socket.close();
-  }, []);
+  }, [session]);
 
   const selectedAgent = useMemo(
     () => agents.find((agent) => agent.id === selectedAgentId) ?? agents[0],
@@ -231,6 +257,75 @@ export function App() {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  async function sendMagicLink(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+
+    setAuthMessage("");
+    setIsSendingMagicLink(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin }
+      });
+      if (error) throw error;
+      setAuthMessage("Check your email for the sign-in link.");
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Could not send sign-in link.");
+    } finally {
+      setIsSendingMagicLink(false);
+    }
+  }
+
+  async function signOut() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setApiAccessToken("");
+    setSession(null);
+  }
+
+  if (isAuthConfigured && isAuthLoading) {
+    return (
+      <main className="auth-shell">
+        <section className="auth-panel">
+          <div className="brand-mark"><ShieldCheck size={22} /> AI Agent Hub</div>
+          <h1>Opening your workspace</h1>
+          <p>Checking your private session.</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (isAuthConfigured && !session) {
+    return (
+      <main className="auth-shell">
+        <section className="auth-panel">
+          <div className="brand-mark"><ShieldCheck size={22} /> AI Agent Hub</div>
+          <h1>Sign in to your Personal AI OS</h1>
+          <p>Use a magic link to open your private agent workspace.</p>
+          <form className="auth-form" onSubmit={(event) => void sendMagicLink(event)}>
+            <label>
+              <span>Email</span>
+              <input
+                autoComplete="email"
+                inputMode="email"
+                onChange={(event) => setEmail(event.currentTarget.value)}
+                placeholder="you@example.com"
+                required
+                type="email"
+                value={email}
+              />
+            </label>
+            <button disabled={isSendingMagicLink} type="submit">
+              <Mail size={16} /> {isSendingMagicLink ? "Sending..." : "Send magic link"}
+            </button>
+          </form>
+          {authMessage ? <p className="auth-message">{authMessage}</p> : null}
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <aside className="nav-rail">
@@ -257,8 +352,10 @@ export function App() {
           </div>
           <div className="topbar-actions">
             <StatusPill tone={connectionState === "live" ? "green" : "amber"}><Radio size={14} /> {connectionState}</StatusPill>
+            {session ? <span className="user-chip">{session.user.email}</span> : null}
             <button onClick={() => setIsAddingAgent((current) => !current)} type="button"><Bot size={16} /> Add Agent</button>
             <button onClick={reindexVault}><FileSearch size={16} /> Reindex vault</button>
+            {session ? <button onClick={() => void signOut()} type="button"><LogOut size={16} /> Sign out</button> : null}
           </div>
         </header>
 
