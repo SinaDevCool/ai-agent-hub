@@ -25,6 +25,7 @@ const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
 
 const categoryOptions = ["Financial", "Executive", "Wellness", "Domestic", "Legal", "Travel", "Maintenance", "Custom"];
 const toolOptions = ["vault.search", "action.execute", "calendar.read", "email.draft", "web.fetch"];
+const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:4141/ws`;
 
 const initialAgentDraft: AgentDraft = {
   name: "",
@@ -81,7 +82,7 @@ export function App() {
 
   useEffect(() => {
     void refresh();
-    const socket = new WebSocket(`ws://${window.location.hostname}:4141/ws`);
+    const socket = new WebSocket(WS_URL);
     socket.onopen = () => setConnectionState("live");
     socket.onclose = () => setConnectionState("offline");
     socket.onmessage = (message) => {

@@ -11,9 +11,12 @@
     "lint": "eslint \"src/**/*.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:push": "prisma db push",
+    "db:push:postgres": "prisma db push --schema prisma/schema.postgres.prisma",
     "db:bootstrap": "python scripts/bootstrap_sqlite.py",
     "db:seed": "tsx prisma/seed.ts",
-    "prisma:generate": "prisma generate"
+    "db:seed:postgres": "tsx prisma/seed.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:generate:postgres": "prisma generate --schema prisma/schema.postgres.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

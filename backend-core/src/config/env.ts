@@ -20,4 +20,8 @@ const schema = z.object({
 
 export const env = schema.parse(process.env);
 
+export const frontendOrigins = env.FRONTEND_ORIGIN.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 export const resolvedVaultPath = path.resolve(process.cwd(), env.VAULT_LOCAL_PATH);

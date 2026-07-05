@@ -2,7 +2,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
-import { env } from "./config/env.js";
+import { frontendOrigins } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { requestContext } from "./middleware/requestContext.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -17,7 +17,7 @@ import { hitlRoutes } from "./routes/hitlRoutes.js";
 export function createApp() {
   const app = express();
   app.use(helmet());
-  app.use(cors({ origin: env.FRONTEND_ORIGIN, credentials: true }));
+  app.use(cors({ origin: frontendOrigins, credentials: true }));
   app.use(express.json({ limit: "1mb" }));
   app.use(pinoHttp({ logger }));
   app.use(requestContext);

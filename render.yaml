@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: ai-agent-hub-api
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm --workspace backend-core run prisma:generate:postgres && npm --workspace backend-core run db:push:postgres && npm --workspace backend-core run db:seed:postgres && npm --workspace backend-core run build
+    startCommand: npm --workspace backend-core run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4141
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: VAULT_LOCAL_PATH
+        value: ./vault-samples/personal-vault
+      - key: VAULT_ENCRYPTION_KEY
+        sync: false
+      - key: SYNC_MODE
+        value: local
+      - key: LOG_LEVEL
+        value: info
+      - key: EMBEDDING_PROVIDER
+        value: local-hash
