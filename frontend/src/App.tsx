@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { Activity, Bot, Database, FileSearch, KeyRound, LogOut, Mail, Radio, ShieldCheck, Zap } from "lucide-react";
+import { Activity, Bot, Database, FilePlus, FileSearch, KeyRound, LogOut, Mail, Radio, ShieldCheck, Zap } from "lucide-react";
 import { apiGet, apiPost, setApiAccessToken } from "./api/client";
 import { isAuthConfigured, supabase, type AuthSession } from "./api/supabaseClient";
 import type { ActivityLog, Agent, HitlRequest, VaultDocument, VaultSchema } from "./api/types";
@@ -15,6 +15,11 @@ type AgentDraft = {
   tools: string[];
   requestedSchemas: string[];
   highRiskActionsText: string;
+};
+type VaultItemDraft = {
+  title: string;
+  vaultSchemaId: string;
+  content: string;
 };
 
 const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
@@ -36,6 +41,11 @@ const initialAgentDraft: AgentDraft = {
   tools: ["vault.search"],
   requestedSchemas: [],
   highRiskActionsText: ""
+};
+const initialVaultItemDraft: VaultItemDraft = {
+  title: "",
+  vaultSchemaId: "",
+  content: ""
 };
 
 function toggleListValue(values: string[], value: string) {
@@ -69,6 +79,10 @@ export function App() {
   const [createAgentError, setCreateAgentError] = useState("");
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [grantingSchemaName, setGrantingSchemaName] = useState("");
+  const [isAddingVaultItem, setIsAddingVaultItem] = useState(false);
+  const [vaultItemDraft, setVaultItemDraft] = useState<VaultItemDraft>(initialVaultItemDraft);
+  const [isCreatingVaultItem, setIsCreatingVaultItem] = useState(false);
+  const [createVaultItemError, setCreateVaultItemError] = useState("");
 
   useEffect(() => {
     if (!supabase) return;
@@ -214,6 +228,28 @@ export function App() {
     await refresh();
   }
 
+  async function createVaultItem(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCreateVaultItemError("");
+    setIsCreatingVaultItem(true);
+    try {
+      const result = await apiPost<{ document: VaultDocument }>("/api/vault/documents", {
+        title: vaultItemDraft.title,
+        vaultSchemaId: vaultItemDraft.vaultSchemaId || null,
+        content: vaultItemDraft.content
+      });
+      setVaultItemDraft(initialVaultItemDraft);
+      setIsAddingVaultItem(false);
+      setToolResult(JSON.stringify({ status: "vault_item_created", document: result.document }, null, 2));
+      await refresh();
+      scrollToSection("vault");
+    } catch (error) {
+      setCreateVaultItemError(error instanceof Error ? error.message : "Vault item creation failed.");
+    } finally {
+      setIsCreatingVaultItem(false);
+    }
+  }
+
   async function decideHitl(id: string, approved: boolean) {
     const result = await apiPost(`/api/hitl/${id}/decision`, { approved });
     setToolResult(JSON.stringify(result, null, 2));
@@ -250,6 +286,10 @@ export function App() {
 
   function updateAgentDraft(patch: Partial<AgentDraft>) {
     setAgentDraft((current) => ({ ...current, ...patch }));
+  }
+
+  function updateVaultItemDraft(patch: Partial<VaultItemDraft>) {
+    setVaultItemDraft((current) => ({ ...current, ...patch }));
   }
 
   function scrollToSection(id: SectionId) {
@@ -354,6 +394,7 @@ export function App() {
             <StatusPill tone={connectionState === "live" ? "green" : "amber"}><Radio size={14} /> {connectionState}</StatusPill>
             {session ? <span className="user-chip">{session.user.email}</span> : null}
             <button onClick={() => setIsAddingAgent((current) => !current)} type="button"><Bot size={16} /> Add Agent</button>
+            <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Vault Item</button>
             <button onClick={reindexVault}><FileSearch size={16} /> Reindex vault</button>
             {session ? <button onClick={() => void signOut()} type="button"><LogOut size={16} /> Sign out</button> : null}
           </div>
@@ -447,6 +488,53 @@ export function App() {
             <div className="button-row">
               <button disabled={isCreatingAgent} type="submit"><Bot size={16} /> {isCreatingAgent ? "Creating..." : "Create agent"}</button>
               <button onClick={() => setIsAddingAgent(false)} type="button">Cancel</button>
+            </div>
+          </form>
+        ) : null}
+
+        {isAddingVaultItem ? (
+          <form className="panel add-vault-panel" onSubmit={(event) => void createVaultItem(event)}>
+            <div className="panel-title">Add Vault Item</div>
+            <div className="form-grid vault-form-grid">
+              <label>
+                <span>Title</span>
+                <input
+                  maxLength={120}
+                  onChange={(event) => updateVaultItemDraft({ title: event.currentTarget.value })}
+                  placeholder="Travel meal preferences"
+                  required
+                  value={vaultItemDraft.title}
+                />
+              </label>
+              <label>
+                <span>Schema</span>
+                <select
+                  onChange={(event) => updateVaultItemDraft({ vaultSchemaId: event.currentTarget.value })}
+                  value={vaultItemDraft.vaultSchemaId}
+                >
+                  <option value="">Uncategorized</option>
+                  {schemas.map((schema) => <option key={schema.id} value={schema.id}>{schema.name}</option>)}
+                </select>
+              </label>
+              <label className="wide-field">
+                <span>Content</span>
+                <textarea
+                  maxLength={5000}
+                  minLength={10}
+                  onChange={(event) => updateVaultItemDraft({ content: event.currentTarget.value })}
+                  placeholder="I prefer aisle seats, vegetarian meals, and Star Alliance when possible."
+                  required
+                  rows={4}
+                  value={vaultItemDraft.content}
+                />
+              </label>
+            </div>
+            {createVaultItemError ? <p className="error-text">{createVaultItemError}</p> : null}
+            <div className="button-row">
+              <button disabled={isCreatingVaultItem} type="submit">
+                <FilePlus size={16} /> {isCreatingVaultItem ? "Saving..." : "Save vault item"}
+              </button>
+              <button onClick={() => setIsAddingVaultItem(false)} type="button">Cancel</button>
             </div>
           </form>
         ) : null}

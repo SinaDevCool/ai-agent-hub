@@ -213,7 +213,8 @@ small {
   align-items: start;
 }
 
-.add-agent-panel {
+.add-agent-panel,
+.add-vault-panel {
   margin-bottom: 14px;
 }
 
@@ -284,6 +285,10 @@ legend {
 
 .wide-field {
   grid-column: 1 / -1;
+}
+
+.vault-form-grid {
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 0.8fr);
 }
 
 .choice-grid {

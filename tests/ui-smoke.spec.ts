@@ -25,9 +25,20 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Access Clearance" })).toHaveClass(/nav-active/);
   await expect(page.locator("#clearance").getByText("Financial Preferences", { exact: true })).toBeVisible();
 
+  const vaultTitle = `Smoke Vault Item ${Date.now()}`;
+  await page.getByRole("button", { name: "Add Vault Item" }).click();
+  const addVaultForm = page.locator(".add-vault-panel");
+  await expect(addVaultForm).toBeVisible();
+  await addVaultForm.getByLabel("Title").fill(vaultTitle);
+  await addVaultForm.getByLabel("Schema").selectOption({ label: "Financial Preferences" });
+  await addVaultForm.getByLabel("Content").fill("Smoke test preference: use the low-risk card and require approval above 250 dollars.");
+  await addVaultForm.getByRole("button", { name: "Save vault item" }).click();
+  await expect(page.locator("#vault").getByText(vaultTitle, { exact: true })).toBeVisible();
+
   await page.getByRole("button", { name: "Activity Log" }).click();
   await expect(page.getByRole("button", { name: "Activity Log" })).toHaveClass(/nav-active/);
   await expect(page.getByText("Cryptographic Activity Log")).toBeVisible();
+  await expect(page.locator(".audit-panel")).toContainText("vault_write");
 
   await page.getByRole("button", { name: "Agents" }).click();
   await expect(page.getByRole("button", { name: "Agents" })).toHaveClass(/nav-active/);
