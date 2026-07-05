@@ -10,10 +10,12 @@ This setup keeps the backend real while staying on free tiers:
 
 Create a new Supabase project for AI Agent Hub.
 
-Copy two connection strings:
+Copy two connection strings. For this project, your Supabase connection templates are:
 
-- `DATABASE_URL`: Supabase pooled connection string
-- `DIRECT_URL`: Supabase direct connection string
+```text
+DATABASE_URL=postgresql://postgres.gpcdbncuoukyqdjblnhr:<YOUR_SUPABASE_DB_PASSWORD>@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres.gpcdbncuoukyqdjblnhr:<YOUR_SUPABASE_DB_PASSWORD>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+```
 
 Keep the password private. Do not commit either URL.
 
@@ -33,8 +35,8 @@ Environment variables:
 ```text
 NODE_ENV=production
 PORT=4141
-DATABASE_URL=<supabase pooled connection string>
-DIRECT_URL=<supabase direct connection string>
+DATABASE_URL=postgresql://postgres.gpcdbncuoukyqdjblnhr:<YOUR_SUPABASE_DB_PASSWORD>@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres.gpcdbncuoukyqdjblnhr:<YOUR_SUPABASE_DB_PASSWORD>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
 FRONTEND_ORIGIN=<cloudflare pages url>
 VAULT_LOCAL_PATH=./vault-samples/personal-vault
 VAULT_ENCRYPTION_KEY=<32+ character random secret>
