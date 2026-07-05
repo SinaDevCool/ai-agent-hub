@@ -18,18 +18,25 @@ const createAgentSchema = z.object({
   highRiskActions: z.array(z.string().trim().min(1).max(120)).max(12).default([])
 });
 
-agentRoutes.get("/", async (_req, res) => {
+agentRoutes.get("/", async (req, res) => {
   const agents = await prisma.agent.findMany({
-    include: { permissions: { include: { vaultSchema: true } }, connections: true },
+    where: { connections: { some: { userId: req.userId } } },
+    include: {
+      permissions: { where: { userId: req.userId }, include: { vaultSchema: true } },
+      connections: { where: { userId: req.userId } }
+    },
     orderBy: { name: "asc" }
   });
   res.json({ agents: agents.map(serializeAgent) });
 });
 
 agentRoutes.get("/:id", async (req, res) => {
-  const agent = await prisma.agent.findUnique({
-    where: { id: req.params.id },
-    include: { permissions: { include: { vaultSchema: true } }, connections: true }
+  const agent = await prisma.agent.findFirst({
+    where: { id: req.params.id, connections: { some: { userId: req.userId } } },
+    include: {
+      permissions: { where: { userId: req.userId }, include: { vaultSchema: true } },
+      connections: { where: { userId: req.userId } }
+    }
   });
   if (!agent) return res.status(404).json({ error: { message: "Agent not found" } });
   res.json({ agent: serializeAgent(agent) });
@@ -40,7 +47,13 @@ agentRoutes.post("/", async (req, res) => {
   const userId = req.userId;
   const input = createAgentSchema.parse(req.body);
   const existing = await prisma.agent.findUnique({ where: { name: input.name }, select: { id: true } });
-  if (existing) return res.status(409).json({ error: { message: "An agent with that name already exists" } });
+  if (existing) {
+    const existingConnection = await prisma.userConnection.findUnique({
+      where: { userId_agentId: { userId, agentId: existing.id } },
+      select: { id: true }
+    });
+    if (existingConnection) return res.status(409).json({ error: { message: "An agent with that name already exists" } });
+  }
 
   const schemas = await prisma.vaultSchema.findMany({
     where: { name: { in: input.requestedSchemas } },
@@ -61,21 +74,27 @@ agentRoutes.post("/", async (req, res) => {
   };
 
   const agent = await prisma.$transaction(async (tx) => {
-    return tx.agent.create({
+    const record = existing
+      ? await tx.agent.findUniqueOrThrow({ where: { id: existing.id } })
+      : await tx.agent.create({
       data: {
         name: input.name,
         category: input.category,
         apiProtocol: input.apiProtocol,
         trustScore: input.trustScore,
-        capabilityManifest: encodeJson(capabilityManifest),
-        connections: {
-          create: {
-            userId,
-            connectionStatus: "restricted",
-            tokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-          }
-        }
-      },
+        capabilityManifest: encodeJson(capabilityManifest)
+      }
+    });
+    await tx.userConnection.create({
+      data: {
+        userId,
+        agentId: record.id,
+        connectionStatus: "restricted",
+        tokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }
+    });
+    return tx.agent.findUniqueOrThrow({
+      where: { id: record.id },
       include: { permissions: { include: { vaultSchema: true } }, connections: true }
     });
   });

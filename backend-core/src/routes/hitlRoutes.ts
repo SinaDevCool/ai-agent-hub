@@ -17,6 +17,7 @@ hitlRoutes.get("/", async (req, res) => {
 
 hitlRoutes.post("/:id/decision", async (req, res) => {
   const input = z.object({ approved: z.boolean() }).parse(req.body);
-  const request = await decideHitlRequest(req.params.id, input.approved);
+  if (!req.userId) return res.status(401).json({ error: { message: "No user context" } });
+  const request = await decideHitlRequest(req.params.id, req.userId, input.approved);
   res.json({ request: serializeHitlRequest(request) });
 });

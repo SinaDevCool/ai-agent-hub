@@ -19,9 +19,16 @@ permissionRoutes.post("/clearance", async (req, res) => {
   if (!req.userId) return res.status(400).json({ error: { message: "No user context available" } });
   const userId = req.userId;
   const input = updateSchema.parse(req.body);
+  const connection = await prisma.userConnection.findUnique({
+    where: { userId_agentId: { userId, agentId: input.agentId } },
+    select: { id: true }
+  });
+  if (!connection) return res.status(404).json({ error: { message: "Agent not connected to this user" } });
+
   if (!input.enabled) {
     await prisma.agentPermission.deleteMany({
       where: {
+        userId,
         agentId: input.agentId,
         vaultSchemaId: input.vaultSchemaId,
         permissionType: input.permissionType
@@ -44,12 +51,14 @@ permissionRoutes.post("/clearance", async (req, res) => {
   const existing = await prisma.agentPermission.findFirst({
     where: {
       agentId: input.agentId,
+      userId,
       vaultSchemaId: input.vaultSchemaId,
       permissionType: input.permissionType
     }
   });
   const data = {
     agentId: input.agentId,
+    userId,
     vaultSchemaId: input.vaultSchemaId,
     permissionType: input.permissionType,
     restrictionRules: encodeJson(input.restrictionRules),

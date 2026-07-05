@@ -68,6 +68,7 @@ model User {
   vaultEncryptionSalt String           @map("vault_encryption_salt")
   createdAt           DateTime         @default(now()) @map("created_at")
   connections         UserConnection[]
+  permissions         AgentPermission[]
   activityLogs        ActivityLog[]
   vaultDocuments      VaultDocument[]
   hitlRequests        HitlRequest[]
@@ -103,16 +104,18 @@ model VaultSchema {
 
 model AgentPermission {
   id               String         @id @default(cuid())
+  userId           String?        @map("user_id")
   agentId          String         @map("agent_id")
   vaultSchemaId    String?        @map("vault_schema_id")
   permissionType   PermissionType @map("permission_type")
   restrictionRules String         @map("restriction_rules")
   expiresAt        DateTime?      @map("expires_at")
   createdAt        DateTime       @default(now()) @map("created_at")
+  user             User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   agent            Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
   vaultSchema      VaultSchema?   @relation(fields: [vaultSchemaId], references: [id], onDelete: Cascade)
 
-  @@index([agentId, vaultSchemaId, permissionType])
+  @@index([userId, agentId, vaultSchemaId, permissionType])
   @@map("agent_permissions")
 }
 
@@ -136,7 +139,7 @@ model VaultDocument {
   userId         String       @map("user_id")
   vaultSchemaId  String?      @map("vault_schema_id")
   title          String
-  relativePath   String       @unique @map("relative_path")
+  relativePath   String       @map("relative_path")
   contentHash    String       @map("content_hash")
   frontmatter    String
   excerpt        String
@@ -147,6 +150,7 @@ model VaultDocument {
   vaultSchema    VaultSchema? @relation(fields: [vaultSchemaId], references: [id], onDelete: SetNull)
 
   @@index([userId, vaultSchemaId])
+  @@index([userId, relativePath])
   @@map("vault_documents")
 }
 

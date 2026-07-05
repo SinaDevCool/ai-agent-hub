@@ -31,6 +31,7 @@ export async function evaluateVaultPermission(input: {
   const permission = await prisma.agentPermission.findFirst({
     where: {
       agentId: input.agentId,
+      userId: input.userId,
       permissionType: input.permissionType,
       OR: [{ vaultSchemaId: input.vaultSchemaId ?? undefined }, { vaultSchemaId: null }]
     }

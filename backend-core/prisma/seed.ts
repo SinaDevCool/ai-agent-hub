@@ -154,6 +154,7 @@ async function main() {
     const requestedSchemas = agentData.capabilityManifest.requestedSchemas as string[];
     for (const schemaName of requestedSchemas) {
       await ensurePermission({
+        userId: user.id,
         agentId: agent.id,
         vaultSchemaId: schemaRecords.get(schemaName) ?? null,
         permissionType: "read",
@@ -162,6 +163,7 @@ async function main() {
       });
     }
     await ensurePermission({
+      userId: user.id,
       agentId: agent.id,
       vaultSchemaId: null,
       permissionType: "execute_action",
@@ -172,6 +174,7 @@ async function main() {
 }
 
 async function ensurePermission(input: {
+  userId: string;
   agentId: string;
   vaultSchemaId: string | null;
   permissionType: "read" | "write" | "execute_action";
@@ -180,6 +183,7 @@ async function ensurePermission(input: {
 }) {
   const existing = await prisma.agentPermission.findFirst({
     where: {
+      userId: input.userId,
       agentId: input.agentId,
       vaultSchemaId: input.vaultSchemaId,
       permissionType: input.permissionType

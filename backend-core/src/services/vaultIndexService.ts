@@ -13,9 +13,11 @@ export async function indexVaultFile(filePath: string, userId: string) {
     ? await prisma.vaultSchema.findUnique({ where: { name: parsed.schemaName } })
     : null;
   const embedding = await embedText(`${parsed.title}\n${JSON.stringify(parsed.frontmatter)}\n${parsed.body}`);
-  const document = await prisma.vaultDocument.upsert({
-    where: { relativePath: parsed.relativePath },
-    update: {
+  const existing = await prisma.vaultDocument.findFirst({
+    where: { userId, relativePath: parsed.relativePath },
+    select: { id: true }
+  });
+  const data = {
       title: parsed.title,
       contentHash: parsed.contentHash,
       frontmatter: encodeJson(parsed.frontmatter),
@@ -24,17 +26,14 @@ export async function indexVaultFile(filePath: string, userId: string) {
       embedding: encodeJson(embedding.vector),
       vaultSchemaId: schema?.id ?? null,
       indexedAt: new Date()
-    },
-    create: {
+  };
+  const document = existing
+    ? await prisma.vaultDocument.update({ where: { id: existing.id }, data })
+    : await prisma.vaultDocument.create({
+      data: {
       userId,
-      title: parsed.title,
       relativePath: parsed.relativePath,
-      contentHash: parsed.contentHash,
-      frontmatter: encodeJson(parsed.frontmatter),
-      excerpt: parsed.excerpt,
-      vectorProvider: embedding.provider,
-      embedding: encodeJson(embedding.vector),
-      vaultSchemaId: schema?.id ?? null
+      ...data
     }
   });
   realtimeHub.broadcast({ type: "vault.indexed", payload: serializeVaultDocument(document) });

@@ -5,6 +5,7 @@ import { pinoHttp } from "pino-http";
 import { frontendOrigins } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { requestContext } from "./middleware/requestContext.js";
+import { requireUser } from "./middleware/requireUser.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { healthRoutes } from "./routes/healthRoutes.js";
 import { agentRoutes } from "./routes/agentRoutes.js";
@@ -20,9 +21,10 @@ export function createApp() {
   app.use(cors({ origin: frontendOrigins, credentials: true }));
   app.use(express.json({ limit: "1mb" }));
   app.use(pinoHttp({ logger }));
-  app.use(requestContext);
 
   app.use("/health", healthRoutes);
+  app.use(requestContext);
+  app.use("/api", requireUser);
   app.use("/api/agents", agentRoutes);
   app.use("/api/vault", vaultRoutes);
   app.use("/api/permissions", permissionRoutes);

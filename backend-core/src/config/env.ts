@@ -23,7 +23,16 @@ const schema = z.object({
   LOG_LEVEL: z.string().default("info"),
   EMBEDDING_PROVIDER: z.enum(["local-hash", "ollama"]).default("local-hash"),
   OLLAMA_EMBEDDING_URL: z.string().url().default("http://localhost:11434/api/embeddings"),
-  OLLAMA_EMBEDDING_MODEL: z.string().default("nomic-embed-text")
+  OLLAMA_EMBEDDING_MODEL: z.string().default("nomic-embed-text"),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_ANON_KEY: z.string().min(1).optional()
+}).superRefine((value, context) => {
+  if (value.NODE_ENV === "production" && (!value.SUPABASE_URL || !value.SUPABASE_ANON_KEY)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "SUPABASE_URL and SUPABASE_ANON_KEY are required in production"
+    });
+  }
 });
 
 export const env = schema.parse(process.env);

@@ -33,13 +33,16 @@ export async function createHitlRequest(input: {
   return request;
 }
 
-export async function decideHitlRequest(id: string, approved: boolean) {
-  const request = await prisma.hitlRequest.update({
-    where: { id },
+export async function decideHitlRequest(id: string, userId: string, approved: boolean) {
+  await prisma.hitlRequest.updateMany({
+    where: { id, userId },
     data: {
       status: approved ? "success" : "blocked_by_policy",
       decidedAt: new Date()
     }
+  });
+  const request = await prisma.hitlRequest.findFirstOrThrow({
+    where: { id, userId }
   });
   await writeActivityLog({
     userId: request.userId,
