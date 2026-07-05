@@ -3,6 +3,7 @@ import {
   Activity,
   Bot,
   Database,
+  Download,
   FilePlus,
   FileSearch,
   KeyRound,
@@ -39,18 +40,98 @@ type VaultItemDraft = {
   vaultSchemaId: string;
   content: string;
 };
+type AgentTemplate = {
+  id: string;
+  title: string;
+  category: string;
+  starterName: string;
+  description: string;
+  tools: string[];
+  requestedSchemas: string[];
+  highRiskActions: string[];
+  summary: string;
+};
 
 const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
-  { id: "agents", label: "Agents", icon: Bot },
-  { id: "vault", label: "Information Vault", icon: Database },
-  { id: "clearance", label: "Access Clearance", icon: KeyRound },
-  { id: "activity", label: "Activity Log", icon: Activity },
+  { id: "agents", label: "AI Agents", icon: Bot },
+  { id: "vault", label: "Personal Info", icon: Database },
+  { id: "clearance", label: "Permissions", icon: KeyRound },
+  { id: "activity", label: "Activity", icon: Activity },
   { id: "settings", label: "Settings", icon: Settings }
 ];
 
 const categoryOptions = ["Financial", "Executive", "Wellness", "Domestic", "Legal", "Travel", "Maintenance", "Custom"];
 const toolOptions = ["vault.search", "action.execute", "calendar.read", "email.draft", "web.fetch"];
 const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:4141/ws`;
+
+const agentTemplates: AgentTemplate[] = [
+  {
+    id: "travel",
+    title: "Travel planner",
+    category: "Travel",
+    starterName: "My Travel Planner",
+    description: "Plans trips using my travel preferences and pauses before non-refundable bookings.",
+    tools: ["vault.search", "action.execute"],
+    requestedSchemas: ["Frequent Flyer Ledger", "Personal Identity Profile"],
+    highRiskActions: ["book_non_refundable_travel"],
+    summary: "Good for flights, hotels, loyalty details, and trip planning."
+  },
+  {
+    id: "money",
+    title: "Money helper",
+    category: "Financial",
+    starterName: "My Money Helper",
+    description: "Checks financial preferences and asks before purchases, transfers, or credit decisions.",
+    tools: ["vault.search", "action.execute"],
+    requestedSchemas: ["Financial Preferences"],
+    highRiskActions: ["transfer_funds", "open_credit_card"],
+    summary: "Good for budgeting, card preferences, and payment guardrails."
+  },
+  {
+    id: "inbox",
+    title: "Inbox assistant",
+    category: "Executive",
+    starterName: "My Inbox Assistant",
+    description: "Drafts replies and helps summarize tasks while asking before anything is sent.",
+    tools: ["vault.search", "email.draft"],
+    requestedSchemas: ["Personal Identity Profile"],
+    highRiskActions: ["send_email", "share_personal_info"],
+    summary: "Good for email drafts, follow-ups, and contact context."
+  },
+  {
+    id: "shopping",
+    title: "Shopping assistant",
+    category: "Domestic",
+    starterName: "My Shopping Assistant",
+    description: "Uses preferences to compare options and asks before buying anything.",
+    tools: ["vault.search", "action.execute"],
+    requestedSchemas: ["Financial Preferences"],
+    highRiskActions: ["buy_item", "share_payment_info"],
+    summary: "Good for shopping decisions without surprise purchases."
+  },
+  {
+    id: "health",
+    title: "Health organizer",
+    category: "Wellness",
+    starterName: "My Health Organizer",
+    description: "Organizes health notes and always asks before sharing sensitive information.",
+    tools: ["vault.search"],
+    requestedSchemas: ["Medical History", "Personal Identity Profile"],
+    highRiskActions: ["share_medical_record"],
+    summary: "Good for organizing private health context with tight controls."
+  },
+  {
+    id: "custom",
+    title: "Custom agent",
+    category: "Custom",
+    starterName: "",
+    description: "",
+    tools: ["vault.search"],
+    requestedSchemas: [],
+    highRiskActions: [],
+    summary: "Start blank and choose access yourself."
+  }
+];
 
 const initialAgentDraft: AgentDraft = {
   name: "",
@@ -78,6 +159,44 @@ function parseHighRiskActions(value: string) {
     .filter(Boolean);
 }
 
+function friendlyToolName(tool: string) {
+  const labels: Record<string, string> = {
+    "vault.search": "Read personal info",
+    "action.execute": "Take actions",
+    "calendar.read": "Read calendar",
+    "email.draft": "Draft email",
+    "web.fetch": "Browse the web"
+  };
+  return labels[tool] ?? tool;
+}
+
+function friendlyActionName(action: string) {
+  return action.replace(/_/g, " ");
+}
+
+function friendlyLogText(log: ActivityLog) {
+  const agent = log.agent?.name ?? "System";
+  if (log.actionType === "vault_read") return `${agent} read personal info`;
+  if (log.actionType === "vault_write") return `${agent} changed personal info`;
+  if (log.actionType === "permission_requested") return log.status === "success" ? `${agent} was granted access` : `${agent} access was revoked or blocked`;
+  if (log.actionType === "execution_triggered") return `${agent} tried to take an action`;
+  if (log.actionType === "agent_created") return `${agent} was added`;
+  if (log.actionType === "indexing_completed") return "Personal info was indexed";
+  return `${agent} activity`;
+}
+
+function friendlyResult(result: Record<string, unknown>) {
+  const status = String(result.status ?? "ok");
+  if (status === "ok" && Array.isArray(result.documents)) return `Found ${result.documents.length} matching personal info item${result.documents.length === 1 ? "" : "s"}.`;
+  if (status === "blocked") return `Blocked: ${String(result.reason ?? "this agent does not have permission.")}`;
+  if (status === "awaiting_human_approval") return "Needs your approval before this action can continue.";
+  if (status === "vault_item_created") return "Personal info saved.";
+  if (status === "vault_item_updated") return "Personal info updated.";
+  if (status === "vault_item_deleted") return "Personal info deleted.";
+  if (status === "vault_file_uploaded") return "File uploaded into Personal Info.";
+  return status.replace(/_/g, " ");
+}
+
 export function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(isAuthConfigured);
@@ -91,9 +210,11 @@ export function App() {
   const [hitl, setHitl] = useState<HitlRequest[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [connectionState, setConnectionState] = useState("connecting");
-  const [toolResult, setToolResult] = useState<string>("No tool call executed yet.");
+  const [toolResult, setToolResult] = useState<string>("No agent action yet.");
   const [activeSection, setActiveSection] = useState<SectionId>("agents");
   const [isAddingAgent, setIsAddingAgent] = useState(false);
+  const [agentWizardStep, setAgentWizardStep] = useState(1);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("travel");
   const [agentDraft, setAgentDraft] = useState<AgentDraft>(initialAgentDraft);
   const [createAgentError, setCreateAgentError] = useState("");
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
@@ -188,6 +309,28 @@ export function App() {
     [permissionReview]
   );
 
+  const privacySummary = useMemo(() => ({
+    account: session?.user.email ?? "Local development user",
+    agents: agents.map((agent) => ({
+      name: agent.name,
+      category: agent.category,
+      canUse: agent.capabilityManifest.tools?.map(friendlyToolName) ?? [],
+      canRead: agent.capabilityManifest.requestedSchemas ?? [],
+      mustAskBefore: agent.capabilityManifest.highRiskActions?.map(friendlyActionName) ?? []
+    })),
+    personalInfo: documents.map((document) => ({
+      title: document.title,
+      category: document.vaultSchema?.name ?? "Uncategorized",
+      summary: document.excerpt
+    })),
+    recentActivity: logs.slice(0, 20).map((log) => ({
+      when: log.createdAt,
+      status: log.status,
+      event: friendlyLogText(log),
+      detail: log.dataAccessed
+    }))
+  }), [agents, documents, logs, session]);
+
   async function togglePermission(schema: VaultSchema, enabled: boolean) {
     if (!selectedAgent) return;
     await apiPost("/api/permissions/clearance", {
@@ -205,7 +348,7 @@ export function App() {
     setGrantingSchemaName(schema.name);
     try {
       await togglePermission(schema, true);
-      setToolResult(JSON.stringify({ status: "permission_granted", schema: schema.name, agent: selectedAgent?.name }, null, 2));
+      setToolResult(`${selectedAgent?.name ?? "This agent"} can now read ${schema.name}.`);
     } finally {
       setGrantingSchemaName("");
     }
@@ -218,11 +361,7 @@ export function App() {
       for (const item of ungrantedRequestedSchemas) {
         if (item.schema) await togglePermission(item.schema, true);
       }
-      setToolResult(JSON.stringify({
-        status: "permissions_granted",
-        schemas: ungrantedRequestedSchemas.map((item) => item.schemaName),
-        agent: selectedAgent?.name
-      }, null, 2));
+      setToolResult(`${selectedAgent?.name ?? "This agent"} can now read ${ungrantedRequestedSchemas.length} approved info categories.`);
     } finally {
       setGrantingSchemaName("");
     }
@@ -235,7 +374,7 @@ export function App() {
       toolName: "vault.search",
       arguments: { query: "travel preferences and approval thresholds", schema: selectedAgent.capabilityManifest.requestedSchemas?.[0] }
     });
-    setToolResult(JSON.stringify(result, null, 2));
+    setToolResult(friendlyResult(result as Record<string, unknown>));
     await refresh();
   }
 
@@ -246,13 +385,13 @@ export function App() {
       toolName: "action.execute",
       arguments: { actionName: "book_non_refundable_travel", amountUsd: 640, destination: "Berlin" }
     });
-    setToolResult(JSON.stringify(result, null, 2));
+    setToolResult(friendlyResult(result as Record<string, unknown>));
     await refresh();
   }
 
   async function reindexVault() {
-    const result = await apiPost("/api/vault/reindex");
-    setToolResult(JSON.stringify(result, null, 2));
+    await apiPost("/api/vault/reindex");
+    setToolResult("Personal info refreshed and indexed.");
     await refresh();
   }
 
@@ -268,7 +407,7 @@ export function App() {
         arguments: { query: searchQuery, schema: schema?.name }
       });
       setSearchResults(result.documents ?? []);
-      setToolResult(JSON.stringify(result, null, 2));
+      setToolResult(friendlyResult(result as Record<string, unknown>));
       await refresh();
     } finally {
       setIsSearchingVault(false);
@@ -290,8 +429,9 @@ export function App() {
         ? { actionName: "book_non_refundable_travel", request: prompt }
         : { query: prompt, schema: selectedAgent.capabilityManifest.requestedSchemas?.[0] }
     });
-    setChatTranscript((current) => [...current, { role: "agent", content: JSON.stringify(result, null, 2) }]);
-    setToolResult(JSON.stringify(result, null, 2));
+    const friendlyMessage = friendlyResult(result);
+    setChatTranscript((current) => [...current, { role: "agent", content: friendlyMessage }]);
+    setToolResult(friendlyMessage);
     await refresh();
   }
 
@@ -307,7 +447,7 @@ export function App() {
       });
       setVaultItemDraft(initialVaultItemDraft);
       setIsAddingVaultItem(false);
-      setToolResult(JSON.stringify({ status: "vault_item_created", document: result.document }, null, 2));
+      setToolResult(`${result.document.title} was saved to Personal Info.`);
       await refresh();
       scrollToSection("vault");
     } catch (error) {
@@ -331,7 +471,7 @@ export function App() {
       setVaultItemDraft(initialVaultItemDraft);
       setEditingDocumentId("");
       setIsAddingVaultItem(false);
-      setToolResult(JSON.stringify({ status: "vault_item_updated", document: result.document }, null, 2));
+      setToolResult(`${result.document.title} was updated.`);
       await refresh();
     } catch (error) {
       setCreateVaultItemError(error instanceof Error ? error.message : "Vault item update failed.");
@@ -355,7 +495,7 @@ export function App() {
     const confirmed = window.confirm(`Delete "${document.title}" from your vault?`);
     if (!confirmed) return;
     await apiDelete(`/api/vault/documents/${document.id}`);
-    setToolResult(JSON.stringify({ status: "vault_item_deleted", documentId: document.id }, null, 2));
+    setToolResult(`${document.title} was deleted from Personal Info.`);
     await refresh();
   }
 
@@ -368,7 +508,7 @@ export function App() {
     input.value = "";
     if (!file) return;
     if (!/(\.txt|\.md)$/i.test(file.name)) {
-      setToolResult(JSON.stringify({ status: "upload_blocked", reason: "Only .txt and .md files are supported in this MVP." }, null, 2));
+      setToolResult("Upload blocked: this MVP supports .txt and .md files.");
       return;
     }
     const content = await file.text();
@@ -377,14 +517,14 @@ export function App() {
       vaultSchemaId: searchSchemaId || null,
       content
     });
-    setToolResult(JSON.stringify({ status: "vault_file_uploaded", document: result.document }, null, 2));
+    setToolResult(`${result.document.title} was uploaded to Personal Info.`);
     await refresh();
     scrollToSection("vault");
   }
 
   async function decideHitl(id: string, approved: boolean) {
-    const result = await apiPost(`/api/hitl/${id}/decision`, { approved });
-    setToolResult(JSON.stringify(result, null, 2));
+    await apiPost(`/api/hitl/${id}/decision`, { approved });
+    setToolResult(approved ? "Approved. The agent can continue this action." : "Denied. The agent cannot continue this action.");
     await refresh();
   }
 
@@ -405,7 +545,7 @@ export function App() {
       setAgentDraft(initialAgentDraft);
       setIsAddingAgent(false);
       setSelectedAgentId(result.agent.id);
-      setToolResult(JSON.stringify({ agent: result.agent, status: "created" }, null, 2));
+      setToolResult(`${result.agent.name} was added. Review its permissions before granting access.`);
       await refresh();
       setSelectedAgentId(result.agent.id);
       scrollToSection("agents");
@@ -418,6 +558,65 @@ export function App() {
 
   function updateAgentDraft(patch: Partial<AgentDraft>) {
     setAgentDraft((current) => ({ ...current, ...patch }));
+  }
+
+  function applyAgentTemplate(template: AgentTemplate) {
+    setSelectedTemplateId(template.id);
+    setAgentDraft({
+      name: template.starterName,
+      category: template.category,
+      apiProtocol: "MCP",
+      description: template.description,
+      tools: template.tools,
+      requestedSchemas: template.requestedSchemas,
+      highRiskActionsText: template.highRiskActions.join(", ")
+    });
+  }
+
+  function openAgentWizard() {
+    const template = agentTemplates.find((item) => item.id === selectedTemplateId) ?? agentTemplates[0];
+    applyAgentTemplate(template);
+    setCreateAgentError("");
+    setAgentWizardStep(1);
+    setIsAddingAgent(true);
+  }
+
+  async function revokeSelectedAgentAccess() {
+    if (!selectedAgent) return;
+    const readPermissions = selectedAgent.permissions.filter((permission) => permission.vaultSchema);
+    for (const permission of readPermissions) {
+      if (permission.vaultSchema) await togglePermission(permission.vaultSchema, false);
+    }
+    setToolResult(`All readable personal info access was revoked for ${selectedAgent.name}.`);
+  }
+
+  async function revokeAllAgentAccess() {
+    for (const agent of agents) {
+      for (const permission of agent.permissions.filter((item) => item.vaultSchema)) {
+        if (permission.vaultSchema) {
+          await apiPost("/api/permissions/clearance", {
+            agentId: agent.id,
+            vaultSchemaId: permission.vaultSchema.id,
+            permissionType: "read",
+            enabled: false,
+            restrictionRules: {}
+          });
+        }
+      }
+    }
+    await refresh();
+    setToolResult("All agent access to Personal Info was revoked.");
+  }
+
+  function exportMyData() {
+    const blob = new window.Blob([JSON.stringify(privacySummary, null, 2)], { type: "application/json" });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "ai-agent-hub-export.json";
+    anchor.click();
+    window.URL.revokeObjectURL(url);
+    setToolResult("Your workspace export was downloaded.");
   }
 
   function updateVaultItemDraft(patch: Partial<VaultItemDraft>) {
@@ -519,110 +718,150 @@ export function App() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <h1>Personal AI Operating System</h1>
-            <p>Local-first vault mediation, MCP proxying, and policy-bound real-world execution.</p>
+            <h1>Your AI Agent Hub</h1>
+            <p>Add AI helpers, choose what they can see, and approve important actions before they happen.</p>
           </div>
           <div className="topbar-actions">
             <StatusPill tone={connectionState === "live" ? "green" : "amber"}><Radio size={14} /> {connectionState}</StatusPill>
             {session ? <span className="user-chip">{session.user.email}</span> : null}
-            <button onClick={() => setIsAddingAgent((current) => !current)} type="button"><Bot size={16} /> Add Agent</button>
-            <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Vault Item</button>
+            <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Agent</button>
+            <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Personal Info</button>
             <label className="upload-button">
               <Upload size={16} /> Upload
               <input accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void uploadVaultFile(event)} type="file" />
             </label>
-            <button onClick={reindexVault}><FileSearch size={16} /> Reindex vault</button>
+            <button onClick={reindexVault}><FileSearch size={16} /> Refresh Info</button>
             {session ? <button onClick={() => void signOut()} type="button"><LogOut size={16} /> Sign out</button> : null}
           </div>
         </header>
 
         {isAddingAgent ? (
           <form className="panel add-agent-panel" onSubmit={(event) => void createAgent(event)}>
-            <div className="panel-title">Add Agent</div>
-            <div className="form-grid">
-              <label>
-                <span>Name</span>
-                <input
-                  maxLength={80}
-                  onChange={(event) => updateAgentDraft({ name: event.currentTarget.value })}
-                  placeholder="Portfolio Scout"
-                  required
-                  value={agentDraft.name}
-                />
-              </label>
-              <label>
-                <span>Category</span>
-                <select onChange={(event) => updateAgentDraft({ category: event.currentTarget.value })} value={agentDraft.category}>
-                  {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
-                </select>
-              </label>
-              <label>
-                <span>Protocol</span>
-                <select onChange={(event) => updateAgentDraft({ apiProtocol: event.currentTarget.value })} value={agentDraft.apiProtocol}>
-                  <option value="MCP">MCP</option>
-                  <option value="OpenAPI">OpenAPI</option>
-                </select>
-              </label>
-              <label className="wide-field">
-                <span>Description</span>
-                <textarea
-                  maxLength={500}
-                  minLength={10}
-                  onChange={(event) => updateAgentDraft({ description: event.currentTarget.value })}
-                  placeholder="Summarizes portfolio context and flags spending decisions for approval."
-                  required
-                  rows={3}
-                  value={agentDraft.description}
-                />
-              </label>
+            <div className="panel-title">Add an AI Agent</div>
+            <div className="wizard-steps" aria-label="Agent setup progress">
+              {[1, 2, 3, 4].map((step) => (
+                <button className={agentWizardStep === step ? "step-active" : ""} key={step} onClick={() => setAgentWizardStep(step)} type="button">
+                  {step}
+                </button>
+              ))}
             </div>
 
-            <div className="choice-grid">
-              <fieldset>
-                <legend>Tools</legend>
-                {toolOptions.map((tool) => (
-                  <label className="choice-row" key={tool}>
-                    <input
-                      checked={agentDraft.tools.includes(tool)}
-                      onChange={() => updateAgentDraft({ tools: toggleListValue(agentDraft.tools, tool) })}
-                      type="checkbox"
-                    />
-                    <span>{tool}</span>
-                  </label>
-                ))}
-              </fieldset>
-              <fieldset>
-                <legend>Requested Vault Schemas</legend>
-                {schemas.map((schema) => (
-                  <label className="choice-row" key={schema.id}>
-                    <input
-                      checked={agentDraft.requestedSchemas.includes(schema.name)}
-                      onChange={() => updateAgentDraft({ requestedSchemas: toggleListValue(agentDraft.requestedSchemas, schema.name) })}
-                      type="checkbox"
-                    />
-                    <span>{schema.name}</span>
-                  </label>
-                ))}
-              </fieldset>
-              <label className="risk-field">
-                <span>High-Risk Actions</span>
-                <textarea
-                  onChange={(event) => updateAgentDraft({ highRiskActionsText: event.currentTarget.value })}
-                  placeholder="transfer_funds, book_non_refundable_travel"
-                  rows={4}
-                  value={agentDraft.highRiskActionsText}
-                />
-              </label>
-            </div>
+            {agentWizardStep === 1 ? (
+              <section className="wizard-page">
+                <h2>What kind of helper do you want?</h2>
+                <div className="template-grid">
+                  {agentTemplates.map((template) => (
+                    <button
+                      className={selectedTemplateId === template.id ? "template-card selected" : "template-card"}
+                      key={template.id}
+                      onClick={() => applyAgentTemplate(template)}
+                      type="button"
+                    >
+                      <strong>{template.title}</strong>
+                      <span>{template.summary}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
-            <div className="review-strip">
-              <div><strong>Connection</strong><span>restricted</span></div>
-              <div><strong>Vault access</strong><span>{agentDraft.requestedSchemas.length} requested, 0 granted</span></div>
-              <div><strong>Actions</strong><span>{parseHighRiskActions(agentDraft.highRiskActionsText).length} high-risk</span></div>
-            </div>
+            {agentWizardStep === 2 ? (
+              <section className="wizard-page">
+                <h2>Name and describe it</h2>
+                <div className="form-grid consumer-form-grid">
+                  <label>
+                    <span>Agent name</span>
+                    <input
+                      maxLength={80}
+                      onChange={(event) => updateAgentDraft({ name: event.currentTarget.value })}
+                      placeholder="My Travel Planner"
+                      required
+                      value={agentDraft.name}
+                    />
+                  </label>
+                  <label>
+                    <span>Agent type</span>
+                    <select onChange={(event) => updateAgentDraft({ category: event.currentTarget.value })} value={agentDraft.category}>
+                      {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+                    </select>
+                  </label>
+                  <label className="wide-field">
+                    <span>What should it help with?</span>
+                    <textarea
+                      maxLength={500}
+                      minLength={10}
+                      onChange={(event) => updateAgentDraft({ description: event.currentTarget.value })}
+                      placeholder="Plans trips using my preferences and asks before booking."
+                      required
+                      rows={3}
+                      value={agentDraft.description}
+                    />
+                  </label>
+                </div>
+              </section>
+            ) : null}
+
+            {agentWizardStep === 3 ? (
+              <section className="wizard-page">
+                <h2>Choose what it can access</h2>
+                <div className="choice-grid consumer-choice-grid">
+                  <fieldset>
+                    <legend>Personal info this agent can request</legend>
+                    {schemas.map((schema) => (
+                      <label className="choice-row" key={schema.id}>
+                        <input
+                          checked={agentDraft.requestedSchemas.includes(schema.name)}
+                          onChange={() => updateAgentDraft({ requestedSchemas: toggleListValue(agentDraft.requestedSchemas, schema.name) })}
+                          type="checkbox"
+                        />
+                        <span>{schema.name}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                  <fieldset>
+                    <legend>Abilities</legend>
+                    {toolOptions.map((tool) => (
+                      <label className="choice-row" key={tool}>
+                        <input
+                          checked={agentDraft.tools.includes(tool)}
+                          onChange={() => updateAgentDraft({ tools: toggleListValue(agentDraft.tools, tool) })}
+                          type="checkbox"
+                        />
+                        <span>{friendlyToolName(tool)}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                </div>
+              </section>
+            ) : null}
+
+            {agentWizardStep === 4 ? (
+              <section className="wizard-page">
+                <h2>Review safety rules</h2>
+                <label className="risk-field">
+                  <span>Must ask before</span>
+                  <textarea
+                    onChange={(event) => updateAgentDraft({ highRiskActionsText: event.currentTarget.value })}
+                    placeholder="book_non_refundable_travel, transfer_funds"
+                    rows={4}
+                    value={agentDraft.highRiskActionsText}
+                  />
+                </label>
+                <div className="review-strip">
+                  <div><strong>Connection</strong><span>Starts restricted</span></div>
+                  <div><strong>Can request</strong><span>{agentDraft.requestedSchemas.length} info categories</span></div>
+                  <div><strong>Must ask before</strong><span>{parseHighRiskActions(agentDraft.highRiskActionsText).length} action types</span></div>
+                </div>
+              </section>
+            ) : null}
+
             {createAgentError ? <p className="error-text">{createAgentError}</p> : null}
             <div className="button-row">
-              <button disabled={isCreatingAgent} type="submit"><Bot size={16} /> {isCreatingAgent ? "Creating..." : "Create agent"}</button>
+              {agentWizardStep > 1 ? <button onClick={() => setAgentWizardStep((step) => step - 1)} type="button">Back</button> : null}
+              {agentWizardStep < 4 ? <button onClick={() => setAgentWizardStep((step) => step + 1)} type="button">Next</button> : null}
+              {agentWizardStep === 4 ? (
+                <button disabled={isCreatingAgent} type="submit"><Bot size={16} /> {isCreatingAgent ? "Adding..." : "Add agent"}</button>
+              ) : null}
               <button onClick={() => setIsAddingAgent(false)} type="button">Cancel</button>
             </div>
           </form>
@@ -630,7 +869,7 @@ export function App() {
 
         {isAddingVaultItem ? (
           <form className="panel add-vault-panel" onSubmit={(event) => editingDocumentId ? void saveVaultEdit(event) : void createVaultItem(event)}>
-            <div className="panel-title">{editingDocumentId ? "Edit Vault Item" : "Add Vault Item"}</div>
+            <div className="panel-title">{editingDocumentId ? "Edit Personal Info" : "Add Personal Info"}</div>
             <div className="form-grid vault-form-grid">
               <label>
                 <span>Title</span>
@@ -643,7 +882,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span>Schema</span>
+                <span>Category</span>
                 <select
                   onChange={(event) => updateVaultItemDraft({ vaultSchemaId: event.currentTarget.value })}
                   value={vaultItemDraft.vaultSchemaId}
@@ -653,7 +892,7 @@ export function App() {
                 </select>
               </label>
               <label className="wide-field">
-                <span>Content</span>
+                <span>Private note</span>
                 <textarea
                   maxLength={5000}
                   minLength={10}
@@ -668,7 +907,7 @@ export function App() {
             {createVaultItemError ? <p className="error-text">{createVaultItemError}</p> : null}
             <div className="button-row">
               <button disabled={isCreatingVaultItem} type="submit">
-                <FilePlus size={16} /> {isCreatingVaultItem ? "Saving..." : editingDocumentId ? "Update vault item" : "Save vault item"}
+                <FilePlus size={16} /> {isCreatingVaultItem ? "Saving..." : editingDocumentId ? "Update info" : "Save info"}
               </button>
               <button onClick={() => {
                 setIsAddingVaultItem(false);
@@ -681,7 +920,7 @@ export function App() {
 
         <section className="grid">
           <div className="panel agent-list" id="agents">
-            <div className="panel-title">Agent Registry</div>
+            <div className="panel-title">My AI Agents</div>
             {agents.map((agent) => (
               <button
                 key={agent.id}
@@ -689,13 +928,13 @@ export function App() {
                 onClick={() => setSelectedAgentId(agent.id)}
               >
                 <span>{agent.name}</span>
-                <small>{agent.category} / Trust {agent.trustScore}</small>
+                <small>{agent.category} / trust {agent.trustScore}</small>
               </button>
             ))}
           </div>
 
           <div className="panel detail-panel">
-            <div className="panel-title">Capability Manifest</div>
+            <div className="panel-title">What This Agent Can Do</div>
             {selectedAgent && (
               <>
                 <div className="detail-heading">
@@ -703,25 +942,25 @@ export function App() {
                     <h2>{selectedAgent.name}</h2>
                     <p>{selectedAgent.capabilityManifest.description}</p>
                   </div>
-                  <StatusPill tone="blue">{selectedAgent.apiProtocol}</StatusPill>
+                  <StatusPill tone="blue">connected</StatusPill>
                 </div>
                 <div className="manifest-grid">
-                  <div><strong>Tools</strong><span>{selectedAgent.capabilityManifest.tools?.join(", ")}</span></div>
-                  <div><strong>High risk</strong><span>{selectedAgent.capabilityManifest.highRiskActions?.join(", ") || "None"}</span></div>
-                  <div><strong>Connection</strong><span>{selectedAgent.connections[0]?.connectionStatus ?? "none"}</span></div>
+                  <div><strong>Can do</strong><span>{selectedAgent.capabilityManifest.tools?.map(friendlyToolName).join(", ")}</span></div>
+                  <div><strong>Must ask before</strong><span>{selectedAgent.capabilityManifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
+                  <div><strong>Current access</strong><span>{selectedAgent.connections[0]?.connectionStatus ?? "none"}</span></div>
                 </div>
                 <div className="permission-review">
                   <div className="permission-review-header">
                     <div>
-                      <strong>Permission Review</strong>
-                      <span>{permissionReview.length} requested / {permissionReview.filter((item) => item.granted).length} granted</span>
+                      <strong>Permissions</strong>
+                      <span>{permissionReview.filter((item) => item.granted).length} of {permissionReview.length} info categories allowed</span>
                     </div>
                     <button
                       disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"}
                       onClick={() => void grantAllRequestedSchemas()}
                       type="button"
                     >
-                      <KeyRound size={16} /> Grant requested access
+                      <KeyRound size={16} /> Allow requested info
                     </button>
                     <button onClick={() => setPermissionDetailsOpen((current) => !current)} type="button">
                       <KeyRound size={16} /> Details
@@ -730,18 +969,18 @@ export function App() {
                   {permissionDetailsOpen ? (
                     <div className="permission-details">
                       <label>
-                        <span>Grant duration</span>
+                        <span>Allow access for</span>
                         <select onChange={(event) => setGrantDuration(event.currentTarget.value)} value={grantDuration}>
                           <option value="3600000">1 hour</option>
                           <option value="86400000">1 day</option>
                           <option value="always">Always</option>
                         </select>
                       </label>
-                      <p className="empty">Access is scoped to your account, the selected agent, schema, and expiry.</p>
+                      <p className="empty">Access is scoped to your account, this agent, this info category, and the expiry you choose.</p>
                     </div>
                   ) : null}
                   {permissionReview.length === 0 ? (
-                    <p className="empty">This agent has not requested vault access.</p>
+                    <p className="empty">This agent has not requested access to personal info.</p>
                   ) : permissionReview.map((item) => (
                     <div className="permission-review-row" key={item.schemaName}>
                       <div>
@@ -749,14 +988,14 @@ export function App() {
                         <small>{item.schema?.description ?? "Unknown vault schema"}</small>
                       </div>
                       <StatusPill tone={item.granted ? "green" : item.schema ? "amber" : "red"}>
-                        {item.granted ? "granted" : item.schema ? "requested" : "unknown"}
+                        {item.granted ? "allowed" : item.schema ? "needs review" : "unknown"}
                       </StatusPill>
                       <button
                         disabled={!item.schema || item.granted || grantingSchemaName === item.schemaName || grantingSchemaName === "all"}
                         onClick={() => item.schema ? void grantRequestedSchema(item.schema) : undefined}
                         type="button"
                       >
-                        Grant
+                        Allow
                       </button>
                       {item.schema && item.granted ? (
                         <button onClick={() => void togglePermission(item.schema!, false)} type="button">Revoke</button>
@@ -765,11 +1004,11 @@ export function App() {
                   ))}
                 </div>
                 <div className="chat-panel">
-                  <div className="panel-title">Agent Task Console</div>
+                  <div className="panel-title">Ask This Agent</div>
                   <form className="chat-form" onSubmit={(event) => void runAgentChat(event)}>
                     <input
                       onChange={(event) => setChatInput(event.currentTarget.value)}
-                      placeholder="Ask this agent to search or perform a high-risk action..."
+                      placeholder="Ask it to find info or try an action that may need approval..."
                       value={chatInput}
                     />
                     <button type="submit"><MessageSquare size={16} /> Send</button>
@@ -783,15 +1022,16 @@ export function App() {
                   ) : null}
                 </div>
                 <div className="button-row">
-                  <button onClick={runVaultSearch}><Database size={16} /> Simulate vault.search</button>
-                  <button className="danger" onClick={triggerHighRiskAction}><Zap size={16} /> Trigger HITL action</button>
+                  <button onClick={runVaultSearch}><Database size={16} /> Search personal info</button>
+                  <button className="danger" onClick={triggerHighRiskAction}><Zap size={16} /> Try approval flow</button>
+                  <button onClick={() => void revokeSelectedAgentAccess()} type="button"><KeyRound size={16} /> Revoke access</button>
                 </div>
               </>
             )}
           </div>
 
           <div className="panel clearance-panel" id="clearance">
-            <div className="panel-title">Access Clearance</div>
+            <div className="panel-title">Permission Center</div>
             {schemas.map((schema) => {
               const granted = Boolean(selectedAgent?.permissions.some((permission) => permission.vaultSchemaId === schema.id && permission.permissionType === "read"));
               return (
@@ -807,23 +1047,23 @@ export function App() {
           </div>
 
           <div className="panel vault-panel" id="vault">
-            <div className="panel-title">Information Vault</div>
+            <div className="panel-title">Personal Info</div>
             <form className="vault-search" onSubmit={(event) => void searchVault(event)}>
               <input
                 onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                placeholder="Search private vault through selected agent..."
+                placeholder="Search personal info through the selected agent..."
                 required
                 value={searchQuery}
               />
               <select onChange={(event) => setSearchSchemaId(event.currentTarget.value)} value={searchSchemaId}>
-                <option value="">All requested schemas</option>
+                <option value="">All allowed categories</option>
                 {schemas.map((schema) => <option key={schema.id} value={schema.id}>{schema.name}</option>)}
               </select>
-              <button disabled={isSearchingVault} type="submit"><Search size={16} /> {isSearchingVault ? "Searching..." : "Search Vault"}</button>
+              <button disabled={isSearchingVault} type="submit"><Search size={16} /> {isSearchingVault ? "Searching..." : "Search Info"}</button>
             </form>
             {searchResults.length ? (
               <div className="search-results">
-                <strong>Search Results</strong>
+                <strong>Search results</strong>
                 {searchResults.map((document) => (
                   <article className="doc-row" key={`result-${document.id}`}>
                     <strong>{document.title}</strong>
@@ -847,22 +1087,25 @@ export function App() {
           </div>
 
           <div className="panel audit-panel" id="activity">
-            <div className="panel-title">Cryptographic Activity Log</div>
+            <div className="panel-title">Activity History</div>
             {logs.slice(0, 8).map((log) => (
               <div className="log-row" key={log.id}>
-                <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>{log.status}</StatusPill>
-                <span>{log.agent?.name ?? "System"} / {log.actionType}</span>
-                <small>{log.dataAccessed ?? "no file"} / {log.hash.slice(0, 12)}</small>
+                <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>
+                  {log.status === "success" ? "done" : log.status === "pending_human_approval" ? "needs approval" : "blocked"}
+                </StatusPill>
+                <span>{friendlyLogText(log)}</span>
+                <small>{log.dataAccessed ?? "no detail"} / proof {log.hash.slice(0, 12)}</small>
               </div>
             ))}
           </div>
 
           <div className="panel hitl-panel">
-            <div className="panel-title">Human Approval Queue</div>
-            {hitl.length === 0 ? <p className="empty">No pending high-risk action.</p> : hitl.map((request) => (
+            <div className="panel-title">Needs Your Approval</div>
+            {hitl.length === 0 ? <p className="empty">No agent is waiting for approval.</p> : hitl.map((request) => (
               <div className="hitl-row" key={request.id}>
-                <strong>{request.agent.name}</strong>
-                <span>{request.actionName}</span>
+                <strong>{request.agent.name} wants to continue</strong>
+                <span>{friendlyActionName(request.actionName)}</span>
+                <small>This action is paused until you approve or deny it.</small>
                 <div className="button-row">
                   <button onClick={() => void decideHitl(request.id, true)}>Approve</button>
                   <button className="danger" onClick={() => void decideHitl(request.id, false)}>Deny</button>
@@ -873,14 +1116,19 @@ export function App() {
           </div>
 
           <div className="panel settings-panel" id="settings">
-            <div className="panel-title">User Settings + Security</div>
+            <div className="panel-title">Settings + Privacy</div>
             <div className="settings-grid">
               <div><strong>Account</strong><span>{session?.user.email ?? "Local development user"}</span></div>
               <div><strong>Agents</strong><span>{agents.length}</span></div>
-              <div><strong>Vault Items</strong><span>{documents.length}</span></div>
-              <div><strong>Activity Events</strong><span>{logs.length}</span></div>
+              <div><strong>Personal Info</strong><span>{documents.length}</span></div>
+              <div><strong>Activity</strong><span>{logs.length}</span></div>
             </div>
-            <p className="empty">Workspace data is scoped to your signed-in Supabase user and sent to the backend with your session token.</p>
+            <div className="privacy-actions">
+              <button onClick={exportMyData} type="button"><Download size={16} /> Export my data</button>
+              <button onClick={() => void revokeAllAgentAccess()} type="button"><KeyRound size={16} /> Revoke all agent access</button>
+              {session ? <button onClick={() => void signOut()} type="button"><LogOut size={16} /> Sign out</button> : null}
+            </div>
+            <p className="empty">Your workspace data is scoped to your signed-in account. Agents start restricted, and personal info access can be revoked at any time.</p>
           </div>
         </section>
       </section>

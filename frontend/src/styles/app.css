@@ -318,6 +318,74 @@ legend {
   margin-bottom: 14px;
 }
 
+.wizard-steps {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.wizard-steps button {
+  width: 34px;
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 0;
+}
+
+.wizard-steps .step-active {
+  border-color: rgba(64, 156, 255, 0.8);
+  background: #163556;
+}
+
+.wizard-page {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.wizard-page h2 {
+  font-size: 18px;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.template-card {
+  min-height: 118px;
+  height: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  text-align: left;
+  padding: 13px;
+}
+
+.template-card strong,
+.template-card span {
+  display: block;
+}
+
+.template-card span {
+  color: #91a4ba;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.template-card.selected {
+  border-color: rgba(64, 156, 255, 0.8);
+  background: #163556;
+}
+
+.consumer-form-grid {
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px);
+}
+
+.consumer-choice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 fieldset {
   border: 1px solid rgba(137, 163, 196, 0.14);
   border-radius: 7px;
@@ -635,6 +703,13 @@ legend {
   margin-bottom: 12px;
 }
 
+.privacy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .settings-grid div {
   border: 1px solid rgba(137, 163, 196, 0.14);
   border-radius: 7px;
@@ -723,15 +798,16 @@ pre {
   }
 
   .nav-rail nav {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   .form-grid,
-  .choice-grid {
+  .choice-grid,
+  .template-grid {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -741,8 +817,44 @@ pre {
 }
 
 @media (max-width: 720px) {
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+  }
+
   .workspace {
-    padding: 14px;
+    padding: 14px 14px 86px;
+  }
+
+  .nav-rail {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    order: 2;
+    padding: 8px;
+    border-top: 1px solid rgba(137, 163, 196, 0.16);
+  }
+
+  .brand-mark {
+    display: none;
+  }
+
+  .nav-rail nav {
+    gap: 6px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .nav-rail button {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 46px;
+    justify-content: center;
+    padding: 0 8px;
+    font-size: 11px;
+    line-height: 1.15;
   }
 
   .topbar,
@@ -751,11 +863,11 @@ pre {
     display: grid;
   }
 
-  .nav-rail nav,
   .grid,
   .manifest-grid,
   .form-grid,
   .choice-grid,
+  .template-grid,
   .review-strip {
     grid-template-columns: 1fr;
   }
