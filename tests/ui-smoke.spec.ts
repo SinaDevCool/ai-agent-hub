@@ -18,6 +18,17 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(page.getByText("live")).toBeVisible();
   const nav = page.locator(".nav-rail");
 
+  await page.locator(".quick-start-panel").getByRole("button", { name: "Travel planner" }).click();
+  const guidedSetup = page.locator(".guided-setup-panel");
+  await expect(guidedSetup).toBeVisible();
+  await guidedSetup.getByRole("button", { name: "Next" }).click();
+  await guidedSetup.getByLabel("Frequent Flyer Ledger note").fill("Smoke onboarding note: aisle seat, vegetarian meal, and approval before non-refundable bookings.");
+  await guidedSetup.getByRole("button", { name: "Next" }).click();
+  await expect(guidedSetup).toContainText("Plan a weekend trip using my preferences");
+  await guidedSetup.getByRole("button", { name: "Create helper" }).click();
+  await expect(page.locator("#clearance")).toContainText("Permission Center");
+  await expect(page.getByPlaceholder("Ask it to find info or try an action that may need approval...")).toHaveValue("Plan a weekend trip using my preferences");
+
   await nav.getByRole("button", { name: "Personal Info", exact: true }).click();
   await expect(nav.getByRole("button", { name: "Personal Info", exact: true })).toHaveClass(/nav-active/);
   await expect(page.locator("#vault").getByText("Travel Records", { exact: true })).toBeVisible();
@@ -110,6 +121,9 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Your AI Agent Hub" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your AI helpers" })).toBeVisible();
   await expect(page.locator(".mobile-home")).toBeVisible();
+  await page.getByRole("button", { name: "Start guided setup" }).click();
+  await expect(page.locator(".guided-setup-panel")).toBeVisible();
+  await page.locator(".guided-setup-panel").getByRole("button", { name: "Cancel" }).click();
   await expect(page.locator(".agent-list")).toBeVisible();
   await expect(page.locator("#vault")).toBeHidden();
 

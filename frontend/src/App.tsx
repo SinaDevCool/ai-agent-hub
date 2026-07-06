@@ -174,6 +174,28 @@ function friendlyActionName(action: string) {
   return action.replace(/_/g, " ");
 }
 
+function getStarterPrompt(templateId: string) {
+  const prompts: Record<string, string> = {
+    travel: "Plan a weekend trip using my preferences",
+    money: "Find the spending rule I should follow",
+    inbox: "Draft a polite follow-up email",
+    shopping: "Compare options without buying anything",
+    health: "Summarize the health note I saved"
+  };
+  return prompts[templateId] ?? "Find the personal info this helper can use";
+}
+
+function getStarterInfoPlaceholder(templateId: string) {
+  const placeholders: Record<string, string> = {
+    travel: "Example: I prefer aisle seats, vegetarian meals, and hotels near public transit.",
+    money: "Example: Ask me before purchases over 200 dollars. I prefer cash flow stability over rewards.",
+    inbox: "Example: My usual tone is warm and brief. Never send email without my approval.",
+    shopping: "Example: I prefer durable items, compare prices first, and ask me before any purchase.",
+    health: "Example: Keep health notes private and ask before sharing anything with another service."
+  };
+  return placeholders[templateId] ?? "Add one useful preference or rule this helper should remember.";
+}
+
 function friendlyLogText(log: ActivityLog) {
   const agent = log.agent?.name ?? "System";
   if (log.actionType === "vault_read") return `${agent} read personal info`;
@@ -232,6 +254,12 @@ export function App() {
   const [chatTranscript, setChatTranscript] = useState<Array<{ role: "user" | "agent"; content: string }>>([]);
   const [grantDuration, setGrantDuration] = useState("3600000");
   const [permissionDetailsOpen, setPermissionDetailsOpen] = useState(false);
+  const [isGuidedSetupOpen, setIsGuidedSetupOpen] = useState(false);
+  const [guidedSetupStep, setGuidedSetupStep] = useState(1);
+  const [guidedTemplateId, setGuidedTemplateId] = useState("travel");
+  const [guidedInfoText, setGuidedInfoText] = useState("");
+  const [guidedSetupError, setGuidedSetupError] = useState("");
+  const [isGuidedSetupSaving, setIsGuidedSetupSaving] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -334,6 +362,10 @@ export function App() {
   const pendingApproval = hitl[0];
   const allowedPermissionCount = permissionReview.filter((item) => item.granted).length;
   const activeMobileClass = (section: SectionId) => activeSection === section ? "is-mobile-active" : "";
+  const guidedTemplates = agentTemplates.filter((template) => template.id !== "custom");
+  const guidedTemplate = guidedTemplates.find((template) => template.id === guidedTemplateId) ?? guidedTemplates[0];
+  const guidedSchema = schemas.find((schema) => schema.name === guidedTemplate.requestedSchemas[0]);
+  const guidedPrompt = getStarterPrompt(guidedTemplate.id);
 
   async function togglePermission(schema: VaultSchema, enabled: boolean) {
     if (!selectedAgent) return;
@@ -585,6 +617,54 @@ export function App() {
     setIsAddingAgent(true);
   }
 
+  function openGuidedSetup(templateId = guidedTemplateId) {
+    setGuidedTemplateId(templateId);
+    setGuidedSetupStep(1);
+    setGuidedInfoText("");
+    setGuidedSetupError("");
+    setIsAddingAgent(false);
+    setIsAddingVaultItem(false);
+    setIsGuidedSetupOpen(true);
+  }
+
+  async function completeGuidedSetup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setGuidedSetupError("");
+    setIsGuidedSetupSaving(true);
+    try {
+      const result = await apiPost<{ agent: Agent }>("/api/agents", {
+        name: guidedTemplate.starterName,
+        category: guidedTemplate.category,
+        apiProtocol: "MCP",
+        description: guidedTemplate.description,
+        tools: guidedTemplate.tools,
+        requestedSchemas: guidedTemplate.requestedSchemas,
+        highRiskActions: guidedTemplate.highRiskActions
+      });
+
+      if (guidedInfoText.trim().length >= 10) {
+        await apiPost("/api/vault/documents", {
+          title: `${guidedTemplate.title} starter note`,
+          vaultSchemaId: guidedSchema?.id ?? null,
+          content: guidedInfoText.trim()
+        });
+      }
+
+      await refresh();
+      setSelectedAgentId(result.agent.id);
+      setChatInput(guidedPrompt);
+      setToolResult(`${result.agent.name} is ready. Review the requested info, then try: "${guidedPrompt}"`);
+      setIsGuidedSetupOpen(false);
+      setGuidedSetupStep(1);
+      setGuidedInfoText("");
+      scrollToSection("clearance");
+    } catch (error) {
+      setGuidedSetupError(error instanceof Error ? error.message : "Guided setup failed.");
+    } finally {
+      setIsGuidedSetupSaving(false);
+    }
+  }
+
   async function revokeSelectedAgentAccess() {
     if (!selectedAgent) return;
     const readPermissions = selectedAgent.permissions.filter((permission) => permission.vaultSchema);
@@ -739,6 +819,21 @@ export function App() {
           </div>
         </header>
 
+        <section className="panel quick-start-panel">
+          <div>
+            <div className="panel-title">Quick Start</div>
+            <h2>Set up a useful AI helper in under a minute</h2>
+            <p>Pick what you want help with, add one private note, and choose what the helper can request.</p>
+          </div>
+          <div className="quick-start-actions">
+            {guidedTemplates.slice(0, 4).map((template) => (
+              <button key={template.id} onClick={() => openGuidedSetup(template.id)} type="button">
+                <Bot size={16} /> {template.title}
+              </button>
+            ))}
+          </div>
+        </section>
+
         <section className="mobile-home" aria-label="Mobile overview">
           <div className="mobile-home-card">
             <span className="mobile-label">Protected by default</span>
@@ -750,7 +845,7 @@ export function App() {
               <div><strong>{hitl.length}</strong><span>Approvals</span></div>
             </div>
             <div className="mobile-quick-actions">
-              <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Agent</button>
+              <button onClick={() => openGuidedSetup()} type="button"><Bot size={16} /> Start guided setup</button>
               <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Personal Info</button>
             </div>
           </div>
@@ -762,6 +857,83 @@ export function App() {
             </button>
           ) : null}
         </section>
+
+        {isGuidedSetupOpen ? (
+          <form className="panel guided-setup-panel" onSubmit={(event) => void completeGuidedSetup(event)}>
+            <div className="guided-setup-head">
+              <div>
+                <div className="panel-title">Guided Setup</div>
+                <h2>{guidedSetupStep === 1 ? "What should your helper do?" : guidedSetupStep === 2 ? "Add one helpful private note" : "Ready to create your helper"}</h2>
+              </div>
+              <div className="wizard-steps" aria-label="Guided setup progress">
+                {[1, 2, 3].map((step) => (
+                  <button className={guidedSetupStep === step ? "step-active" : ""} key={step} onClick={() => setGuidedSetupStep(step)} type="button">
+                    {step}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {guidedSetupStep === 1 ? (
+              <section className="wizard-page">
+                <div className="template-grid guided-template-grid">
+                  {guidedTemplates.map((template) => (
+                    <button
+                      className={guidedTemplateId === template.id ? "template-card selected" : "template-card"}
+                      key={template.id}
+                      onClick={() => setGuidedTemplateId(template.id)}
+                      type="button"
+                    >
+                      <strong>{template.title}</strong>
+                      <span>{template.summary}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {guidedSetupStep === 2 ? (
+              <section className="wizard-page">
+                <p className="guided-copy">
+                  This stays in your Personal Info. Your new helper will still need permission before reading it.
+                </p>
+                <label className="risk-field">
+                  <span>{guidedSchema ? `${guidedSchema.name} note` : "Private note"}</span>
+                  <textarea
+                    onChange={(event) => setGuidedInfoText(event.currentTarget.value)}
+                    placeholder={getStarterInfoPlaceholder(guidedTemplate.id)}
+                    rows={5}
+                    value={guidedInfoText}
+                  />
+                </label>
+              </section>
+            ) : null}
+
+            {guidedSetupStep === 3 ? (
+              <section className="wizard-page">
+                <div className="guided-review">
+                  <div><strong>Helper</strong><span>{guidedTemplate.starterName}</span></div>
+                  <div><strong>Can request</strong><span>{guidedTemplate.requestedSchemas.join(", ") || "Nothing yet"}</span></div>
+                  <div><strong>Must ask before</strong><span>{guidedTemplate.highRiskActions.map(friendlyActionName).join(", ") || "No risky actions"}</span></div>
+                  <div><strong>First thing to try</strong><span>{guidedPrompt}</span></div>
+                </div>
+                <p className="guided-copy">
+                  After this, review the permission request. You stay in control before the helper reads private info or continues a risky action.
+                </p>
+              </section>
+            ) : null}
+
+            {guidedSetupError ? <p className="error-text">{guidedSetupError}</p> : null}
+            <div className="button-row">
+              {guidedSetupStep > 1 ? <button onClick={() => setGuidedSetupStep((step) => step - 1)} type="button">Back</button> : null}
+              {guidedSetupStep < 3 ? <button onClick={() => setGuidedSetupStep((step) => step + 1)} type="button">Next</button> : null}
+              {guidedSetupStep === 3 ? (
+                <button disabled={isGuidedSetupSaving} type="submit"><Bot size={16} /> {isGuidedSetupSaving ? "Creating..." : "Create helper"}</button>
+              ) : null}
+              <button onClick={() => setIsGuidedSetupOpen(false)} type="button">Cancel</button>
+            </div>
+          </form>
+        ) : null}
 
         {isAddingAgent ? (
           <form className="panel add-agent-panel" onSubmit={(event) => void createAgent(event)}>
