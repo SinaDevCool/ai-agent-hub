@@ -26,4 +26,15 @@ Backend defaults to `http://localhost:4141`; frontend defaults to `http://localh
 - Markdown frontmatter maps to declared `VaultSchemas`.
 - `AgentPermissions` are checked for every vault read, write, and action request.
 - High-risk actions return `awaiting_human_approval` and emit WebSocket notifications.
+- Approval requests create notification records and can send email through Resend when `RESEND_API_KEY` is configured.
 - `ActivityLog` records file-level access and policy decisions for auditability.
+
+## Approval Email Notifications
+
+For the free MVP path, create a Resend API key and add these backend environment variables on Render:
+
+- `APP_PUBLIC_URL` - your Cloudflare Pages URL, for example `https://ai-agent-hub-417.pages.dev`
+- `RESEND_API_KEY` - your Resend API key
+- `NOTIFICATION_FROM_EMAIL` - sender address, for example `AI Agent Hub <onboarding@resend.dev>` while testing
+
+If `RESEND_API_KEY` is missing, approvals still work and the activity log shows that email notification is not configured.

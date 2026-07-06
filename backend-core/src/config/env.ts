@@ -25,7 +25,10 @@ const schema = z.object({
   OLLAMA_EMBEDDING_URL: z.string().url().default("http://localhost:11434/api/embeddings"),
   OLLAMA_EMBEDDING_MODEL: z.string().default("nomic-embed-text"),
   SUPABASE_URL: z.string().url().optional(),
-  SUPABASE_ANON_KEY: z.string().min(1).optional()
+  SUPABASE_ANON_KEY: z.string().min(1).optional(),
+  APP_PUBLIC_URL: z.string().url().optional(),
+  RESEND_API_KEY: z.string().min(1).optional(),
+  NOTIFICATION_FROM_EMAIL: z.string().min(3).default("AI Agent Hub <onboarding@resend.dev>")
 }).superRefine((value, context) => {
   if (value.NODE_ENV === "production" && (!value.SUPABASE_URL || !value.SUPABASE_ANON_KEY)) {
     context.addIssue({

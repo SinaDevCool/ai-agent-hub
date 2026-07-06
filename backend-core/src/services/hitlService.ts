@@ -2,6 +2,7 @@ import { prisma } from "../db/prisma.js";
 import { realtimeHub } from "./realtimeHub.js";
 import { writeActivityLog } from "./activityLogService.js";
 import { encodeJson } from "./jsonService.js";
+import { sendApprovalNotification } from "./notificationService.js";
 
 export async function createHitlRequest(input: {
   userId: string;
@@ -19,15 +20,22 @@ export async function createHitlRequest(input: {
       payload: encodeJson(input.payload),
       expiresAt: new Date(Date.now() + (input.ttlMinutes ?? 15) * 60_000)
     },
-    include: { agent: true }
+    include: { agent: true, user: true }
   });
+  const notification = await sendApprovalNotification(request);
   await writeActivityLog({
     userId: input.userId,
     agentId: input.agentId,
     actionType: "hitl_requested",
     status: "pending_human_approval",
     dataAccessed: input.actionName,
-    dynamicMetadata: { requestId: request.id }
+    dynamicMetadata: {
+      requestId: request.id,
+      notificationId: notification.notificationId,
+      notificationStatus: notification.status,
+      notificationProvider: notification.provider,
+      notificationReason: notification.reason
+    }
   });
   realtimeHub.broadcast({ type: "hitl.requested", payload: request });
   return request;

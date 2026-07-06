@@ -61,6 +61,17 @@ enum RiskLevel {
   high
 }
 
+enum NotificationChannel {
+  email
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  skipped
+  failed
+}
+
 model User {
   id                  String           @id @default(cuid())
   email               String           @unique
@@ -72,6 +83,7 @@ model User {
   activityLogs        ActivityLog[]
   vaultDocuments      VaultDocument[]
   hitlRequests        HitlRequest[]
+  notifications       Notification[]
 
   @@map("users")
 }
@@ -185,7 +197,28 @@ model HitlRequest {
   createdAt      DateTime       @default(now()) @map("created_at")
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   agent          Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  notifications  Notification[]
 
   @@index([userId, agentId, status])
   @@map("hitl_requests")
+}
+
+model Notification {
+  id            String              @id @default(cuid())
+  userId        String              @map("user_id")
+  hitlRequestId String?             @map("hitl_request_id")
+  channel       NotificationChannel @default(email)
+  status        NotificationStatus  @default(pending)
+  subject       String
+  provider      String?
+  providerId    String?             @map("provider_id")
+  errorMessage  String?             @map("error_message")
+  sentAt        DateTime?           @map("sent_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hitlRequest   HitlRequest?        @relation(fields: [hitlRequestId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+  @@index([hitlRequestId])
+  @@map("notifications")
 }

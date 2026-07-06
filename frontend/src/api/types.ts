@@ -44,6 +44,7 @@ export type ActivityLog = {
   actionType: string;
   status: string;
   dataAccessed?: string;
+  dynamicMetadata?: Record<string, unknown>;
   hash: string;
   previousHash?: string;
   createdAt: string;

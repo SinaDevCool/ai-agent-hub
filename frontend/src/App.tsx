@@ -196,6 +196,16 @@ function getStarterInfoPlaceholder(templateId: string) {
   return placeholders[templateId] ?? "Add one useful preference or rule this helper should remember.";
 }
 
+function getAvailableAgentName(baseName: string, existingNames: string[]) {
+  const normalized = new Set(existingNames.map((name) => name.toLowerCase()));
+  if (!normalized.has(baseName.toLowerCase())) return baseName;
+  for (let index = 2; index < 100; index += 1) {
+    const candidate = `${baseName} ${index}`;
+    if (!normalized.has(candidate.toLowerCase())) return candidate;
+  }
+  return `${baseName} ${Date.now()}`;
+}
+
 function friendlyLogText(log: ActivityLog) {
   const agent = log.agent?.name ?? "System";
   if (log.actionType === "vault_read") return `${agent} read personal info`;
@@ -205,6 +215,15 @@ function friendlyLogText(log: ActivityLog) {
   if (log.actionType === "agent_created") return `${agent} was added`;
   if (log.actionType === "indexing_completed") return "Personal info was indexed";
   return `${agent} activity`;
+}
+
+function friendlyNotificationText(log: ActivityLog) {
+  if (log.actionType !== "hitl_requested") return "";
+  const status = String(log.dynamicMetadata?.notificationStatus ?? "");
+  if (status === "sent") return "Email notification sent";
+  if (status === "skipped") return "Email notification not configured";
+  if (status === "failed") return "Email notification failed";
+  return "";
 }
 
 function friendlyResult(result: Record<string, unknown>) {
@@ -364,6 +383,7 @@ export function App() {
   const activeMobileClass = (section: SectionId) => activeSection === section ? "is-mobile-active" : "";
   const guidedTemplates = agentTemplates.filter((template) => template.id !== "custom");
   const guidedTemplate = guidedTemplates.find((template) => template.id === guidedTemplateId) ?? guidedTemplates[0];
+  const guidedAgentName = getAvailableAgentName(guidedTemplate.starterName, agents.map((agent) => agent.name));
   const guidedSchema = schemas.find((schema) => schema.name === guidedTemplate.requestedSchemas[0]);
   const guidedPrompt = getStarterPrompt(guidedTemplate.id);
 
@@ -633,7 +653,7 @@ export function App() {
     setIsGuidedSetupSaving(true);
     try {
       const result = await apiPost<{ agent: Agent }>("/api/agents", {
-        name: guidedTemplate.starterName,
+        name: guidedAgentName,
         category: guidedTemplate.category,
         apiProtocol: "MCP",
         description: guidedTemplate.description,
@@ -912,7 +932,7 @@ export function App() {
             {guidedSetupStep === 3 ? (
               <section className="wizard-page">
                 <div className="guided-review">
-                  <div><strong>Helper</strong><span>{guidedTemplate.starterName}</span></div>
+                  <div><strong>Helper</strong><span>{guidedAgentName}</span></div>
                   <div><strong>Can request</strong><span>{guidedTemplate.requestedSchemas.join(", ") || "Nothing yet"}</span></div>
                   <div><strong>Must ask before</strong><span>{guidedTemplate.highRiskActions.map(friendlyActionName).join(", ") || "No risky actions"}</span></div>
                   <div><strong>First thing to try</strong><span>{guidedPrompt}</span></div>
@@ -1306,6 +1326,7 @@ export function App() {
                   {log.status === "success" ? "done" : log.status === "pending_human_approval" ? "needs approval" : "blocked"}
                 </StatusPill>
                 <span>{friendlyLogText(log)}</span>
+                {friendlyNotificationText(log) ? <small>{friendlyNotificationText(log)}</small> : null}
                 <small>{log.dataAccessed ?? "no detail"} / proof {log.hash.slice(0, 12)}</small>
               </div>
             ))}

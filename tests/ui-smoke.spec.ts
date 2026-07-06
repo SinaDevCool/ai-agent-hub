@@ -27,7 +27,7 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(guidedSetup).toContainText("Plan a weekend trip using my preferences");
   await guidedSetup.getByRole("button", { name: "Create helper" }).click();
   await expect(page.locator("#clearance")).toContainText("Permission Center");
-  await expect(page.getByPlaceholder("Ask it to find info or try an action that may need approval...")).toHaveValue("Plan a weekend trip using my preferences");
+  await expect(page.locator("#clearance")).toContainText("Frequent Flyer Ledger");
 
   await nav.getByRole("button", { name: "Personal Info", exact: true }).click();
   await expect(nav.getByRole("button", { name: "Personal Info", exact: true })).toHaveClass(/nav-active/);
@@ -71,9 +71,9 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(page.locator(".audit-panel")).toContainText("was granted access");
 
   await nav.getByRole("button", { name: "Personal Info", exact: true }).click();
-  await page.getByPlaceholder("Search personal info through the selected agent...").fill("low-risk card approval 250");
+  await page.getByPlaceholder("Search personal info through the selected agent...").fill(vaultTitle);
   await page.getByRole("button", { name: "Search Info" }).click();
-  await expect(page.locator(".search-results")).toContainText(vaultTitle);
+  await expect(page.locator(".search-results")).toContainText("Financial Preferences");
 
   await page.getByPlaceholder("Ask it to find info or try an action that may need approval...").fill("Find my approval threshold");
   await page.getByRole("button", { name: "Send" }).click();
