@@ -11,7 +11,6 @@ import {
   Mail,
   MessageSquare,
   Pencil,
-  Radio,
   Search,
   Settings,
   ShieldCheck,
@@ -651,6 +650,7 @@ export function App() {
     event.preventDefault();
     setGuidedSetupError("");
     setIsGuidedSetupSaving(true);
+    setActiveSection("clearance");
     try {
       const result = await apiPost<{ agent: Agent }>("/api/agents", {
         name: guidedAgentName,
@@ -677,7 +677,6 @@ export function App() {
       setIsGuidedSetupOpen(false);
       setGuidedSetupStep(1);
       setGuidedInfoText("");
-      scrollToSection("clearance");
     } catch (error) {
       setGuidedSetupError(error instanceof Error ? error.message : "Guided setup failed.");
     } finally {
@@ -729,7 +728,13 @@ export function App() {
 
   function scrollToSection(id: SectionId) {
     setActiveSection(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.requestAnimationFrame(() => {
+      if (window.matchMedia("(max-width: 720px)").matches) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   async function sendMagicLink(event: FormEvent<HTMLFormElement>) {
@@ -776,8 +781,13 @@ export function App() {
       <main className="auth-shell">
         <section className="auth-panel">
           <div className="brand-mark"><ShieldCheck size={22} /> AI Agent Hub</div>
-          <h1>Sign in to your Personal AI OS</h1>
-          <p>Use a magic link to open your private agent workspace.</p>
+          <h1>Manage your AI helpers</h1>
+          <p>Add agents, control what they can see, and approve sensitive actions before they happen.</p>
+          <div className="auth-trust-list" aria-label="Privacy promises">
+            <span><ShieldCheck size={15} /> Private by default</span>
+            <span><KeyRound size={15} /> You approve access</span>
+            <span><Activity size={15} /> Activity stays visible</span>
+          </div>
           <form className="auth-form" onSubmit={(event) => void sendMagicLink(event)}>
             <label>
               <span>Email</span>
@@ -826,7 +836,10 @@ export function App() {
             <p>Add AI helpers, choose what they can see, and approve important actions before they happen.</p>
           </div>
           <div className="topbar-actions">
-            <StatusPill tone={connectionState === "live" ? "green" : "amber"}><Radio size={14} /> {connectionState}</StatusPill>
+            <span className={`connection-status ${connectionState === "live" ? "is-live" : "is-syncing"}`} title={`Connection: ${connectionState}`}>
+              <span className="connection-dot" />
+              <span className="connection-text">{connectionState === "live" ? "live" : "syncing"}</span>
+            </span>
             {session ? <span className="user-chip">{session.user.email}</span> : null}
             <button className="topbar-primary" onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Agent</button>
             <button className="topbar-secondary" onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Personal Info</button>
@@ -854,7 +867,7 @@ export function App() {
           </div>
         </section>
 
-        <section className="mobile-home" aria-label="Mobile overview">
+        <section className={`mobile-home ${activeSection === "agents" ? "is-mobile-home-active" : ""}`} aria-label="Mobile overview">
           <div className="mobile-home-card">
             <span className="mobile-label">Protected by default</span>
             <h2>Your AI helpers</h2>
@@ -1327,7 +1340,7 @@ export function App() {
                 </StatusPill>
                 <span>{friendlyLogText(log)}</span>
                 {friendlyNotificationText(log) ? <small>{friendlyNotificationText(log)}</small> : null}
-                <small>{log.dataAccessed ?? "no detail"} / proof {log.hash.slice(0, 12)}</small>
+                <small>{log.dataAccessed ?? "No extra detail"}</small>
               </div>
             ))}
           </div>
