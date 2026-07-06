@@ -331,6 +331,10 @@ export function App() {
     }))
   }), [agents, documents, logs, session]);
 
+  const pendingApproval = hitl[0];
+  const allowedPermissionCount = permissionReview.filter((item) => item.granted).length;
+  const activeMobileClass = (section: SectionId) => activeSection === section ? "is-mobile-active" : "";
+
   async function togglePermission(schema: VaultSchema, enabled: boolean) {
     if (!selectedAgent) return;
     await apiPost("/api/permissions/clearance", {
@@ -724,16 +728,40 @@ export function App() {
           <div className="topbar-actions">
             <StatusPill tone={connectionState === "live" ? "green" : "amber"}><Radio size={14} /> {connectionState}</StatusPill>
             {session ? <span className="user-chip">{session.user.email}</span> : null}
-            <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Agent</button>
-            <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Personal Info</button>
-            <label className="upload-button">
+            <button className="topbar-primary" onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Agent</button>
+            <button className="topbar-secondary" onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Personal Info</button>
+            <label className="upload-button topbar-secondary">
               <Upload size={16} /> Upload
               <input accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void uploadVaultFile(event)} type="file" />
             </label>
-            <button onClick={reindexVault}><FileSearch size={16} /> Refresh Info</button>
-            {session ? <button onClick={() => void signOut()} type="button"><LogOut size={16} /> Sign out</button> : null}
+            <button className="topbar-secondary" onClick={reindexVault}><FileSearch size={16} /> Refresh Info</button>
+            {session ? <button className="topbar-secondary" onClick={() => void signOut()} type="button"><LogOut size={16} /> Sign out</button> : null}
           </div>
         </header>
+
+        <section className="mobile-home" aria-label="Mobile overview">
+          <div className="mobile-home-card">
+            <span className="mobile-label">Protected by default</span>
+            <h2>Your AI helpers</h2>
+            <p>Add agents, share only the info they need, and approve important actions before they happen.</p>
+            <div className="mobile-stat-grid">
+              <div><strong>{agents.length}</strong><span>Agents</span></div>
+              <div><strong>{documents.length}</strong><span>Info notes</span></div>
+              <div><strong>{hitl.length}</strong><span>Approvals</span></div>
+            </div>
+            <div className="mobile-quick-actions">
+              <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Agent</button>
+              <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Personal Info</button>
+            </div>
+          </div>
+          {pendingApproval ? (
+            <button className="mobile-alert-card" onClick={() => scrollToSection("clearance")} type="button">
+              <span>Needs your approval</span>
+              <strong>{pendingApproval.agent.name}</strong>
+              <small>{friendlyActionName(pendingApproval.actionName)}</small>
+            </button>
+          ) : null}
+        </section>
 
         {isAddingAgent ? (
           <form className="panel add-agent-panel" onSubmit={(event) => void createAgent(event)}>
@@ -819,7 +847,7 @@ export function App() {
                     ))}
                   </fieldset>
                   <fieldset>
-                    <legend>Abilities</legend>
+                    <legend>What it may do</legend>
                     {toolOptions.map((tool) => (
                       <label className="choice-row" key={tool}>
                         <input
@@ -837,12 +865,12 @@ export function App() {
 
             {agentWizardStep === 4 ? (
               <section className="wizard-page">
-                <h2>Review safety rules</h2>
+                <h2>Set approval rules</h2>
                 <label className="risk-field">
-                  <span>Must ask before</span>
+                  <span>Ask me before</span>
                   <textarea
                     onChange={(event) => updateAgentDraft({ highRiskActionsText: event.currentTarget.value })}
-                    placeholder="book_non_refundable_travel, transfer_funds"
+                    placeholder="Buying, booking, sending, or sharing anything important"
                     rows={4}
                     value={agentDraft.highRiskActionsText}
                   />
@@ -850,7 +878,7 @@ export function App() {
                 <div className="review-strip">
                   <div><strong>Connection</strong><span>Starts restricted</span></div>
                   <div><strong>Can request</strong><span>{agentDraft.requestedSchemas.length} info categories</span></div>
-                  <div><strong>Must ask before</strong><span>{parseHighRiskActions(agentDraft.highRiskActionsText).length} action types</span></div>
+                  <div><strong>Approval rules</strong><span>{parseHighRiskActions(agentDraft.highRiskActionsText).length} rules</span></div>
                 </div>
               </section>
             ) : null}
@@ -919,8 +947,11 @@ export function App() {
         ) : null}
 
         <section className="grid">
-          <div className="panel agent-list" id="agents">
+          <div className={`panel agent-list mobile-section ${activeMobileClass("agents")}`} id="agents">
             <div className="panel-title">My AI Agents</div>
+            <div className="mobile-panel-actions">
+              <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Agent</button>
+            </div>
             {agents.map((agent) => (
               <button
                 key={agent.id}
@@ -933,7 +964,7 @@ export function App() {
             ))}
           </div>
 
-          <div className="panel detail-panel">
+          <div className={`panel detail-panel mobile-section ${activeMobileClass("agents")}`}>
             <div className="panel-title">What This Agent Can Do</div>
             {selectedAgent && (
               <>
@@ -953,7 +984,7 @@ export function App() {
                   <div className="permission-review-header">
                     <div>
                       <strong>Permissions</strong>
-                      <span>{permissionReview.filter((item) => item.granted).length} of {permissionReview.length} info categories allowed</span>
+                      <span>{allowedPermissionCount} of {permissionReview.length} info categories allowed</span>
                     </div>
                     <button
                       disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"}
@@ -1030,8 +1061,9 @@ export function App() {
             )}
           </div>
 
-          <div className="panel clearance-panel" id="clearance">
+          <div className={`panel clearance-panel mobile-section ${activeMobileClass("clearance")}`} id="clearance">
             <div className="panel-title">Permission Center</div>
+            <p className="mobile-section-intro">Choose what {selectedAgent?.name ?? "this agent"} can read. You can change this anytime.</p>
             {schemas.map((schema) => {
               const granted = Boolean(selectedAgent?.permissions.some((permission) => permission.vaultSchemaId === schema.id && permission.permissionType === "read"));
               return (
@@ -1046,8 +1078,16 @@ export function App() {
             })}
           </div>
 
-          <div className="panel vault-panel" id="vault">
+          <div className={`panel vault-panel mobile-section ${activeMobileClass("vault")}`} id="vault">
             <div className="panel-title">Personal Info</div>
+            <div className="mobile-panel-actions">
+              <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Personal Info</button>
+              <label className="upload-button">
+                <Upload size={16} /> Upload
+                <input accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void uploadVaultFile(event)} type="file" />
+              </label>
+              <button onClick={reindexVault} type="button"><FileSearch size={16} /> Refresh Info</button>
+            </div>
             <form className="vault-search" onSubmit={(event) => void searchVault(event)}>
               <input
                 onChange={(event) => setSearchQuery(event.currentTarget.value)}
@@ -1086,7 +1126,7 @@ export function App() {
             ))}
           </div>
 
-          <div className="panel audit-panel" id="activity">
+          <div className={`panel audit-panel mobile-section ${activeMobileClass("activity")}`} id="activity">
             <div className="panel-title">Activity History</div>
             {logs.slice(0, 8).map((log) => (
               <div className="log-row" key={log.id}>
@@ -1099,7 +1139,7 @@ export function App() {
             ))}
           </div>
 
-          <div className="panel hitl-panel">
+          <div className={`panel hitl-panel mobile-section ${activeMobileClass("clearance")}`}>
             <div className="panel-title">Needs Your Approval</div>
             {hitl.length === 0 ? <p className="empty">No agent is waiting for approval.</p> : hitl.map((request) => (
               <div className="hitl-row" key={request.id}>
@@ -1115,7 +1155,7 @@ export function App() {
             <pre>{toolResult}</pre>
           </div>
 
-          <div className="panel settings-panel" id="settings">
+          <div className={`panel settings-panel mobile-section ${activeMobileClass("settings")}`} id="settings">
             <div className="panel-title">Settings + Privacy</div>
             <div className="settings-grid">
               <div><strong>Account</strong><span>{session?.user.email ?? "Local development user"}</span></div>

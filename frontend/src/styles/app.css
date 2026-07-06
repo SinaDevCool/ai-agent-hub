@@ -210,6 +210,12 @@ small {
   flex-wrap: wrap;
 }
 
+.mobile-home,
+.mobile-panel-actions,
+.mobile-section-intro {
+  display: none;
+}
+
 .user-chip {
   max-width: 240px;
   min-height: 38px;
@@ -817,13 +823,17 @@ pre {
 }
 
 @media (max-width: 720px) {
+  body {
+    background: #07111f;
+  }
+
   .app-shell {
     display: flex;
     flex-direction: column;
   }
 
   .workspace {
-    padding: 14px 14px 86px;
+    padding: 14px 14px 92px;
   }
 
   .nav-rail {
@@ -850,17 +860,187 @@ pre {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    min-height: 46px;
+    min-height: 52px;
     justify-content: center;
     padding: 0 8px;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.15;
+    border-radius: 13px;
   }
 
-  .topbar,
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin: -14px -14px 14px;
+    padding: 14px;
+    border-bottom: 1px solid rgba(137, 163, 196, 0.14);
+    background: rgba(7, 17, 31, 0.94);
+    backdrop-filter: blur(14px);
+  }
+
+  .topbar h1 {
+    font-size: 21px;
+  }
+
+  .topbar p,
+  .topbar-secondary,
+  .user-chip {
+    display: none;
+  }
+
+  .topbar-actions {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .topbar-primary {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .mobile-home {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .mobile-home-card,
+  .mobile-alert-card {
+    border: 1px solid rgba(137, 163, 196, 0.18);
+    background: linear-gradient(180deg, rgba(20, 45, 73, 0.92), rgba(9, 24, 42, 0.92));
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+  }
+
+  .mobile-home-card {
+    display: grid;
+    gap: 12px;
+  }
+
+  .mobile-home-card h2 {
+    font-size: 24px;
+    line-height: 1.1;
+  }
+
+  .mobile-home-card p {
+    color: #a9bbcf;
+    line-height: 1.45;
+  }
+
+  .mobile-label {
+    color: #ffc96f;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .mobile-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-stat-grid div {
+    border: 1px solid rgba(137, 163, 196, 0.16);
+    border-radius: 14px;
+    padding: 10px;
+    background: rgba(7, 17, 31, 0.42);
+  }
+
+  .mobile-stat-grid strong,
+  .mobile-stat-grid span {
+    display: block;
+  }
+
+  .mobile-stat-grid strong {
+    color: #f5f9ff;
+    font-size: 20px;
+  }
+
+  .mobile-stat-grid span {
+    color: #91a4ba;
+    font-size: 12px;
+  }
+
+  .mobile-quick-actions,
+  .mobile-panel-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .mobile-alert-card {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    height: auto;
+    text-align: left;
+  }
+
+  .mobile-alert-card span {
+    color: #ffc96f;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .mobile-alert-card strong {
+    color: #f5f9ff;
+    font-size: 16px;
+  }
+
+  .mobile-alert-card small {
+    color: #a9bbcf;
+  }
+
+  .grid {
+    display: block;
+  }
+
+  .mobile-section {
+    display: none;
+  }
+
+  .mobile-section.is-mobile-active {
+    display: grid;
+    margin-bottom: 12px;
+  }
+
+  .panel {
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: none;
+  }
+
+  .panel-title {
+    text-transform: none;
+    font-size: 14px;
+    letter-spacing: 0;
+    margin-bottom: 11px;
+  }
+
+  .mobile-section-intro {
+    display: block;
+    color: #a9bbcf;
+    font-size: 13px;
+    line-height: 1.45;
+    margin-bottom: 4px;
+  }
+
   .detail-heading,
   .permission-review-header {
     display: grid;
+  }
+
+  .agent-list,
+  .clearance-panel,
+  .audit-panel,
+  .hitl-panel,
+  .vault-panel,
+  .settings-panel {
+    gap: 10px;
   }
 
   .grid,
@@ -880,5 +1060,87 @@ pre {
   .chat-form,
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .agent-row {
+    min-height: 68px;
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .agent-row span {
+    font-size: 15px;
+  }
+
+  .manifest-grid div,
+  .permission-review-header,
+  .permission-review-row,
+  .clearance-row,
+  .doc-row,
+  .log-row,
+  .hitl-row,
+  .chat-panel,
+  .settings-grid div {
+    border-radius: 14px;
+  }
+
+  .permission-review-header button,
+  .permission-review-row button,
+  .button-row button,
+  .mobile-panel-actions button,
+  .mobile-panel-actions label,
+  .mobile-quick-actions button,
+  .vault-search button,
+  .chat-form button,
+  .privacy-actions button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .button-row,
+  .privacy-actions {
+    align-items: stretch;
+  }
+
+  .add-agent-panel,
+  .add-vault-panel {
+    border-radius: 18px;
+    margin-bottom: 14px;
+    padding: 16px;
+  }
+
+  .wizard-steps {
+    justify-content: space-between;
+  }
+
+  .wizard-steps button {
+    width: 42px;
+    min-height: 42px;
+  }
+
+  .wizard-page h2 {
+    font-size: 20px;
+  }
+
+  .template-card {
+    min-height: 96px;
+    border-radius: 14px;
+  }
+
+  .choice-row,
+  .clearance-row {
+    min-height: 46px;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  pre {
+    max-height: 160px;
   }
 }

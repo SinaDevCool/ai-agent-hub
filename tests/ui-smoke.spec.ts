@@ -50,7 +50,7 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await addAgentForm.getByRole("button", { name: "Next" }).click();
   await addAgentForm.getByLabel("Take actions").check();
   await addAgentForm.getByRole("button", { name: "Next" }).click();
-  await addAgentForm.getByLabel("Must ask before").fill("transfer_funds");
+  await addAgentForm.getByLabel("Ask me before").fill("transfer_funds");
   await addAgentForm.getByRole("button", { name: "Add agent" }).click();
   await expect(page.getByRole("heading", { name: agentName })).toBeVisible();
   await expect(page.locator(".audit-panel")).toContainText("was added");
@@ -69,7 +69,7 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(page.locator(".chat-transcript")).toContainText("Found");
 
   const uploadTitle = `Smoke Upload ${Date.now()}`;
-  await page.locator(".upload-button input").setInputFiles({
+  await page.locator(".topbar .upload-button input").setInputFiles({
     name: `${uploadTitle}.md`,
     mimeType: "text/markdown",
     buffer: Buffer.from("Uploaded smoke vault note with a reusable approval phrase.")
@@ -101,4 +101,35 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(page.locator(".hitl-panel")).toContainText(/Found|Blocked/);
 
   expect(consoleIssues).toEqual([]);
+});
+
+test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { name: "Your AI Agent Hub" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your AI helpers" })).toBeVisible();
+  await expect(page.locator(".mobile-home")).toBeVisible();
+  await expect(page.locator(".agent-list")).toBeVisible();
+  await expect(page.locator("#vault")).toBeHidden();
+
+  const nav = page.locator(".nav-rail");
+  await nav.getByRole("button", { name: "Personal Info", exact: true }).click();
+  await expect(page.locator("#vault")).toBeVisible();
+  await expect(page.locator(".detail-panel")).toBeHidden();
+  await expect(page.locator("#vault").getByRole("button", { name: "Add Personal Info" })).toBeVisible();
+
+  await nav.getByRole("button", { name: "Permissions", exact: true }).click();
+  await expect(page.locator("#clearance")).toBeVisible();
+  await expect(page.locator(".hitl-panel")).toBeVisible();
+  await expect(page.locator("#vault")).toBeHidden();
+
+  await nav.getByRole("button", { name: "Activity", exact: true }).click();
+  await expect(page.locator(".audit-panel")).toBeVisible();
+  await expect(page.locator("#clearance")).toBeHidden();
+
+  await nav.getByRole("button", { name: "AI Agents", exact: true }).click();
+  await page.getByRole("button", { name: "Add AI Agent" }).first().click();
+  await expect(page.locator(".add-agent-panel")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What kind of helper do you want?" })).toBeVisible();
 });
