@@ -779,6 +779,11 @@ legend {
   padding: 12px;
 }
 
+.friendly-error button,
+.friendly-empty-state button {
+  justify-self: start;
+}
+
 .friendly-error p,
 .friendly-empty-state p {
   color: #ffd89a;
@@ -797,6 +802,15 @@ legend {
 
 .friendly-empty-state p {
   color: #a9bbcf;
+}
+
+.friendly-empty-state::before {
+  background: rgba(64, 156, 255, 0.18);
+  border: 1px solid rgba(64, 156, 255, 0.28);
+  border-radius: 999px;
+  content: "";
+  height: 8px;
+  width: 8px;
 }
 
 .agent-list,
@@ -820,6 +834,40 @@ legend {
 
 .marketplace-mobile-exit {
   display: none;
+}
+
+@media (min-width: 721px) {
+  .workspace-grid.section-agents {
+    grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
+  }
+
+  .workspace-grid.section-agents > .marketplace-panel {
+    display: none;
+  }
+
+  .workspace-grid.section-agents.show-mobile-marketplace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace-grid.section-agents.show-mobile-marketplace > .marketplace-panel {
+    display: grid;
+  }
+
+  .workspace-grid.section-agents.show-mobile-marketplace > .agent-list,
+  .workspace-grid.section-agents.show-mobile-marketplace > .detail-panel {
+    display: none;
+  }
+
+  .workspace-grid.section-agents > .agent-list {
+    max-height: calc(100vh - 28px);
+    overflow: auto;
+    position: sticky;
+    top: 14px;
+  }
+
+  .marketplace-mobile-exit {
+    display: inline-flex;
+  }
 }
 
 .marketplace-need-row {
@@ -863,6 +911,19 @@ legend {
   justify-content: space-between;
   gap: 12px;
   align-items: start;
+}
+
+.marketplace-card-top > div {
+  min-width: 0;
+}
+
+.marketplace-card-top strong,
+.marketplace-card-top small {
+  display: block;
+}
+
+.marketplace-card-top strong {
+  overflow-wrap: anywhere;
 }
 
 .marketplace-controls {
@@ -1199,6 +1260,65 @@ legend {
   gap: 10px;
 }
 
+.helper-list-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.helper-search-label {
+  display: grid;
+  gap: 7px;
+}
+
+.helper-search-label > span {
+  color: #f6d18d;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.helper-status-filters {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.helper-test-toggle {
+  align-items: center;
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  display: grid;
+  gap: 5px 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 42px;
+  padding: 9px 10px;
+}
+
+.helper-test-toggle input {
+  margin: 0;
+}
+
+.helper-test-toggle span {
+  color: #d9e7f7;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.helper-test-toggle small {
+  color: #91a4ba;
+  font-size: 12px;
+}
+
+.helper-status-filters button {
+  min-height: 36px;
+  padding-inline: 8px;
+}
+
+.helper-status-filters button.selected {
+  background: rgba(64, 156, 255, 0.18);
+  border-color: rgba(74, 163, 255, 0.72);
+  color: #f5f9ff;
+}
+
 .mobile-helper-list {
   display: none;
 }
@@ -1217,11 +1337,32 @@ legend {
   border-color: rgba(64, 156, 255, 0.68);
 }
 
+.agent-card-head {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .installed-agent-card .agent-row {
   background: transparent;
   border-color: transparent;
   min-height: 44px;
   padding: 0;
+}
+
+.pin-button {
+  border-radius: 999px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  width: 32px;
+}
+
+.pin-button.selected {
+  background: rgba(255, 190, 86, 0.16);
+  border-color: rgba(255, 190, 86, 0.54);
+  color: #ffd89a;
 }
 
 .installed-agent-status,
@@ -1405,6 +1546,7 @@ legend {
 .chat-empty-state,
 .approval-card,
 .side-approval-list,
+.side-permission-summary,
 .agent-activity-card,
 .agent-tab-panel {
   border: 1px solid rgba(137, 163, 196, 0.14);
@@ -1421,6 +1563,7 @@ legend {
 .chat-empty-state strong,
 .approval-card strong,
 .side-approval-list > strong,
+.side-permission-summary strong,
 .agent-activity-card > strong,
 .agent-tab-panel > strong {
   color: #f5f9ff;
@@ -1432,9 +1575,25 @@ legend {
 .chat-approval-banner span,
 .chat-empty-state span,
 .approval-card small,
+.side-permission-summary span,
 .agent-activity-card small {
   color: #91a4ba;
   line-height: 1.4;
+}
+
+.side-permission-summary {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.side-permission-summary strong,
+.side-permission-summary span {
+  display: block;
+}
+
+.side-permission-summary span {
+  font-size: 13px;
+  margin-top: 3px;
 }
 
 .approval-card {
@@ -1456,6 +1615,17 @@ legend {
   background: rgba(255, 190, 86, 0.08);
   border-color: rgba(255, 190, 86, 0.24);
   grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.approval-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: end;
+}
+
+.approval-banner-actions button {
+  min-height: 38px;
 }
 
 .composer-heading {

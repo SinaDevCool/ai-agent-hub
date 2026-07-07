@@ -11,6 +11,7 @@ import {
   Mail,
   MessageSquare,
   Pencil,
+  Pin,
   Search,
   Settings,
   ShieldCheck,
@@ -77,6 +78,7 @@ type MarketplaceFilters = {
   canTakeActions: boolean;
   needsApproval: boolean;
 };
+type HelperStatusFilter = "all" | "ready" | "needs_access" | "needs_approval";
 type AgentReadiness = ReturnType<typeof agentReadiness>;
 type HelperPrompt = {
   label: string;
@@ -101,7 +103,7 @@ const sectionHeadings: Record<SectionId, { title: string; description: string }>
   },
   agents: {
     title: "Agent Hub",
-    description: "Find agents, add them to your profile, and manage what each one can access."
+    description: "Use your AI helpers, add new ones, and control what each helper can access."
   },
   vault: {
     title: "Private Info",
@@ -137,6 +139,13 @@ const marketplaceFilterLabels: Array<{ id: keyof MarketplaceFilters; label: stri
   { id: "canTakeActions", label: "Can take actions" },
   { id: "needsApproval", label: "Must ask first" }
 ];
+const helperStatusFilters: Array<{ id: HelperStatusFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "ready", label: "Ready" },
+  { id: "needs_access", label: "Needs access" },
+  { id: "needs_approval", label: "Needs approval" }
+];
+const testHelperPattern = /(smoke|test|demo|sample)/i;
 
 const agentTemplates: AgentTemplate[] = [
   {
@@ -292,12 +301,23 @@ function agentCannotDo(agent: Agent | undefined) {
   return Array.from(new Set(rules));
 }
 
+function isTestHelper(agent: Pick<Agent, "name" | "capabilityManifest">) {
+  return testHelperPattern.test(agent.name) || testHelperPattern.test(agent.capabilityManifest.description ?? "");
+}
+
+function friendlyList(items: Array<string | undefined>, fallback: string) {
+  const cleanItems = items.filter(Boolean) as string[];
+  if (cleanItems.length === 0) return fallback;
+  if (cleanItems.length <= 2) return cleanItems.join(", ");
+  return `${cleanItems.slice(0, 2).join(", ")} +${cleanItems.length - 2} more`;
+}
+
 function agentReadiness(agent: Agent | undefined, missingCount: number, pendingApprovalCount: number) {
   if (!agent) {
     return {
       tone: "red" as const,
-      label: "No agent selected",
-      detail: "Choose an agent to start."
+      label: "No helper selected",
+      detail: "Choose a helper to start."
     };
   }
   if (pendingApprovalCount > 0) {
@@ -311,13 +331,13 @@ function agentReadiness(agent: Agent | undefined, missingCount: number, pendingA
     return {
       tone: "amber" as const,
       label: "Needs permission",
-      detail: "Allow the requested private info before this agent can answer well."
+      detail: "Allow the requested private info before this helper can answer well."
     };
   }
   return {
     tone: "green" as const,
     label: "Ready",
-    detail: "This agent can answer using only the info you approved."
+    detail: "This helper can answer using only the info you approved."
   };
 }
 
@@ -326,22 +346,22 @@ function promptSuggestions(agent: Agent | undefined): HelperPrompt[] {
   if (category.includes("travel")) return [
     { label: "Check my preferences", prompt: "What travel preferences do you know about me?", detail: "Reads only approved travel notes.", tone: "info" },
     { label: "Plan safely", prompt: "Plan a weekend trip using my saved preferences", detail: "Uses saved info, no booking yet.", tone: "safe" },
-    { label: "Test approval", prompt: "Book a non-refundable trip", detail: "Should pause before booking.", tone: "approval" }
+    { label: "Check approval", prompt: "Book a non-refundable trip", detail: "Should pause before booking.", tone: "approval" }
   ];
   if (category.includes("financial")) return [
     { label: "Find my rule", prompt: "What spending rule should I follow?", detail: "Looks up approved money notes.", tone: "info" },
     { label: "Use preferences", prompt: "Find my payment preferences", detail: "Shows what info was used.", tone: "safe" },
-    { label: "Test approval", prompt: "Transfer money for this purchase", detail: "Should pause before money moves.", tone: "approval" }
+    { label: "Check approval", prompt: "Transfer money for this purchase", detail: "Should pause before money moves.", tone: "approval" }
   ];
   if (category.includes("wellness")) return [
     { label: "Summarize notes", prompt: "Summarize my saved health notes", detail: "Uses approved health notes only.", tone: "info" },
     { label: "Check access", prompt: "What health info can you access?", detail: "Explains allowed private info.", tone: "safe" },
-    { label: "Test approval", prompt: "Share my medical record", detail: "Should pause before sharing.", tone: "approval" }
+    { label: "Check approval", prompt: "Share my medical record", detail: "Should pause before sharing.", tone: "approval" }
   ];
   return [
     { label: "Start simple", prompt: "What can you help me with?", detail: "No risky action.", tone: "info" },
     { label: "Find info", prompt: "Find the private info you can use", detail: "Uses approved notes only.", tone: "safe" },
-    { label: "Test approval", prompt: "Try an action that needs approval", detail: "Shows the approval pause.", tone: "approval" }
+    { label: "Check approval", prompt: "Try an action that needs approval", detail: "Shows the approval pause.", tone: "approval" }
   ];
 }
 
@@ -429,7 +449,7 @@ function agentReadinessFor(agent: Agent | undefined, schemas: VaultSchema[], app
 
 function runtimeSummary(result: AgentRunResult | null) {
   if (!result) return null;
-  if (result.runtimeState === "needs_permission") return "This agent needs permission before it can use that private info.";
+  if (result.runtimeState === "needs_permission") return "This helper needs permission before it can use that private info.";
   if (result.runtimeState === "needs_approval") return "This action is waiting for your approval.";
   if (result.status === "blocked") return result.reason ?? "This request was blocked by your safety rules.";
   if (result.provider === "openai") return `Answered with OpenAI${result.model ? ` (${result.model})` : ""}.`;
@@ -540,7 +560,7 @@ function friendlyNotificationText(log: ActivityLog) {
 function friendlyResult(result: Record<string, unknown>) {
   const status = String(result.status ?? "ok");
   if (status === "ok" && Array.isArray(result.documents)) return `Found ${result.documents.length} matching personal info item${result.documents.length === 1 ? "" : "s"}.`;
-  if (status === "blocked") return `Blocked: ${String(result.reason ?? "this agent does not have permission.")}`;
+  if (status === "blocked") return `Blocked: ${String(result.reason ?? "this helper does not have permission.")}`;
   if (status === "awaiting_human_approval") return "Needs your approval before this action can continue.";
   if (status === "vault_item_created") return "Personal info saved.";
   if (status === "vault_item_updated") return "Personal info updated.";
@@ -551,9 +571,11 @@ function friendlyResult(result: Record<string, unknown>) {
 
 function friendlyAppError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
-  if (/failed:\s*5\d\d/i.test(message)) return "We could not load your workspace right now. Please try again in a moment.";
+  if (/openai|api key|quota|billing|model/i.test(message)) return "The AI answer service needs attention. Check the OpenAI key or account limits, then try again.";
+  if (/supabase|auth|jwt|session/i.test(message)) return "Your sign-in session needs a refresh. Sign in again if this keeps happening.";
+  if (/failed:\s*5\d\d|render|timeout|sleep|waking/i.test(message)) return "Your helper service may be waking up. Wait a few seconds and try again.";
   if (/failed:\s*4\d\d/i.test(message)) return "This action needs a valid signed-in session. Please sign in again if it keeps happening.";
-  if (/failed to fetch|network|connection/i.test(message)) return "Your workspace is offline. Check the connection and try again.";
+  if (/failed to fetch|network|connection/i.test(message)) return "Could not reach your helper service. Check the connection, wait a few seconds, and try again.";
   return message || "Something went wrong. Please try again.";
 }
 
@@ -577,6 +599,10 @@ export function App() {
   const [showMobileMarketplace, setShowMobileMarketplace] = useState(false);
   const [confirmInstallAgent, setConfirmInstallAgent] = useState<MarketplaceAgent | null>(null);
   const [marketplaceDetailAgent, setMarketplaceDetailAgent] = useState<MarketplaceAgent | null>(null);
+  const [helperSearch, setHelperSearch] = useState("");
+  const [helperStatusFilter, setHelperStatusFilter] = useState<HelperStatusFilter>("all");
+  const [pinnedAgentIds, setPinnedAgentIds] = useState<string[]>([]);
+  const [hideTestHelpers, setHideTestHelpers] = useState(true);
   const [schemas, setSchemas] = useState<VaultSchema[]>([]);
   const [documents, setDocuments] = useState<VaultDocument[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -824,6 +850,10 @@ export function App() {
   const selectedRiskyActions = selectedAgent?.capabilityManifest.highRiskActions ?? [];
   const selectedHelperTools = selectedAgent?.capabilityManifest.tools?.map(friendlyToolName) ?? [];
   const selectedCannotDo = agentCannotDo(selectedAgent);
+  const selectedReadableInfoLabel = friendlyList(selectedReadableInfo, "Nothing yet");
+  const selectedRiskyActionsLabel = friendlyList(selectedAgent?.capabilityManifest.highRiskActions?.map(friendlyActionName) ?? [], "No risky actions listed");
+  const selectedHelperToolsLabel = friendlyList(selectedHelperTools, "Answer simple questions");
+  const selectedCannotDoLabel = friendlyList(selectedCannotDo, "Nothing blocked");
   const helperNextStep = selectedAgentApprovals.length
     ? "Review the paused action below."
     : ungrantedRequestedSchemas.length
@@ -840,6 +870,48 @@ export function App() {
     permissions: permissionProgress(agent, schemas),
     pendingApprovals: hitl.filter((request) => request.agent.id === agent.id).length
   })), [agents, hitl, schemas]);
+  const visibleInstalledAgentCards = useMemo(() => {
+    const search = helperSearch.trim().toLowerCase();
+    return installedAgentCards
+      .filter(({ agent, permissions, pendingApprovals }) => {
+        const matchesSearch = !search || [
+          agent.name,
+          agent.category,
+          agent.capabilityManifest.description,
+          ...(agent.capabilityManifest.requestedSchemas ?? []),
+          ...(agent.capabilityManifest.tools ?? [])
+        ].some((value) => String(value ?? "").toLowerCase().includes(search));
+        const matchesStatus =
+          helperStatusFilter === "all"
+          || (helperStatusFilter === "ready" && pendingApprovals === 0 && permissions.missing === 0)
+          || (helperStatusFilter === "needs_access" && permissions.missing > 0 && pendingApprovals === 0)
+          || (helperStatusFilter === "needs_approval" && pendingApprovals > 0);
+        const matchesTestVisibility = !hideTestHelpers || !isTestHelper(agent);
+        return matchesSearch && matchesStatus && matchesTestVisibility;
+      })
+      .sort((left, right) => {
+        const leftPinned = pinnedAgentIds.includes(left.agent.id) ? 1 : 0;
+        const rightPinned = pinnedAgentIds.includes(right.agent.id) ? 1 : 0;
+        if (leftPinned !== rightPinned) return rightPinned - leftPinned;
+        const leftTest = isTestHelper(left.agent) ? 1 : 0;
+        const rightTest = isTestHelper(right.agent) ? 1 : 0;
+        if (leftTest !== rightTest) return leftTest - rightTest;
+        if (left.pendingApprovals !== right.pendingApprovals) return right.pendingApprovals - left.pendingApprovals;
+        if (left.permissions.missing !== right.permissions.missing) return right.permissions.missing - left.permissions.missing;
+        return left.agent.name.localeCompare(right.agent.name);
+      });
+  }, [helperSearch, helperStatusFilter, hideTestHelpers, installedAgentCards, pinnedAgentIds]);
+  const hiddenTestHelperCount = useMemo(
+    () => installedAgentCards.filter(({ agent }) => isTestHelper(agent)).length,
+    [installedAgentCards]
+  );
+  useEffect(() => {
+    if (!hideTestHelpers || !selectedAgent || !isTestHelper(selectedAgent)) return;
+    const nextVisibleAgent = visibleInstalledAgentCards[0]?.agent;
+    if (nextVisibleAgent) {
+      setSelectedAgentId(nextVisibleAgent.id);
+    }
+  }, [hideTestHelpers, selectedAgent, visibleInstalledAgentCards]);
   const mobileInstalledAgentCards = installedAgentCards.slice(0, 5);
   const visibleApprovals = hitl.slice(0, 3);
   const permissionCenterRows = useMemo(() => schemas.map((schema) => ({
@@ -909,7 +981,7 @@ export function App() {
     setGrantingSchemaName(schema.name);
     try {
       await togglePermission(schema, true);
-      setToolResult(`${selectedAgent?.name ?? "This agent"} can now read ${schema.name}.`);
+      setToolResult(`${selectedAgent?.name ?? "This helper"} can now read ${schema.name}.`);
     } finally {
       setGrantingSchemaName("");
     }
@@ -922,7 +994,7 @@ export function App() {
       for (const item of ungrantedRequestedSchemas) {
         if (item.schema) await togglePermission(item.schema, true);
       }
-      setToolResult(`${selectedAgent?.name ?? "This agent"} can now read ${ungrantedRequestedSchemas.length} approved info categories.`);
+      setToolResult(`${selectedAgent?.name ?? "This helper"} can now read ${ungrantedRequestedSchemas.length} approved info categories.`);
     } finally {
       setGrantingSchemaName("");
     }
@@ -1294,6 +1366,13 @@ export function App() {
     }
   }
 
+  function togglePinnedAgent(agentId: string) {
+    setPinnedAgentIds((current) => current.includes(agentId)
+      ? current.filter((id) => id !== agentId)
+      : [agentId, ...current]
+    );
+  }
+
   function openGuidedSetup(templateId = guidedTemplateId) {
     setGuidedTemplateId(templateId);
     setGuidedSetupStep(1);
@@ -1530,11 +1609,6 @@ export function App() {
             {session ? <span className="user-chip">{session.user.email}</span> : null}
             <button className="topbar-primary" onClick={openMarketplace} type="button"><Bot size={16} /> Add AI Helper</button>
             <button className="topbar-secondary" onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Private Info</button>
-            <label className="upload-button topbar-secondary">
-              <Upload size={16} /> Upload
-              <input accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void uploadVaultFile(event)} type="file" />
-            </label>
-            <button className="topbar-secondary" onClick={reindexVault}><FileSearch size={16} /> Refresh Info</button>
             {session ? <button className="topbar-secondary" onClick={() => void signOut()} type="button"><LogOut size={16} /> Sign out</button> : null}
           </div>
         </header>
@@ -2048,14 +2122,14 @@ export function App() {
                     </div>
                     <p>{agent.tagline || agent.description}</p>
                     <div className="marketplace-safety-badges" aria-label={`${agent.name} safety summary`}>
-                      <span>{friendlyTrustLabel(agent.trustScore)}</span>
+                      <span>{agent.creator?.verified ? "Verified helper" : "Community helper"}</span>
                       <span>{manifest.requestedSchemas?.length ? "Uses private info" : "No info needed"}</span>
-                      <span>{manifest.highRiskActions?.length ? "Asks before actions" : "No risky actions"}</span>
+                      <span>{manifest.highRiskActions?.length ? "Asks you first" : "No risky actions"}</span>
                     </div>
                     <div className="marketplace-meta">
-                      <span><strong>Best for</strong>{agent.tagline || agent.description}</span>
-                      <span><strong>Needs access to</strong>{manifest.requestedSchemas?.join(", ") || "No private info"}</span>
-                      <span><strong>Always asks before</strong>{manifest.highRiskActions?.map(friendlyActionName).join(", ") || "No risky actions listed"}</span>
+                      <span><strong>Helps with</strong>{agent.tagline || agent.description}</span>
+                      <span><strong>May ask to read</strong>{friendlyList(manifest.requestedSchemas ?? [], "No private info")}</span>
+                      <span><strong>Asks before</strong>{friendlyList(manifest.highRiskActions?.map(friendlyActionName) ?? [], "No risky actions listed")}</span>
                     </div>
                     <div className="marketplace-card-actions">
                       <small>{agent.installCount} installs / {agent.averageRating.toFixed(1)} rating</small>
@@ -2086,7 +2160,7 @@ export function App() {
                         <div className="marketplace-card-top">
                           <div>
                             <strong>{selectedMarketplaceAgent.name}</strong>
-                            <small>{friendlyCategoryName(selectedMarketplaceAgent.category)} / {friendlyTrustLabel(selectedMarketplaceAgent.trustScore)}</small>
+                            <small>{friendlyCategoryName(selectedMarketplaceAgent.category)} helper</small>
                           </div>
                           <StatusPill tone={alreadyInstalled ? "green" : "blue"}>{alreadyInstalled ? "installed" : "available"}</StatusPill>
                         </div>
@@ -2125,9 +2199,9 @@ export function App() {
                           </div>
                         ) : null}
                         <div className="manifest-grid marketplace-detail-grid">
-                          <div><strong>What it can do</strong><span>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span></div>
-                          <div><strong>What it may ask to read</strong><span>{manifest.requestedSchemas?.join(", ") || "None"}</span></div>
-                          <div><strong>Always asks before</strong><span>{manifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
+                          <div><strong>Helps with</strong><span>{friendlyList(manifest.tools?.map(friendlyToolName) ?? [], "Simple tasks")}</span></div>
+                          <div><strong>May ask to read</strong><span>{friendlyList(manifest.requestedSchemas ?? [], "No private info")}</span></div>
+                          <div><strong>Asks before</strong><span>{friendlyList(manifest.highRiskActions?.map(friendlyActionName) ?? [], "Nothing risky listed")}</span></div>
                         </div>
                         <div className="example-prompt-list">
                           <strong>Try after installing</strong>
@@ -2156,6 +2230,43 @@ export function App() {
                 <p className="mobile-section-intro">Open a helper, review its access, or remove it from your profile.</p>
               </div>
               <StatusPill tone="blue">{agents.length} total</StatusPill>
+            </div>
+            <div className="helper-list-controls" aria-label="Find and filter my helpers">
+              <label className="helper-search-label">
+                <span>Search my helpers</span>
+                <div className="search-input-wrap">
+                  <Search size={16} />
+                  <input
+                    aria-label="Search my helpers"
+                    onChange={(event) => setHelperSearch(event.currentTarget.value)}
+                    placeholder="Search by name, task, or info..."
+                    value={helperSearch}
+                  />
+                </div>
+              </label>
+              <div className="helper-status-filters" aria-label="Filter helpers by status">
+                {helperStatusFilters.map((filter) => (
+                  <button
+                    className={helperStatusFilter === filter.id ? "selected" : ""}
+                    key={filter.id}
+                    onClick={() => setHelperStatusFilter(filter.id)}
+                    type="button"
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+              {hiddenTestHelperCount ? (
+                <label className="helper-test-toggle">
+                  <input
+                    checked={hideTestHelpers}
+                    onChange={(event) => setHideTestHelpers(event.currentTarget.checked)}
+                    type="checkbox"
+                  />
+                  <span>Hide test helpers</span>
+                  <small>{hiddenTestHelperCount} hidden</small>
+                </label>
+              ) : null}
             </div>
             <div className="mobile-panel-actions">
               <button onClick={openMarketplace} type="button"><Bot size={16} /> Add AI Helper</button>
@@ -2193,14 +2304,29 @@ export function App() {
               })}
             </div>
             <div className="installed-agent-list desktop-helper-list">
-              {installedAgentCards.slice(0, 10).map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
+              {visibleInstalledAgentCards.slice(0, 12).map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
                 const cardActionLabel = pendingApprovals ? "Review approval" : permissions.missing ? "Review access" : "Open chat";
+                const isPinned = pinnedAgentIds.includes(agent.id);
                 return (
                   <article className={agent.id === selectedAgent?.id ? "installed-agent-card selected" : "installed-agent-card"} key={agent.id}>
-                    <button className="agent-row" onClick={() => setSelectedAgentId(agent.id)} type="button">
-                      <span>{agent.name}</span>
-                      <small>{friendlyCategoryName(agent.category)} / {friendlyTrustLabel(agent.trustScore)}</small>
-                    </button>
+                    <div className="agent-card-head">
+                      <button className="agent-row" onClick={() => {
+                        setSelectedAgentId(agent.id);
+                        setAgentProfileTab("chat");
+                      }} type="button">
+                        <span>{agent.name}</span>
+                        <small>{friendlyCategoryName(agent.category)} / {friendlyTrustLabel(agent.trustScore)}</small>
+                      </button>
+                      <button
+                        aria-label={isPinned ? `Unpin ${agent.name}` : `Pin ${agent.name}`}
+                        className={isPinned ? "pin-button selected" : "pin-button"}
+                        onClick={() => togglePinnedAgent(agent.id)}
+                        title={isPinned ? "Unpin helper" : "Pin helper"}
+                        type="button"
+                      >
+                        <Pin size={14} />
+                      </button>
+                    </div>
                     <div className="installed-agent-status">
                       <StatusPill tone={cardReadiness.tone}>{cardReadiness.label}</StatusPill>
                       <small>{cardReadiness.detail}</small>
@@ -2227,6 +2353,17 @@ export function App() {
                 );
               })}
             </div>
+            {agents.length > 0 && visibleInstalledAgentCards.length === 0 ? (
+              <div className="friendly-empty-state">
+                <strong>No helpers match this view</strong>
+                <p>Clear search, switch back to All, or show test helpers if you are checking old smoke data.</p>
+                <button onClick={() => {
+                  setHelperSearch("");
+                  setHelperStatusFilter("all");
+                  setHideTestHelpers(false);
+                }} type="button">Show all helpers</button>
+              </div>
+            ) : null}
             {agents.length === 0 ? (
               <div className="friendly-empty-state">
                 <strong>No helpers yet</strong>
@@ -2234,7 +2371,7 @@ export function App() {
                 <button onClick={openMarketplace} type="button"><Bot size={16} /> Find a helper</button>
               </div>
             ) : null}
-            {agents.length > 10 ? <p className="empty">Showing 10 of {agents.length} helpers. Use search next as your profile grows.</p> : null}
+            {visibleInstalledAgentCards.length > 12 ? <p className="empty">Showing 12 of {visibleInstalledAgentCards.length} matching helpers. Pin the ones you use most.</p> : null}
           </div>
 
           {selectedAgent ? (
@@ -2250,20 +2387,20 @@ export function App() {
                 </div>
                 <div className="agent-simple-summary" aria-label={`${selectedAgent.name} safety summary`}>
                   <div>
-                    <strong>Can do</strong>
-                    <span>{selectedHelperTools.join(", ") || "Answer simple questions"}</span>
+                    <strong>Can help with</strong>
+                    <span>{selectedHelperToolsLabel}</span>
                   </div>
                   <div>
                     <strong>Can read</strong>
-                    <span>{permissionReview.filter((item) => item.granted).map((item) => item.schemaName).join(", ") || "Nothing yet"}</span>
+                    <span>{selectedReadableInfoLabel}</span>
                   </div>
                   <div>
                     <strong>Must ask before</strong>
-                    <span>{selectedAgent.capabilityManifest.highRiskActions?.map(friendlyActionName).join(", ") || "No risky actions listed"}</span>
+                    <span>{selectedRiskyActionsLabel}</span>
                   </div>
                   <div>
-                    <strong>Cannot do</strong>
-                    <span>{selectedCannotDo.join(", ")}</span>
+                    <strong>Blocked until you allow</strong>
+                    <span>{selectedCannotDoLabel}</span>
                   </div>
                 </div>
 
@@ -2305,7 +2442,14 @@ export function App() {
                           <strong>Approval needed before this helper continues</strong>
                           <span>{selectedAgentApprovals[0] ? approvalPlainSentence(selectedAgentApprovals[0].actionName) : "A sensitive action is paused."} {selectedAgentApprovals[0] ? approvalReason(selectedAgentApprovals[0].actionName) : "You decide what happens next."}</span>
                         </div>
-                        <button onClick={() => scrollToSection("clearance")} type="button">Review</button>
+                        {selectedAgentApprovals[0] ? (
+                          <div className="approval-banner-actions">
+                            <button disabled={decidingApprovalId === selectedAgentApprovals[0].id} onClick={() => void decideHitl(selectedAgentApprovals[0].id, true)} type="button">Approve</button>
+                            <button className="danger" disabled={decidingApprovalId === selectedAgentApprovals[0].id} onClick={() => void decideHitl(selectedAgentApprovals[0].id, false)} type="button">Deny</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => scrollToSection("clearance")} type="button">Review</button>
+                        )}
                       </div>
                     ) : null}
 
@@ -2347,7 +2491,7 @@ export function App() {
                       </div>
                       <form className="chat-form command-form" onSubmit={(event) => void runAgentChat(event)}>
                         <input
-                          aria-label="Message agent"
+                          aria-label="Message helper"
                           name="helper-message"
                           onChange={(event) => setChatInput(event.currentTarget.value)}
                           placeholder="Ask it to find info or try an action that may need approval..."
@@ -2441,68 +2585,17 @@ export function App() {
                     <div className="agent-status-card">
                       <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
                       <strong>{readiness.detail}</strong>
-                      <small>{allowedPermissionCount} of {permissionReview.length} requested info categories allowed.</small>
+                      <small>{helperNextStep}</small>
                     </div>
-                    <div className="manifest-grid agent-side-grid">
-                      <div><strong>Can do</strong><span>{selectedHelperTools.join(", ") || "Answer simple questions"}</span></div>
-                      <div><strong>Cannot do</strong><span>{selectedCannotDo.join(", ")}</span></div>
-                      <div><strong>Must ask before</strong><span>{selectedAgent.capabilityManifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
-                      <div><strong>Connection</strong><span>{selectedAgent.connections[0]?.connectionStatus ?? "none"}</span></div>
-                    </div>
-                    <div className="permission-review compact-permission-review">
-                      <div className="permission-review-header">
-                        <div>
-                          <strong>Permissions</strong>
-                          <span>{allowedPermissionCount} of {permissionReview.length} info categories allowed</span>
-                        </div>
-                        <button
-                          disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"}
-                          onClick={() => void grantAllRequestedSchemas()}
-                          type="button"
-                        >
-                          <KeyRound size={16} /> Allow requested info
-                        </button>
+                    <div className="side-permission-summary">
+                      <div>
+                        <strong>Private info access</strong>
+                        <span>{allowedPermissionCount} of {permissionReview.length} allowed</span>
                       </div>
-                      {permissionReview.length === 0 ? (
-                        <p className="empty">This agent has not requested private info.</p>
-                      ) : permissionReview.map((item) => (
-                        <div className="permission-review-row" key={item.schemaName}>
-                          <div>
-                            <strong>{item.schemaName}</strong>
-                            <small>{item.schema?.description ?? "Unknown info category"}</small>
-                          </div>
-                          <StatusPill tone={item.granted ? "green" : item.schema ? "amber" : "red"}>
-                            {item.granted ? "allowed" : item.schema ? "needed" : "missing"}
-                          </StatusPill>
-                          <button
-                            disabled={!item.schema || item.granted || grantingSchemaName === item.schemaName || grantingSchemaName === "all"}
-                            onClick={() => item.schema ? void grantRequestedSchema(item.schema) : undefined}
-                            type="button"
-                          >
-                            Allow
-                          </button>
-                          {item.schema && item.granted ? (
-                            <button onClick={() => void togglePermission(item.schema!, false)} type="button">Revoke</button>
-                          ) : null}
-                        </div>
-                      ))}
+                      <button onClick={() => setAgentProfileTab("permissions")} type="button">
+                        <KeyRound size={15} /> Edit access
+                      </button>
                     </div>
-                    {selectedAgentApprovals.length ? (
-                      <div className="side-approval-list">
-                        <strong>Waiting for you</strong>
-                        {selectedAgentApprovals.map((request) => (
-                          <div className="approval-card" key={request.id}>
-                            <StatusPill tone="amber">paused</StatusPill>
-                            <strong>{approvalPlainSentence(request.actionName)}</strong>
-                            <small>{approvalReason(request.actionName)}</small>
-                            <div className="button-row compact-row">
-                              <button disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, true)} type="button">Approve</button>
-                              <button className="danger" disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, false)} type="button">Deny</button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
                     <div className="agent-activity-card">
                       <strong>Recent activity</strong>
                       {selectedAgentLogs.length ? selectedAgentLogs.slice(0, 3).map((log) => (
@@ -2512,12 +2605,6 @@ export function App() {
                           <small>{friendlyDate(log.createdAt)}</small>
                         </div>
                       )) : <small>No activity for this helper yet.</small>}
-                    </div>
-                    <div className="button-row">
-                      <button onClick={runVaultSearch}><Database size={16} /> Search personal info</button>
-                      <button className="danger" onClick={triggerHighRiskAction}><Zap size={16} /> Try approval flow</button>
-                      <button onClick={revokeSelectedAgentAccess} type="button"><KeyRound size={16} /> Revoke access</button>
-                      <button className="danger" onClick={() => removeAgentFromProfile(selectedAgent)} type="button"><Trash2 size={16} /> Remove helper</button>
                     </div>
                   </aside>
                 </div>
@@ -2595,6 +2682,8 @@ export function App() {
                     </div>
                     <div className="button-row">
                       <button onClick={() => setAgentProfileTab("chat")} type="button"><MessageSquare size={16} /> Open chat</button>
+                      <button onClick={runVaultSearch} type="button"><Database size={16} /> Search personal info</button>
+                      <button onClick={triggerHighRiskAction} type="button"><Zap size={16} /> Try approval flow</button>
                       <button onClick={revokeSelectedAgentAccess} type="button"><KeyRound size={16} /> Revoke all access</button>
                       <button className="danger" onClick={() => removeAgentFromProfile(selectedAgent)} type="button"><Trash2 size={16} /> Remove helper</button>
                     </div>
@@ -2619,6 +2708,13 @@ export function App() {
               <div><strong>{allowedPermissionCount}</strong><span>Allowed categories</span></div>
               <div><strong>{hitl.length}</strong><span>Approvals waiting</span></div>
             </div>
+            {permissionCenterRows.length === 0 ? (
+              <div className="friendly-empty-state">
+                <strong>No private info categories yet</strong>
+                <p>Add your first private note and this page will show exactly which helpers can use it.</p>
+                <button onClick={() => setIsAddingVaultItem(true)} type="button"><FilePlus size={16} /> Add Private Info</button>
+              </div>
+            ) : null}
             {permissionCenterRows.map(({ schema, allowedAgents, requestingAgents }) => {
               const granted = Boolean(selectedAgent?.permissions.some((permission) => permission.vaultSchemaId === schema.id && permission.permissionType === "read"));
               const selectedRequestsThis = Boolean(selectedAgent?.capabilityManifest.requestedSchemas?.includes(schema.name));
@@ -2661,7 +2757,7 @@ export function App() {
                 aria-label="Search private info"
                 name="private-info-search"
                 onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                placeholder="Search personal info through the selected agent..."
+                placeholder="Search personal info through the selected helper..."
                 required
                 value={searchQuery}
               />
@@ -2681,6 +2777,13 @@ export function App() {
                     <p>{document.excerpt}</p>
                   </article>
                 ))}
+              </div>
+            ) : null}
+            {documents.length === 0 ? (
+              <div className="friendly-empty-state">
+                <strong>No private info yet</strong>
+                <p>Save a note like travel preferences, payment rules, or household details. Helpers can only read it after you allow access.</p>
+                <button onClick={() => setIsAddingVaultItem(true)} type="button"><FilePlus size={16} /> Save your first note</button>
               </div>
             ) : null}
             {visibleDocuments.map((document) => (
@@ -2716,12 +2819,24 @@ export function App() {
                 <small>{friendlyDate(log.createdAt)}</small>
               </div>
             ))}
-            {recentLogs.length === 0 ? <p className="empty">No activity yet. Once a helper reads info or asks for approval, it will show here.</p> : null}
+            {recentLogs.length === 0 ? (
+              <div className="friendly-empty-state">
+                <strong>Your safety log will appear here</strong>
+                <p>When a helper reads private info, asks for approval, or gets blocked, you will see the receipt here.</p>
+                <button onClick={() => scrollToSection("agents")} type="button"><MessageSquare size={16} /> Use a helper</button>
+              </div>
+            ) : null}
           </div>
 
           <div className={`panel hitl-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`}>
             <div className="panel-title">Needs Your Approval</div>
-            {hitl.length === 0 ? <p className="empty">No helper is waiting for approval.</p> : visibleApprovals.map((request) => (
+            {hitl.length === 0 ? (
+              <div className="friendly-empty-state">
+                <strong>Nothing needs your approval right now</strong>
+                <p>When a helper wants to spend money, share sensitive info, or continue a risky action, it will pause here first.</p>
+                <button onClick={() => scrollToSection("agents")} type="button"><Bot size={16} /> Back to helpers</button>
+              </div>
+            ) : visibleApprovals.map((request) => (
               <div className="hitl-row" key={request.id}>
                 <strong>{request.agent.name} wants to continue</strong>
                 <span>{approvalPlainSentence(request.actionName)}</span>
@@ -2754,10 +2869,10 @@ export function App() {
         </section>
         {confirmation ? (
           <div className="confirm-backdrop" role="presentation">
-            <section aria-modal="true" className="confirm-dialog" role="dialog">
+            <section aria-describedby="confirm-dialog-copy" aria-labelledby="confirm-dialog-title" aria-modal="true" className="confirm-dialog" role="dialog">
               <div className="panel-title">Please Confirm</div>
-              <h2>{confirmation.title}</h2>
-              <p>{confirmation.message}</p>
+              <h2 id="confirm-dialog-title">{confirmation.title}</h2>
+              <p id="confirm-dialog-copy">{confirmation.message}</p>
               <div className="button-row">
                 <button
                   className={confirmation.tone === "danger" ? "danger" : ""}
@@ -2774,10 +2889,10 @@ export function App() {
         ) : null}
         {confirmInstallAgent ? (
           <div className="confirm-backdrop" role="presentation">
-            <section aria-modal="true" className="confirm-dialog install-confirm-dialog" role="dialog">
+            <section aria-describedby="install-dialog-copy" aria-labelledby="install-dialog-title" aria-modal="true" className="confirm-dialog install-confirm-dialog" role="dialog">
               <div className="panel-title">Add Helper</div>
-              <h2>Add {confirmInstallAgent.name}?</h2>
-              <p>This helper will be added to your profile. It cannot read private info until you allow it.</p>
+              <h2 id="install-dialog-title">Add {confirmInstallAgent.name}?</h2>
+              <p id="install-dialog-copy">This helper will be added to your profile. It cannot read private info until you allow it.</p>
               <div className="install-review-grid">
                 <div><strong>Best for</strong><span>{confirmInstallAgent.tagline || confirmInstallAgent.description}</span></div>
                 <div><strong>Needs access to</strong><span>{confirmInstallAgent.versions[0]?.capabilityManifest.requestedSchemas?.join(", ") || "No private info"}</span></div>
@@ -2794,7 +2909,7 @@ export function App() {
         ) : null}
         {marketplaceDetailAgent ? (
           <div className="confirm-backdrop marketplace-detail-backdrop" role="presentation">
-            <section aria-modal="true" className="marketplace-detail-sheet" role="dialog">
+            <section aria-describedby="marketplace-detail-copy" aria-labelledby="marketplace-detail-title" aria-modal="true" className="marketplace-detail-sheet" role="dialog">
               {(() => {
                 const manifest = marketplaceDetailAgent.versions[0]?.capabilityManifest ?? {};
                 const install = installedByDefinitionId.get(marketplaceDetailAgent.id);
@@ -2807,8 +2922,8 @@ export function App() {
                     <div className="marketplace-sheet-head">
                       <div>
                         <div className="panel-title">Helper Details</div>
-                        <h2>{marketplaceDetailAgent.name}</h2>
-                        <p>{marketplaceDetailAgent.description}</p>
+                        <h2 id="marketplace-detail-title">{marketplaceDetailAgent.name}</h2>
+                        <p id="marketplace-detail-copy">{marketplaceDetailAgent.description}</p>
                       </div>
                       <button onClick={() => setMarketplaceDetailAgent(null)} type="button">Close</button>
                     </div>
@@ -2848,9 +2963,9 @@ export function App() {
                       </div>
                     ) : null}
                     <div className="manifest-grid marketplace-detail-grid">
-                      <div><strong>What it can do</strong><span>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span></div>
-                      <div><strong>What it may ask to read</strong><span>{manifest.requestedSchemas?.join(", ") || "None"}</span></div>
-                      <div><strong>Always asks before</strong><span>{manifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
+                      <div><strong>Helps with</strong><span>{friendlyList(manifest.tools?.map(friendlyToolName) ?? [], "Simple tasks")}</span></div>
+                      <div><strong>May ask to read</strong><span>{friendlyList(manifest.requestedSchemas ?? [], "No private info")}</span></div>
+                      <div><strong>Asks before</strong><span>{friendlyList(manifest.highRiskActions?.map(friendlyActionName) ?? [], "Nothing risky listed")}</span></div>
                     </div>
                     <div className="example-prompt-list">
                       <strong>Try after installing</strong>

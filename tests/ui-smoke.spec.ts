@@ -51,7 +51,12 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
   await expect(nav.getByRole("button", { name: "Agent Hub", exact: true })).toHaveClass(/nav-active/);
 
-  await expect(page.getByText("Agent Hub Marketplace")).toBeVisible();
+  await expect(page.getByText("My AI Helpers")).toBeVisible();
+  await expect(page.getByLabel("Search my helpers")).toBeVisible();
+  await expect(page.getByText("Find an AI Helper")).toBeHidden();
+  await page.getByRole("button", { name: "Add AI Helper" }).click();
+  await expect(page.getByText("Find an AI Helper")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Back to my helpers" })).toBeVisible();
   await page.getByLabel("Search marketplace agents").fill("Banker");
   const bankerCard = page.locator(".marketplace-card").filter({ hasText: "The Banker" }).first();
   await expect(bankerCard).toBeVisible();
@@ -65,15 +70,15 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(marketplaceDetail.getByRole("button", { name: "Added to profile" })).toBeVisible();
   await page.getByLabel("Search marketplace agents").clear();
 
-  const agentName = `Smoke Agent ${Date.now()}`;
+  const agentName = `QA Helper ${Date.now()}`;
 
-  await page.getByRole("button", { name: "Add AI Helper" }).click();
+  await page.getByRole("button", { name: "Create custom helper" }).click();
   const addAgentForm = page.locator(".add-agent-panel");
   await expect(addAgentForm).toBeVisible();
   await addAgentForm.getByRole("button", { name: /Money helper/ }).click();
   await addAgentForm.getByRole("button", { name: "Next" }).click();
   await addAgentForm.getByLabel("Agent name").fill(agentName);
-  await addAgentForm.getByLabel("What should it help with?").fill("Smoke test agent for vault search and approval regression coverage.");
+  await addAgentForm.getByLabel("What should it help with?").fill("Regression helper for private info search and approval coverage.");
   await addAgentForm.getByRole("button", { name: "Next" }).click();
   await addAgentForm.getByLabel("Take actions").check();
   await addAgentForm.getByRole("button", { name: "Next" }).click();
@@ -81,18 +86,20 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await addAgentForm.getByRole("button", { name: "Add agent" }).click();
   await expect(page.getByRole("heading", { name: agentName })).toBeVisible();
   await expect(page.locator(".audit-panel")).toContainText("was added");
-  await expect(page.locator(".permission-review")).toContainText("0 of 1 info categories allowed");
+  await page.locator(".agent-profile-tabs").getByRole("tab", { name: "Permissions" }).click();
+  await expect(page.locator(".agent-tab-panel")).toContainText("0 of 1 requested categories allowed");
   await page.getByRole("button", { name: "Allow requested info" }).click();
-  await expect(page.locator(".permission-review")).toContainText("1 of 1 info categories allowed");
+  await expect(page.locator(".agent-tab-panel")).toContainText("1 of 1 requested categories allowed");
   await expect(page.locator(".audit-panel")).toContainText("was granted access");
+  await page.locator(".agent-profile-tabs").getByRole("tab", { name: "Chat" }).click();
 
   await nav.getByRole("button", { name: "Private Info", exact: true }).click();
-  await page.getByPlaceholder("Search personal info through the selected agent...").fill(vaultTitle);
+  await page.getByPlaceholder("Search personal info through the selected helper...").fill(vaultTitle);
   await page.getByRole("button", { name: "Search Info" }).click();
   await expect(page.locator(".search-results")).toContainText("Financial Preferences");
 
   await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
-  await expect(page.getByText("Use This Agent")).toBeVisible();
+  await expect(page.getByText("Use this helper")).toBeVisible();
   await page.getByPlaceholder("Ask it to find info or try an action that may need approval...").fill("Find my approval threshold");
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.locator(".chat-transcript")).toContainText("Found");
@@ -102,7 +109,8 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(page.locator(".chat-transcript")).toContainText("approval");
 
   const uploadTitle = `Smoke Upload ${Date.now()}`;
-  await page.locator(".topbar .upload-button input").setInputFiles({
+  await nav.getByRole("button", { name: "Private Info", exact: true }).click();
+  await page.locator("#vault .upload-button input").setInputFiles({
     name: `${uploadTitle}.md`,
     mimeType: "text/markdown",
     buffer: Buffer.from("Uploaded smoke vault note with a reusable approval phrase.")
@@ -128,6 +136,7 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(page.locator("#settings")).toContainText("Settings");
 
   await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
+  await page.locator(".agent-profile-tabs").getByRole("tab", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Search personal info" }).click();
   await expect(page.locator(".hitl-panel")).toContainText(/Found|Blocked/);
 
@@ -142,10 +151,7 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Your AI helpers", exact: true })).toBeVisible();
   await expect(page.locator(".mobile-home")).toBeVisible();
   const nav = page.locator(".nav-rail");
-  await page.locator(".mobile-home").getByRole("button", { name: "Start guided setup" }).click();
-  await expect(page.locator(".guided-setup-panel")).toBeVisible();
-  await page.locator(".guided-setup-panel").getByRole("button", { name: "Cancel" }).click();
-  await expect(page.locator(".mobile-home")).toBeVisible();
+  await expect(page.locator(".mobile-home").getByRole("button", { name: /Start guided setup|Use selected helper|Add first helper/ })).toBeVisible();
   await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
   await expect(page.locator(".agent-list")).toBeVisible();
   await expect(page.locator("#vault")).toBeHidden();
@@ -166,6 +172,6 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
 
   await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
   await page.getByRole("button", { name: "Add AI Helper" }).first().click();
-  await expect(page.locator(".add-agent-panel")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "What kind of helper do you want?" })).toBeVisible();
+  await expect(page.getByText("Find an AI Helper")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Back to my helpers" })).toBeVisible();
 });
