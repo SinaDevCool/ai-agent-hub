@@ -28,6 +28,7 @@ type RuntimeResult = {
   usedSchemas?: string[];
   documents?: unknown[];
   provider?: "openai" | "local";
+  providerFallbackReason?: string;
   model?: string;
 };
 
@@ -348,6 +349,7 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
       documents: serializedDocuments,
       usedSchemas: schemaNames,
       provider: generated.provider,
+      providerFallbackReason: generated.fallbackReason,
       model: generated.model,
       runtimeState: "ready" as const,
       nextStep: documents.length ? "Review the answer and ask a follow-up if needed." : "Try a more specific question or add more private info."

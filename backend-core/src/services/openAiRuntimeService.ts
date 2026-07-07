@@ -24,6 +24,7 @@ type OpenAiRuntimeResult = {
   provider: "openai" | "local";
   model?: string;
   reply: string;
+  fallbackReason?: string;
 };
 
 type OpenAiResponse = {
@@ -35,9 +36,34 @@ type OpenAiResponse = {
     }>;
   }>;
   error?: {
+    code?: string;
     message?: string;
+    type?: string;
   };
 };
+
+class OpenAiRuntimeError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly code?: string,
+    public readonly type?: string
+  ) {
+    super(message);
+  }
+}
+
+function classifyOpenAiFallback(error: unknown) {
+  if (error instanceof OpenAiRuntimeError) {
+    if (error.status === 401) return "auth_failed";
+    if (error.status === 403) return "project_or_model_access";
+    if (error.status === 404) return "model_not_found";
+    if (error.status === 429) return "quota_or_rate_limit";
+    if (error.status && error.status >= 500) return "openai_server_error";
+    return `openai_http_${error.status ?? "error"}`;
+  }
+  return "openai_request_failed";
+}
 
 function getResponseText(body: OpenAiResponse) {
   if (body.output_text?.trim()) return body.output_text.trim();
@@ -86,6 +112,7 @@ export async function generateRuntimeReply(input: OpenAiRuntimeInput): Promise<O
     logger.warn("OpenAI runtime API key is not configured; using local fallback");
     return {
       provider: "local",
+      fallbackReason: "config_missing",
       reply: input.fallbackReply
     };
   }
@@ -106,7 +133,12 @@ export async function generateRuntimeReply(input: OpenAiRuntimeInput): Promise<O
 
     const body = await response.json().catch(() => ({})) as OpenAiResponse;
     if (!response.ok) {
-      throw new Error(body.error?.message ?? `OpenAI returned ${response.status}`);
+      throw new OpenAiRuntimeError(
+        body.error?.message ?? `OpenAI returned ${response.status}`,
+        response.status,
+        body.error?.code,
+        body.error?.type
+      );
     }
 
     const reply = getResponseText(body);
@@ -123,12 +155,14 @@ export async function generateRuntimeReply(input: OpenAiRuntimeInput): Promise<O
     logger.warn(
       {
         err: error,
+        fallbackReason: classifyOpenAiFallback(error),
         openAiModel: env.OPENAI_MODEL
       },
       "OpenAI runtime reply failed; using local fallback"
     );
     return {
       provider: "local",
+      fallbackReason: classifyOpenAiFallback(error),
       reply: input.fallbackReply
     };
   }
