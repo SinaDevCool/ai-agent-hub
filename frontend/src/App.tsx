@@ -363,6 +363,21 @@ function marketplaceExamplePrompts(agent: MarketplaceAgent | undefined) {
   return ["Find useful private info", "Help with this task", "Ask before risky actions"];
 }
 
+function marketplaceTrustReasons(agent: MarketplaceAgent | undefined) {
+  const manifest = agent?.versions[0]?.capabilityManifest ?? {};
+  const reasons = [
+    agent?.creator?.verified ? "Verified creator profile" : "Community listing with a visible safety profile",
+    "Cannot read private info until you allow it",
+    "You can remove this helper or revoke access anytime"
+  ];
+  if (manifest.highRiskActions?.length) {
+    reasons.splice(2, 0, "Must ask before sensitive actions");
+  } else {
+    reasons.splice(2, 0, "No listed risky actions");
+  }
+  return reasons;
+}
+
 function permissionProgress(agent: Agent | undefined, schemas: VaultSchema[]) {
   if (!agent) return { allowed: 0, requested: 0, missing: 0 };
   const requested = agent.capabilityManifest.requestedSchemas ?? [];
@@ -533,6 +548,7 @@ export function App() {
   const [selectedMarketplaceAgentId, setSelectedMarketplaceAgentId] = useState("");
   const [showMobileMarketplace, setShowMobileMarketplace] = useState(false);
   const [confirmInstallAgent, setConfirmInstallAgent] = useState<MarketplaceAgent | null>(null);
+  const [marketplaceDetailAgent, setMarketplaceDetailAgent] = useState<MarketplaceAgent | null>(null);
   const [schemas, setSchemas] = useState<VaultSchema[]>([]);
   const [documents, setDocuments] = useState<VaultDocument[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -681,6 +697,11 @@ export function App() {
 
   const installedDefinitionIds = useMemo(
     () => new Set(installedAgents.map((install) => install.agentDefinition.id)),
+    [installedAgents]
+  );
+
+  const installedByDefinitionId = useMemo(
+    () => new Map(installedAgents.map((install) => [install.agentDefinition.id, install])),
     [installedAgents]
   );
 
@@ -1229,6 +1250,13 @@ export function App() {
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
+  }
+
+  function openMarketplaceDetails(agent: MarketplaceAgent) {
+    setSelectedMarketplaceAgentId(agent.id);
+    if (window.matchMedia("(max-width: 760px)").matches) {
+      setMarketplaceDetailAgent(agent);
+    }
   }
 
   function openGuidedSetup(templateId = guidedTemplateId) {
@@ -1996,7 +2024,7 @@ export function App() {
                     </div>
                     <div className="marketplace-card-actions">
                       <small>{agent.installCount} installs / {agent.averageRating.toFixed(1)} rating</small>
-                      <button onClick={() => setSelectedMarketplaceAgentId(agent.id)} type="button">Details</button>
+                      <button onClick={() => openMarketplaceDetails(agent)} type="button">Details</button>
                       <button
                         disabled={alreadyInstalled || installingAgentId === agent.id}
                         onClick={() => setConfirmInstallAgent(agent)}
@@ -2013,7 +2041,11 @@ export function App() {
                 <aside className="marketplace-detail">
                   {(() => {
                     const manifest = selectedMarketplaceAgent.versions[0]?.capabilityManifest ?? {};
-                    const alreadyInstalled = Boolean(selectedMarketplaceAgent.installed || installedDefinitionIds.has(selectedMarketplaceAgent.id));
+                    const install = installedByDefinitionId.get(selectedMarketplaceAgent.id);
+                    const installedAgent = install?.agent ?? undefined;
+                    const alreadyInstalled = Boolean(selectedMarketplaceAgent.installed || install);
+                    const installedPermissions = permissionProgress(installedAgent, schemas);
+                    const pendingApprovals = installedAgent ? hitl.filter((request) => request.agent.id === installedAgent.id).length : 0;
                     return (
                       <>
                         <div className="marketplace-card-top">
@@ -2029,6 +2061,34 @@ export function App() {
                           <span>{selectedMarketplaceAgent.installCount} installs</span>
                           <span>{selectedMarketplaceAgent.averageRating.toFixed(1)} rating</span>
                         </div>
+                        <div className="trust-reason-list">
+                          <strong>Why you can trust this</strong>
+                          {marketplaceTrustReasons(selectedMarketplaceAgent).map((reason) => <span key={reason}>{reason}</span>)}
+                        </div>
+                        {alreadyInstalled ? (
+                          <div className="installed-marketplace-summary">
+                            <strong>Added to your profile</strong>
+                            <span>{installedPermissions.allowed} of {installedPermissions.requested} info categories allowed</span>
+                            <span>{pendingApprovals ? `${pendingApprovals} approval waiting` : "No approvals waiting"}</span>
+                            <div>
+                              {installedAgent ? (
+                                <button onClick={() => {
+                                  setSelectedAgentId(installedAgent.id);
+                                  setAgentProfileTab("chat");
+                                  setShowMobileMarketplace(false);
+                                  scrollToSection("agents");
+                                }} type="button"><MessageSquare size={15} /> Open helper</button>
+                              ) : null}
+                              {installedAgent ? (
+                                <button onClick={() => {
+                                  setSelectedAgentId(installedAgent.id);
+                                  setShowMobileMarketplace(false);
+                                  scrollToSection("clearance");
+                                }} type="button"><KeyRound size={15} /> Edit access</button>
+                              ) : null}
+                            </div>
+                          </div>
+                        ) : null}
                         <div className="manifest-grid marketplace-detail-grid">
                           <div><strong>What it can do</strong><span>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span></div>
                           <div><strong>What it may ask to read</strong><span>{manifest.requestedSchemas?.join(", ") || "None"}</span></div>
@@ -2687,6 +2747,89 @@ export function App() {
                 </button>
                 <button disabled={installingAgentId === confirmInstallAgent.id} onClick={() => setConfirmInstallAgent(null)} type="button">Cancel</button>
               </div>
+            </section>
+          </div>
+        ) : null}
+        {marketplaceDetailAgent ? (
+          <div className="confirm-backdrop marketplace-detail-backdrop" role="presentation">
+            <section aria-modal="true" className="marketplace-detail-sheet" role="dialog">
+              {(() => {
+                const manifest = marketplaceDetailAgent.versions[0]?.capabilityManifest ?? {};
+                const install = installedByDefinitionId.get(marketplaceDetailAgent.id);
+                const installedAgent = install?.agent ?? undefined;
+                const alreadyInstalled = Boolean(marketplaceDetailAgent.installed || install);
+                const installedPermissions = permissionProgress(installedAgent, schemas);
+                const pendingApprovals = installedAgent ? hitl.filter((request) => request.agent.id === installedAgent.id).length : 0;
+                return (
+                  <>
+                    <div className="marketplace-sheet-head">
+                      <div>
+                        <div className="panel-title">Helper Details</div>
+                        <h2>{marketplaceDetailAgent.name}</h2>
+                        <p>{marketplaceDetailAgent.description}</p>
+                      </div>
+                      <button onClick={() => setMarketplaceDetailAgent(null)} type="button">Close</button>
+                    </div>
+                    <div className="trust-row">
+                      <span>{friendlyCategoryName(marketplaceDetailAgent.category)} helper</span>
+                      <span>{friendlyTrustLabel(marketplaceDetailAgent.trustScore)}</span>
+                      <span>{marketplaceDetailAgent.creator?.verified ? "Verified creator" : "Community listing"}</span>
+                    </div>
+                    <div className="trust-reason-list">
+                      <strong>Why you can trust this</strong>
+                      {marketplaceTrustReasons(marketplaceDetailAgent).map((reason) => <span key={reason}>{reason}</span>)}
+                    </div>
+                    {alreadyInstalled ? (
+                      <div className="installed-marketplace-summary">
+                        <strong>Added to your profile</strong>
+                        <span>{installedPermissions.allowed} of {installedPermissions.requested} info categories allowed</span>
+                        <span>{pendingApprovals ? `${pendingApprovals} approval waiting` : "No approvals waiting"}</span>
+                        <div>
+                          {installedAgent ? (
+                            <button onClick={() => {
+                              setSelectedAgentId(installedAgent.id);
+                              setAgentProfileTab("chat");
+                              setMarketplaceDetailAgent(null);
+                              setShowMobileMarketplace(false);
+                              scrollToSection("agents");
+                            }} type="button"><MessageSquare size={15} /> Open helper</button>
+                          ) : null}
+                          {installedAgent ? (
+                            <button onClick={() => {
+                              setSelectedAgentId(installedAgent.id);
+                              setMarketplaceDetailAgent(null);
+                              setShowMobileMarketplace(false);
+                              scrollToSection("clearance");
+                            }} type="button"><KeyRound size={15} /> Edit access</button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="manifest-grid marketplace-detail-grid">
+                      <div><strong>What it can do</strong><span>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span></div>
+                      <div><strong>What it may ask to read</strong><span>{manifest.requestedSchemas?.join(", ") || "None"}</span></div>
+                      <div><strong>Always asks before</strong><span>{manifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
+                    </div>
+                    <div className="example-prompt-list">
+                      <strong>Try after installing</strong>
+                      {marketplaceExamplePrompts(marketplaceDetailAgent).map((prompt) => <span key={prompt}>{prompt}</span>)}
+                    </div>
+                    <div className="button-row">
+                      <button
+                        disabled={alreadyInstalled || installingAgentId === marketplaceDetailAgent.id}
+                        onClick={() => {
+                          setConfirmInstallAgent(marketplaceDetailAgent);
+                          setMarketplaceDetailAgent(null);
+                        }}
+                        type="button"
+                      >
+                        <Download size={16} /> {alreadyInstalled ? "Added to profile" : installingAgentId === marketplaceDetailAgent.id ? "Adding..." : "Add to profile"}
+                      </button>
+                      <button onClick={() => setMarketplaceDetailAgent(null)} type="button">Done</button>
+                    </div>
+                  </>
+                );
+              })()}
             </section>
           </div>
         ) : null}
