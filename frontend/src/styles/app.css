@@ -1242,6 +1242,8 @@ legend {
 }
 
 .agent-status-card,
+.chat-command-center,
+.chat-approval-banner,
 .chat-empty-state,
 .approval-card,
 .side-approval-list,
@@ -1256,6 +1258,8 @@ legend {
 }
 
 .agent-status-card strong,
+.chat-command-center strong,
+.chat-approval-banner strong,
 .chat-empty-state strong,
 .approval-card strong,
 .side-approval-list > strong,
@@ -1265,11 +1269,126 @@ legend {
 }
 
 .agent-status-card small,
+.chat-command-center span,
+.chat-command-center small,
+.chat-approval-banner span,
 .chat-empty-state span,
 .approval-card small,
 .agent-activity-card small {
   color: #91a4ba;
   line-height: 1.4;
+}
+
+.chat-command-center {
+  background: linear-gradient(135deg, rgba(22, 53, 86, 0.72), rgba(7, 17, 31, 0.42));
+  border-color: rgba(64, 156, 255, 0.22);
+  gap: 12px;
+}
+
+.chat-approval-banner {
+  align-items: center;
+  background: rgba(255, 190, 86, 0.08);
+  border-color: rgba(255, 190, 86, 0.24);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.composer-heading {
+  align-items: start;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.composer-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.suggestion-grid {
+  display: grid;
+  gap: 9px;
+  grid-template-columns: 1fr;
+}
+
+.suggestion-card {
+  align-items: start;
+  background: rgba(7, 17, 31, 0.48);
+  border-color: rgba(137, 163, 196, 0.16);
+  display: grid;
+  gap: 5px;
+  grid-template-columns: minmax(120px, 0.32fr) minmax(0, 1fr);
+  height: auto;
+  justify-content: stretch;
+  min-height: 76px;
+  padding: 12px;
+  text-align: left;
+  white-space: normal;
+}
+
+.suggestion-card.info {
+  border-color: rgba(104, 180, 255, 0.26);
+}
+
+.suggestion-card.safe {
+  border-color: rgba(71, 210, 142, 0.22);
+}
+
+.suggestion-card.approval {
+  border-color: rgba(255, 190, 86, 0.28);
+}
+
+.suggestion-card strong,
+.suggestion-card span,
+.suggestion-card small {
+  display: block;
+}
+
+.suggestion-card strong {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.suggestion-card span,
+.suggestion-card small {
+  grid-column: 2;
+}
+
+.suggestion-card strong {
+  color: #f6d18d;
+  font-size: 12px;
+}
+
+.suggestion-card span {
+  color: #f5f9ff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.send-preview {
+  display: grid;
+  gap: 9px;
+  grid-template-columns: 1fr;
+}
+
+.send-preview div {
+  align-items: start;
+  background: rgba(7, 17, 31, 0.36);
+  border: 1px solid rgba(137, 163, 196, 0.12);
+  border-radius: 7px;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: minmax(120px, 0.32fr) minmax(0, 1fr);
+  min-height: 0;
+  padding: 10px;
+}
+
+.send-preview strong {
+  color: #f6d18d;
+  font-size: 12px;
+}
+
+.command-form {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .agent-tab-panel {
@@ -2374,6 +2493,10 @@ textarea:focus-visible {
   }
 
   .agent-simple-summary div,
+  .chat-command-center,
+  .chat-approval-banner,
+  .send-preview div,
+  .suggestion-card,
   .friendly-error,
   .friendly-empty-state {
     border-radius: 14px;
@@ -2394,6 +2517,37 @@ textarea:focus-visible {
 
   .suggestion-row {
     display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .chat-approval-banner {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .composer-heading {
+    display: grid;
+  }
+
+  .suggestion-grid,
+  .send-preview,
+  .command-form {
+    grid-template-columns: 1fr;
+  }
+
+  .suggestion-card {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .suggestion-card strong,
+  .suggestion-card span,
+  .suggestion-card small,
+  .send-preview div {
+    grid-column: auto;
+  }
+
+  .send-preview div {
     grid-template-columns: 1fr;
   }
 

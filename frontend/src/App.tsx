@@ -78,6 +78,12 @@ type MarketplaceFilters = {
   needsApproval: boolean;
 };
 type AgentReadiness = ReturnType<typeof agentReadiness>;
+type HelperPrompt = {
+  label: string;
+  prompt: string;
+  detail: string;
+  tone: "info" | "safe" | "approval";
+};
 
 const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
   { id: "home", label: "Home", icon: ShieldCheck },
@@ -279,12 +285,65 @@ function agentReadiness(agent: Agent | undefined, missingCount: number, pendingA
   };
 }
 
-function promptSuggestions(agent: Agent | undefined) {
+function promptSuggestions(agent: Agent | undefined): HelperPrompt[] {
   const category = agent?.category.toLowerCase() ?? "";
-  if (category.includes("travel")) return ["What travel preferences do you know about me?", "Plan a weekend trip using my saved preferences", "Book a non-refundable trip"];
-  if (category.includes("financial")) return ["What spending rule should I follow?", "Find my payment preferences", "Transfer money for this purchase"];
-  if (category.includes("wellness")) return ["Summarize my saved health notes", "What health info can you access?", "Share my medical record"];
-  return ["What can you help me with?", "Find the private info you can use", "Try an action that needs approval"];
+  if (category.includes("travel")) return [
+    { label: "Check my preferences", prompt: "What travel preferences do you know about me?", detail: "Reads only approved travel notes.", tone: "info" },
+    { label: "Plan safely", prompt: "Plan a weekend trip using my saved preferences", detail: "Uses saved info, no booking yet.", tone: "safe" },
+    { label: "Test approval", prompt: "Book a non-refundable trip", detail: "Should pause before booking.", tone: "approval" }
+  ];
+  if (category.includes("financial")) return [
+    { label: "Find my rule", prompt: "What spending rule should I follow?", detail: "Looks up approved money notes.", tone: "info" },
+    { label: "Use preferences", prompt: "Find my payment preferences", detail: "Shows what info was used.", tone: "safe" },
+    { label: "Test approval", prompt: "Transfer money for this purchase", detail: "Should pause before money moves.", tone: "approval" }
+  ];
+  if (category.includes("wellness")) return [
+    { label: "Summarize notes", prompt: "Summarize my saved health notes", detail: "Uses approved health notes only.", tone: "info" },
+    { label: "Check access", prompt: "What health info can you access?", detail: "Explains allowed private info.", tone: "safe" },
+    { label: "Test approval", prompt: "Share my medical record", detail: "Should pause before sharing.", tone: "approval" }
+  ];
+  return [
+    { label: "Start simple", prompt: "What can you help me with?", detail: "No risky action.", tone: "info" },
+    { label: "Find info", prompt: "Find the private info you can use", detail: "Uses approved notes only.", tone: "safe" },
+    { label: "Test approval", prompt: "Try an action that needs approval", detail: "Shows the approval pause.", tone: "approval" }
+  ];
+}
+
+function promptRiskPreview(prompt: string, agent: Agent | undefined, missingPermissions: number, pendingApprovals: number) {
+  const cleanPrompt = prompt.trim();
+  if (pendingApprovals > 0) {
+    return {
+      tone: "amber" as const,
+      label: "Approval waiting",
+      detail: "Finish the paused approval before starting another sensitive action."
+    };
+  }
+  if (!cleanPrompt) {
+    return {
+      tone: "blue" as const,
+      label: "Ready when you are",
+      detail: "Choose a starter or type what you want this helper to do."
+    };
+  }
+  if (/\b(book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open)\b/i.test(cleanPrompt)) {
+    return {
+      tone: "amber" as const,
+      label: "Will ask first",
+      detail: `${agent?.name ?? "This helper"} should pause before taking a sensitive action.`
+    };
+  }
+  if (missingPermissions > 0) {
+    return {
+      tone: "amber" as const,
+      label: "May need access",
+      detail: "The answer may be limited until you allow the requested private info."
+    };
+  }
+  return {
+    tone: "green" as const,
+    label: "Safe to send",
+    detail: "This should answer using only private info you already allowed."
+  };
 }
 
 function marketplaceExamplePrompts(agent: MarketplaceAgent | undefined) {
@@ -698,6 +757,9 @@ export function App() {
   const allowedPermissionCount = permissionReview.filter((item) => item.granted).length;
   const readiness = agentReadiness(selectedAgent, ungrantedRequestedSchemas.length, selectedAgentApprovals.length);
   const suggestedPrompts = promptSuggestions(selectedAgent);
+  const promptPreview = promptRiskPreview(chatInput, selectedAgent, ungrantedRequestedSchemas.length, selectedAgentApprovals.length);
+  const selectedReadableInfo = permissionReview.filter((item) => item.granted).map((item) => item.schemaName);
+  const selectedRiskyActions = selectedAgent?.capabilityManifest.highRiskActions ?? [];
   const runSummary = runtimeSummary(agentRunResult);
   const selectedAgentLogs = useMemo(
     () => logs.filter((log) => log.agent?.id === selectedAgent?.id).slice(0, 8),
@@ -2068,22 +2130,76 @@ export function App() {
                   <section className="chat-panel agent-chat-panel" aria-label="Agent chat">
                     <div className="chat-heading">
                       <div>
-                        <strong>Chat</strong>
+                        <strong>Use This Helper</strong>
                         <p>{readiness.detail}</p>
                       </div>
                       <StatusPill tone="blue">{isConversationLoading ? "loading" : "saved"}</StatusPill>
                     </div>
                     {agentConversation ? <p className="conversation-note">Conversation: {agentConversation.title}</p> : null}
 
+                    {selectedAgentApprovals.length ? (
+                      <div className="chat-approval-banner" role="status" aria-live="polite">
+                        <StatusPill tone="amber">{selectedAgentApprovals.length} waiting</StatusPill>
+                        <div>
+                          <strong>Approval needed before this helper continues</strong>
+                          <span>{selectedAgentApprovals[0] ? friendlyActionName(selectedAgentApprovals[0].actionName) : "Sensitive action"} is paused until you approve or deny it.</span>
+                        </div>
+                        <button onClick={() => scrollToSection("clearance")} type="button">Review</button>
+                      </div>
+                    ) : null}
+
+                    <div className="chat-command-center">
+                      <div className="composer-heading">
+                        <div>
+                          <strong>What do you want help with?</strong>
+                          <span>Pick a starter or type your own request.</span>
+                        </div>
+                        <StatusPill tone={promptPreview.tone}>{promptPreview.label}</StatusPill>
+                      </div>
+                      <div className="suggestion-grid" aria-label="Suggested helper requests">
+                        {suggestedPrompts.map((prompt) => (
+                          <button
+                            className={`suggestion-card ${prompt.tone}`}
+                            key={prompt.prompt}
+                            onClick={() => setChatInput(prompt.prompt)}
+                            type="button"
+                          >
+                            <strong>{prompt.label}</strong>
+                            <span>{prompt.prompt}</span>
+                            <small>{prompt.detail}</small>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="send-preview">
+                        <div>
+                          <strong>Before it answers</strong>
+                          <span>{promptPreview.detail}</span>
+                        </div>
+                        <div>
+                          <strong>Can read now</strong>
+                          <span>{selectedReadableInfo.length ? selectedReadableInfo.join(", ") : "No private info yet"}</span>
+                        </div>
+                        <div>
+                          <strong>Must ask before</strong>
+                          <span>{selectedRiskyActions.length ? selectedRiskyActions.map(friendlyActionName).join(", ") : "No risky actions listed"}</span>
+                        </div>
+                      </div>
+                      <form className="chat-form command-form" onSubmit={(event) => void runAgentChat(event)}>
+                        <input
+                          aria-label="Message agent"
+                          name="helper-message"
+                          onChange={(event) => setChatInput(event.currentTarget.value)}
+                          placeholder="Ask it to find info or try an action that may need approval..."
+                          value={chatInput}
+                        />
+                        <button disabled={isAgentRunning || !chatInput.trim()} type="submit"><MessageSquare size={16} /> {isAgentRunning ? "Thinking..." : "Send"}</button>
+                      </form>
+                    </div>
+
                     {chatTranscript.length === 0 && !isConversationLoading ? (
                       <div className="chat-empty-state">
-                        <strong>Start with one simple request</strong>
-                        <span>This helper can only use approved private info and will pause sensitive actions.</span>
-                        <div className="suggestion-row">
-                          {suggestedPrompts.map((prompt) => (
-                            <button key={prompt} onClick={() => setChatInput(prompt)} type="button">{prompt}</button>
-                          ))}
-                        </div>
+                        <strong>No messages yet</strong>
+                        <span>Your first request will appear here with receipts for private info use and approvals.</span>
                       </div>
                     ) : null}
 
@@ -2157,16 +2273,6 @@ export function App() {
                       </div>
                     ) : null}
 
-                    <form className="chat-form" onSubmit={(event) => void runAgentChat(event)}>
-                      <input
-                        aria-label="Message agent"
-                        name="helper-message"
-                        onChange={(event) => setChatInput(event.currentTarget.value)}
-                        placeholder="Ask it to find info or try an action that may need approval..."
-                        value={chatInput}
-                      />
-                      <button disabled={isAgentRunning || !chatInput.trim()} type="submit"><MessageSquare size={16} /> {isAgentRunning ? "Thinking..." : "Send"}</button>
-                    </form>
                   </section>
 
                   <aside className="agent-side-panel">
