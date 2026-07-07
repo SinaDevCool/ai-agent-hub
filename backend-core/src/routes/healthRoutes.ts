@@ -9,6 +9,10 @@ healthRoutes.get("/", (_req, res) => {
     service: "backend-core",
     environment: env.NODE_ENV,
     syncMode: env.SYNC_MODE,
-    vaultPath: resolvedVaultPath
+    vaultPath: resolvedVaultPath,
+    openAi: {
+      configured: Boolean(env.OPENAI_API_KEY),
+      model: env.OPENAI_MODEL
+    }
   });
 });

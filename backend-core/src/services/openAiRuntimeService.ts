@@ -83,6 +83,7 @@ function buildPrompt(input: OpenAiRuntimeInput) {
 
 export async function generateRuntimeReply(input: OpenAiRuntimeInput): Promise<OpenAiRuntimeResult> {
   if (!env.OPENAI_API_KEY) {
+    logger.warn("OpenAI runtime API key is not configured; using local fallback");
     return {
       provider: "local",
       reply: input.fallbackReply
@@ -119,7 +120,13 @@ export async function generateRuntimeReply(input: OpenAiRuntimeInput): Promise<O
       reply
     };
   } catch (error) {
-    logger.warn({ err: error }, "OpenAI runtime reply failed; using local fallback");
+    logger.warn(
+      {
+        err: error,
+        openAiModel: env.OPENAI_MODEL
+      },
+      "OpenAI runtime reply failed; using local fallback"
+    );
     return {
       provider: "local",
       reply: input.fallbackReply
