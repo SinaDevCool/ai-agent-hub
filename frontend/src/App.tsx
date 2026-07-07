@@ -264,6 +264,34 @@ function friendlyActionName(action: string) {
   return action.replace(/_/g, " ");
 }
 
+function approvalReason(action: string) {
+  const lower = action.toLowerCase();
+  if (/book|reserve|travel/.test(lower)) return "This may spend money or create a non-refundable booking.";
+  if (/transfer|pay|payment|credit|purchase|buy/.test(lower)) return "This may move money, make a purchase, or affect your finances.";
+  if (/medical|health/.test(lower)) return "This may share sensitive health information.";
+  if (/send|email|share/.test(lower)) return "This may send or share information outside your account.";
+  return "This is a sensitive action, so the helper must pause for your approval.";
+}
+
+function approvalPlainSentence(action: string) {
+  return `This helper wants to ${friendlyActionName(action)}.`;
+}
+
+function agentCannotDo(agent: Agent | undefined) {
+  if (!agent) return ["Act without your approval"];
+  const rules = ["Read private info you have not allowed"];
+  if (agent.capabilityManifest.highRiskActions?.length) {
+    rules.push("Continue risky actions until you approve them");
+  }
+  if (!agent.capabilityManifest.tools?.includes("email.draft")) {
+    rules.push("Send emails from your account");
+  }
+  if (!agent.capabilityManifest.tools?.includes("action.execute")) {
+    rules.push("Take real-world actions");
+  }
+  return Array.from(new Set(rules));
+}
+
 function agentReadiness(agent: Agent | undefined, missingCount: number, pendingApprovalCount: number) {
   if (!agent) {
     return {
@@ -276,7 +304,7 @@ function agentReadiness(agent: Agent | undefined, missingCount: number, pendingA
     return {
       tone: "amber" as const,
       label: "Needs approval",
-      detail: "One action is paused until you approve or deny it."
+      detail: `${pendingApprovalCount} action${pendingApprovalCount === 1 ? "" : "s"} paused until you approve or deny.`
     };
   }
   if (missingCount > 0) {
@@ -794,6 +822,13 @@ export function App() {
   const promptPreview = promptRiskPreview(chatInput, selectedAgent, ungrantedRequestedSchemas.length, selectedAgentApprovals.length);
   const selectedReadableInfo = permissionReview.filter((item) => item.granted).map((item) => item.schemaName);
   const selectedRiskyActions = selectedAgent?.capabilityManifest.highRiskActions ?? [];
+  const selectedHelperTools = selectedAgent?.capabilityManifest.tools?.map(friendlyToolName) ?? [];
+  const selectedCannotDo = agentCannotDo(selectedAgent);
+  const helperNextStep = selectedAgentApprovals.length
+    ? "Review the paused action below."
+    : ungrantedRequestedSchemas.length
+      ? "Allow only the private info this helper really needs."
+      : "Send a request or pick one of the starter prompts.";
   const runSummary = runtimeSummary(agentRunResult);
   const selectedAgentLogs = useMemo(
     () => logs.filter((log) => log.agent?.id === selectedAgent?.id).slice(0, 8),
@@ -2215,8 +2250,8 @@ export function App() {
                 </div>
                 <div className="agent-simple-summary" aria-label={`${selectedAgent.name} safety summary`}>
                   <div>
-                    <strong>Can help with</strong>
-                    <span>{selectedAgent.capabilityManifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span>
+                    <strong>Can do</strong>
+                    <span>{selectedHelperTools.join(", ") || "Answer simple questions"}</span>
                   </div>
                   <div>
                     <strong>Can read</strong>
@@ -2225,6 +2260,10 @@ export function App() {
                   <div>
                     <strong>Must ask before</strong>
                     <span>{selectedAgent.capabilityManifest.highRiskActions?.map(friendlyActionName).join(", ") || "No risky actions listed"}</span>
+                  </div>
+                  <div>
+                    <strong>Cannot do</strong>
+                    <span>{selectedCannotDo.join(", ")}</span>
                   </div>
                 </div>
 
@@ -2252,7 +2291,7 @@ export function App() {
                   <section className="chat-panel agent-chat-panel" aria-label="Agent chat">
                     <div className="chat-heading">
                       <div>
-                        <strong>Use This Helper</strong>
+                        <strong>Talk to {selectedAgent.name}</strong>
                         <p>{readiness.detail}</p>
                       </div>
                       <StatusPill tone="blue">{isConversationLoading ? "loading" : "saved"}</StatusPill>
@@ -2264,7 +2303,7 @@ export function App() {
                         <StatusPill tone="amber">{selectedAgentApprovals.length} waiting</StatusPill>
                         <div>
                           <strong>Approval needed before this helper continues</strong>
-                          <span>{selectedAgentApprovals[0] ? friendlyActionName(selectedAgentApprovals[0].actionName) : "Sensitive action"} is paused until you approve or deny it.</span>
+                          <span>{selectedAgentApprovals[0] ? approvalPlainSentence(selectedAgentApprovals[0].actionName) : "A sensitive action is paused."} {selectedAgentApprovals[0] ? approvalReason(selectedAgentApprovals[0].actionName) : "You decide what happens next."}</span>
                         </div>
                         <button onClick={() => scrollToSection("clearance")} type="button">Review</button>
                       </div>
@@ -2274,7 +2313,7 @@ export function App() {
                       <div className="composer-heading">
                         <div>
                           <strong>What do you want help with?</strong>
-                          <span>Pick a starter or type your own request.</span>
+                          <span>{helperNextStep}</span>
                         </div>
                         <StatusPill tone={promptPreview.tone}>{promptPreview.label}</StatusPill>
                       </div>
@@ -2320,8 +2359,8 @@ export function App() {
 
                     {chatTranscript.length === 0 && !isConversationLoading ? (
                       <div className="chat-empty-state">
-                        <strong>No messages yet</strong>
-                        <span>Your first request will appear here with receipts for private info use and approvals.</span>
+                        <strong>Start with a safe request</strong>
+                        <span>Try one of the cards above. This helper will show a receipt when it reads private info and pause before sensitive actions.</span>
                       </div>
                     ) : null}
 
@@ -2364,8 +2403,9 @@ export function App() {
                               {pendingRequest ? (
                                 <div className="approval-card">
                                   <StatusPill tone="amber">approval needed</StatusPill>
-                                  <strong>{friendlyActionName(pendingRequest.actionName)}</strong>
-                                  <small>This action is paused until you approve or deny it.</small>
+                                  <strong>{approvalPlainSentence(pendingRequest.actionName)}</strong>
+                                  <small>{approvalReason(pendingRequest.actionName)}</small>
+                                  <small>You are still in control. Deny it if anything feels wrong.</small>
                                   <div className="button-row compact-row">
                                     <button disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, true)} type="button">Approve</button>
                                     <button className="danger" disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, false)} type="button">Deny</button>
@@ -2404,7 +2444,8 @@ export function App() {
                       <small>{allowedPermissionCount} of {permissionReview.length} requested info categories allowed.</small>
                     </div>
                     <div className="manifest-grid agent-side-grid">
-                      <div><strong>Can do</strong><span>{selectedAgent.capabilityManifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span></div>
+                      <div><strong>Can do</strong><span>{selectedHelperTools.join(", ") || "Answer simple questions"}</span></div>
+                      <div><strong>Cannot do</strong><span>{selectedCannotDo.join(", ")}</span></div>
                       <div><strong>Must ask before</strong><span>{selectedAgent.capabilityManifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
                       <div><strong>Connection</strong><span>{selectedAgent.connections[0]?.connectionStatus ?? "none"}</span></div>
                     </div>
@@ -2452,7 +2493,8 @@ export function App() {
                         {selectedAgentApprovals.map((request) => (
                           <div className="approval-card" key={request.id}>
                             <StatusPill tone="amber">paused</StatusPill>
-                            <strong>{friendlyActionName(request.actionName)}</strong>
+                            <strong>{approvalPlainSentence(request.actionName)}</strong>
+                            <small>{approvalReason(request.actionName)}</small>
                             <div className="button-row compact-row">
                               <button disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, true)} type="button">Approve</button>
                               <button className="danger" disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, false)} type="button">Deny</button>
@@ -2682,8 +2724,8 @@ export function App() {
             {hitl.length === 0 ? <p className="empty">No helper is waiting for approval.</p> : visibleApprovals.map((request) => (
               <div className="hitl-row" key={request.id}>
                 <strong>{request.agent.name} wants to continue</strong>
-                <span>{friendlyActionName(request.actionName)}</span>
-                <small>This action is paused until you approve or deny it.</small>
+                <span>{approvalPlainSentence(request.actionName)}</span>
+                <small>{approvalReason(request.actionName)} You can approve it, or deny it and nothing continues.</small>
                 <div className="button-row">
                   <button disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, true)}>Approve</button>
                   <button className="danger" disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, false)}>Deny</button>

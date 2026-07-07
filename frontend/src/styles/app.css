@@ -1350,7 +1350,7 @@ legend {
 .agent-simple-summary {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .agent-simple-summary div {
@@ -1359,7 +1359,7 @@ legend {
   border-radius: 7px;
   display: grid;
   gap: 5px;
-  min-height: 76px;
+  min-height: 92px;
   padding: 10px;
 }
 
@@ -1435,6 +1435,14 @@ legend {
 .agent-activity-card small {
   color: #91a4ba;
   line-height: 1.4;
+}
+
+.approval-card {
+  border-color: rgba(255, 190, 86, 0.22);
+}
+
+.approval-card .button-row {
+  margin-top: 2px;
 }
 
 .chat-command-center {
@@ -2530,13 +2538,14 @@ textarea:focus-visible {
 
   .agent-profile-tabs {
     border-radius: 14px;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
   }
 
   .agent-profile-tabs button {
-    flex: 0 0 auto;
     min-height: 44px;
-    min-width: 122px;
+    min-width: 0;
   }
 
   .agent-list,
