@@ -42,6 +42,34 @@ agentRoutes.get("/:id", async (req, res) => {
   res.json({ agent: serializeAgent(agent) });
 });
 
+agentRoutes.delete("/:id", async (req, res) => {
+  if (!req.userId) return res.status(400).json({ error: { message: "No user context available" } });
+  const userId = req.userId;
+  const agent = await prisma.agent.findFirst({
+    where: { id: req.params.id, connections: { some: { userId } } },
+    select: { id: true, name: true }
+  });
+  if (!agent) return res.status(404).json({ error: { message: "Agent not found" } });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.agentPermission.deleteMany({ where: { userId, agentId: agent.id } });
+    await tx.userAgentInstall.deleteMany({ where: { userId, agentId: agent.id } });
+    await tx.userConnection.deleteMany({ where: { userId, agentId: agent.id } });
+    await tx.hitlRequest.deleteMany({ where: { userId, agentId: agent.id, status: "pending_human_approval" } });
+  });
+
+  await writeActivityLog({
+    userId,
+    agentId: agent.id,
+    actionType: "agent_removed",
+    status: "success",
+    dataAccessed: agent.name,
+    dynamicMetadata: { userManaged: true }
+  });
+
+  res.json({ status: "removed" });
+});
+
 agentRoutes.post("/", async (req, res) => {
   if (!req.userId) return res.status(400).json({ error: { message: "No user context available" } });
   const userId = req.userId;

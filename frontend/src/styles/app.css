@@ -713,6 +713,31 @@ legend {
   margin-bottom: 12px;
 }
 
+.marketplace-filter-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.marketplace-filter-row label {
+  align-items: center;
+  border: 1px solid rgba(137, 163, 196, 0.16);
+  border-radius: 999px;
+  color: #d9e7f7;
+  display: inline-flex;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+}
+
+.marketplace-filter-row input {
+  accent-color: #409cff;
+  margin: 0;
+  width: auto;
+}
+
 .marketplace-controls label {
   display: grid;
   gap: 7px;
@@ -801,6 +826,13 @@ legend {
   padding: 8px;
 }
 
+.marketplace-meta strong {
+  color: #f6d18d;
+  display: block;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
 .marketplace-card-actions {
   margin-top: auto;
   align-items: center;
@@ -824,6 +856,32 @@ legend {
   margin: 0;
 }
 
+.trust-row {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.trust-row span,
+.example-prompt-list span {
+  border: 1px solid rgba(137, 163, 196, 0.12);
+  border-radius: 7px;
+  color: #d9e7f7;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 8px;
+}
+
+.example-prompt-list {
+  display: grid;
+  gap: 7px;
+}
+
+.example-prompt-list strong {
+  color: #f6d18d;
+  font-size: 12px;
+}
+
 .marketplace-detail-grid {
   grid-template-columns: 1fr;
   margin-bottom: 0;
@@ -845,6 +903,48 @@ legend {
 .agent-row.selected {
   border-color: rgba(64, 156, 255, 0.8);
   background: #163556;
+}
+
+.installed-agent-list {
+  display: grid;
+  gap: 10px;
+}
+
+.installed-agent-card {
+  background: rgba(11, 27, 46, 0.62);
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.installed-agent-card.selected {
+  background: rgba(30, 64, 105, 0.46);
+  border-color: rgba(64, 156, 255, 0.68);
+}
+
+.installed-agent-card .agent-row {
+  background: transparent;
+  border-color: transparent;
+  min-height: 42px;
+  padding: 0;
+}
+
+.installed-agent-status,
+.installed-agent-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.installed-agent-status small {
+  color: #91a4ba;
+}
+
+.installed-agent-actions button {
+  min-height: 34px;
 }
 
 .detail-panel {
@@ -1007,6 +1107,31 @@ legend {
   margin-bottom: 16px;
 }
 
+.permission-center-summary {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.permission-center-summary div {
+  background: rgba(7, 17, 31, 0.38);
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  padding: 10px;
+}
+
+.permission-center-summary strong,
+.permission-center-summary span {
+  display: block;
+}
+
+.permission-center-summary span {
+  color: #91a4ba;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
 .permission-details {
   border: 1px solid rgba(137, 163, 196, 0.14);
   border-radius: 7px;
@@ -1080,6 +1205,27 @@ legend {
   padding: 10px;
   border: 1px solid rgba(137, 163, 196, 0.14);
   border-radius: 7px;
+}
+
+.permission-category-row {
+  grid-template-columns: minmax(118px, 0.22fr) minmax(0, 1fr);
+}
+
+.permission-category-row label {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.permission-category-row label span {
+  color: #d9e7f7;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.permission-category-row div {
+  display: grid;
+  gap: 4px;
 }
 
 .clearance-row input {
@@ -1745,6 +1891,8 @@ textarea:focus-visible {
   .marketplace-controls,
   .marketplace-layout,
   .marketplace-grid,
+  .trust-row,
+  .permission-center-summary,
   .form-grid,
   .choice-grid,
   .template-grid,
@@ -1754,6 +1902,10 @@ textarea:focus-visible {
   }
 
   .permission-review-row {
+    grid-template-columns: 1fr;
+  }
+
+  .permission-category-row {
     grid-template-columns: 1fr;
   }
 
@@ -1771,8 +1923,20 @@ textarea:focus-visible {
 
   .panel-heading-row,
   .marketplace-card-top,
-  .marketplace-card-actions {
+  .marketplace-card-actions,
+  .installed-agent-actions,
+  .installed-agent-status {
     display: grid;
+  }
+
+  .marketplace-filter-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .marketplace-filter-row label {
+    border-radius: 14px;
+    min-height: 44px;
   }
 
   .marketplace-detail {
@@ -1784,6 +1948,10 @@ textarea:focus-visible {
     min-height: 0;
   }
 
+  .installed-agent-card {
+    border-radius: 14px;
+  }
+
   .agent-row span {
     font-size: 15px;
   }
@@ -1793,8 +1961,12 @@ textarea:focus-visible {
   .permission-review-row,
   .agent-status-card,
   .chat-empty-state,
-  .approval-card,
-  .clearance-row,
+    .approval-card,
+  .installed-agent-card,
+  .permission-center-summary div,
+  .trust-row span,
+  .example-prompt-list span,
+    .clearance-row,
   .doc-row,
   .log-row,
   .hitl-row,

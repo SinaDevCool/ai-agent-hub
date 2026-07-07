@@ -66,6 +66,12 @@ type AgentTemplate = {
   highRiskActions: string[];
   summary: string;
 };
+type MarketplaceFilters = {
+  usesPrivateInfo: boolean;
+  canTakeActions: boolean;
+  needsApproval: boolean;
+};
+type AgentReadiness = ReturnType<typeof agentReadiness>;
 
 const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
   { id: "home", label: "Home", icon: ShieldCheck },
@@ -106,6 +112,11 @@ const sectionHeadings: Record<SectionId, { title: string; description: string }>
 const categoryOptions = ["Financial", "Executive", "Wellness", "Domestic", "Legal", "Travel", "Maintenance", "Custom"];
 const toolOptions = ["vault.search", "action.execute", "calendar.read", "email.draft", "web.fetch"];
 const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:4141/ws`;
+const marketplaceFilterLabels: Array<{ id: keyof MarketplaceFilters; label: string }> = [
+  { id: "usesPrivateInfo", label: "Uses private info" },
+  { id: "canTakeActions", label: "Can take actions" },
+  { id: "needsApproval", label: "Must ask first" }
+];
 
 const agentTemplates: AgentTemplate[] = [
   {
@@ -213,6 +224,16 @@ function friendlyToolName(tool: string) {
   return labels[tool] ?? tool;
 }
 
+function friendlyCategoryName(category: string) {
+  const labels: Record<string, string> = {
+    Executive: "Productivity",
+    Domestic: "Home",
+    Financial: "Money",
+    Wellness: "Health"
+  };
+  return labels[category] ?? category;
+}
+
 function friendlyTrustLabel(score: number) {
   if (score >= 90) return "Very trusted";
   if (score >= 80) return "Trusted";
@@ -258,6 +279,47 @@ function promptSuggestions(agent: Agent | undefined) {
   if (category.includes("financial")) return ["What spending rule should I follow?", "Find my payment preferences", "Transfer money for this purchase"];
   if (category.includes("wellness")) return ["Summarize my saved health notes", "What health info can you access?", "Share my medical record"];
   return ["What can you help me with?", "Find the private info you can use", "Try an action that needs approval"];
+}
+
+function marketplaceExamplePrompts(agent: MarketplaceAgent | undefined) {
+  const category = agent?.category.toLowerCase() ?? "";
+  if (category.includes("travel")) return ["Plan a weekend trip", "Check my travel preferences", "Ask before booking anything"];
+  if (category.includes("financial")) return ["Find my budget rules", "Compare card preferences", "Ask before moving money"];
+  if (category.includes("wellness")) return ["Summarize health notes", "Check what you can access", "Ask before sharing health info"];
+  if (category.includes("executive")) return ["Draft a follow-up", "Summarize my reminders", "Ask before sending"];
+  return ["Find useful private info", "Help with this task", "Ask before risky actions"];
+}
+
+function marketplaceSafetyCopy(agent: MarketplaceAgent | undefined) {
+  const manifest = agent?.versions[0]?.capabilityManifest ?? {};
+  const infoCount = manifest.requestedSchemas?.length ?? 0;
+  const actionCount = manifest.highRiskActions?.length ?? 0;
+  if (infoCount === 0 && actionCount === 0) return "Starts with no private info access and no listed risky actions.";
+  const parts = [];
+  if (infoCount) parts.push(`asks for ${infoCount} private info ${infoCount === 1 ? "category" : "categories"}`);
+  if (actionCount) parts.push(`must ask before ${actionCount} sensitive ${actionCount === 1 ? "action" : "actions"}`);
+  return `This helper ${parts.join(" and ")}.`;
+}
+
+function permissionProgress(agent: Agent | undefined, schemas: VaultSchema[]) {
+  if (!agent) return { allowed: 0, requested: 0, missing: 0 };
+  const requested = agent.capabilityManifest.requestedSchemas ?? [];
+  const grantedSchemaIds = new Set(
+    agent.permissions
+      .filter((permission) => permission.permissionType === "read" && permission.vaultSchemaId)
+      .map((permission) => permission.vaultSchemaId)
+  );
+  const allowed = requested.filter((schemaName) => {
+    const schema = schemas.find((item) => item.name === schemaName);
+    return Boolean(schema?.id && grantedSchemaIds.has(schema.id));
+  }).length;
+  return { allowed, requested: requested.length, missing: Math.max(requested.length - allowed, 0) };
+}
+
+function agentReadinessFor(agent: Agent | undefined, schemas: VaultSchema[], approvals: HitlRequest[]): AgentReadiness {
+  const progress = permissionProgress(agent, schemas);
+  const pendingCount = agent ? approvals.filter((request) => request.agent.id === agent.id).length : 0;
+  return agentReadiness(agent, progress.missing, pendingCount);
 }
 
 function runtimeSummary(result: AgentRunResult | null) {
@@ -306,10 +368,26 @@ function friendlyLogText(log: ActivityLog) {
   if (log.actionType === "vault_read") return `${agent} read personal info`;
   if (log.actionType === "vault_write") return `${agent} changed personal info`;
   if (log.actionType === "permission_requested") return log.status === "success" ? `${agent} was granted access` : `${agent} access was revoked or blocked`;
+  if (log.actionType === "hitl_requested") return `${agent} asked for your approval`;
   if (log.actionType === "execution_triggered") return `${agent} tried to take an action`;
   if (log.actionType === "agent_created") return `${agent} was added`;
+  if (log.actionType === "agent_removed") return `${agent} was removed`;
   if (log.actionType === "indexing_completed") return "Personal info was indexed";
   return `${agent} activity`;
+}
+
+function friendlyLogDetail(log: ActivityLog) {
+  if (log.actionType === "vault_read") return `Used: ${log.dataAccessed ?? "approved private info"}`;
+  if (log.actionType === "permission_requested") return log.dataAccessed ? `Info category: ${log.dataAccessed}` : "Permission changed";
+  if (log.actionType === "hitl_requested") return log.dataAccessed ? `Paused action: ${friendlyActionName(log.dataAccessed)}` : "A sensitive action was paused";
+  if (log.actionType === "agent_created") return log.dataAccessed ? `Helper: ${log.dataAccessed}` : "Helper added to profile";
+  if (log.actionType === "agent_removed") return log.dataAccessed ? `Helper: ${log.dataAccessed}` : "Helper removed from profile";
+  if (log.dataAccessed) return log.dataAccessed;
+  return "No extra detail";
+}
+
+function friendlyDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
 
 function friendlyNotificationText(log: ActivityLog) {
@@ -344,6 +422,11 @@ export function App() {
   const [installedAgents, setInstalledAgents] = useState<UserAgentInstall[]>([]);
   const [marketplaceSearch, setMarketplaceSearch] = useState("");
   const [marketplaceCategory, setMarketplaceCategory] = useState("All");
+  const [marketplaceFilters, setMarketplaceFilters] = useState<MarketplaceFilters>({
+    usesPrivateInfo: false,
+    canTakeActions: false,
+    needsApproval: false
+  });
   const [selectedMarketplaceAgentId, setSelectedMarketplaceAgentId] = useState("");
   const [schemas, setSchemas] = useState<VaultSchema[]>([]);
   const [documents, setDocuments] = useState<VaultDocument[]>([]);
@@ -504,12 +587,16 @@ export function App() {
   const visibleMarketplaceAgents = useMemo(() => {
     const search = marketplaceSearch.trim().toLowerCase();
     return marketplaceAgents.filter((agent) => {
+      const manifest = agent.versions[0]?.capabilityManifest ?? {};
       const matchesCategory = marketplaceCategory === "All" || agent.category === marketplaceCategory;
-      const matchesSearch = !search || [agent.name, agent.tagline, agent.description, agent.category]
+      const matchesSearch = !search || [agent.name, agent.tagline, agent.description, agent.category, friendlyCategoryName(agent.category)]
         .some((value) => value.toLowerCase().includes(search));
-      return matchesCategory && matchesSearch;
+      const matchesPrivateInfo = !marketplaceFilters.usesPrivateInfo || Boolean(manifest.requestedSchemas?.length);
+      const matchesActions = !marketplaceFilters.canTakeActions || Boolean(manifest.tools?.includes("action.execute"));
+      const matchesApproval = !marketplaceFilters.needsApproval || Boolean(manifest.highRiskActions?.length);
+      return matchesCategory && matchesSearch && matchesPrivateInfo && matchesActions && matchesApproval;
     });
-  }, [marketplaceAgents, marketplaceCategory, marketplaceSearch]);
+  }, [marketplaceAgents, marketplaceCategory, marketplaceFilters, marketplaceSearch]);
 
   const selectedMarketplaceAgent = useMemo(
     () => visibleMarketplaceAgents.find((agent) => agent.id === selectedMarketplaceAgentId) ?? visibleMarketplaceAgents[0],
@@ -570,6 +657,17 @@ export function App() {
   const readiness = agentReadiness(selectedAgent, ungrantedRequestedSchemas.length, selectedAgentApprovals.length);
   const suggestedPrompts = promptSuggestions(selectedAgent);
   const runSummary = runtimeSummary(agentRunResult);
+  const installedAgentCards = useMemo(() => agents.map((agent) => ({
+    agent,
+    readiness: agentReadinessFor(agent, schemas, hitl),
+    permissions: permissionProgress(agent, schemas),
+    pendingApprovals: hitl.filter((request) => request.agent.id === agent.id).length
+  })), [agents, hitl, schemas]);
+  const permissionCenterRows = useMemo(() => schemas.map((schema) => ({
+    schema,
+    allowedAgents: agents.filter((agent) => agent.permissions.some((permission) => permission.vaultSchemaId === schema.id && permission.permissionType === "read")),
+    requestingAgents: agents.filter((agent) => (agent.capabilityManifest.requestedSchemas ?? []).includes(schema.name))
+  })), [agents, schemas]);
   const heading = sectionHeadings[activeSection];
   const sectionClass = (section: SectionId) => activeSection === section ? "is-section-active" : "";
   const activeMobileClass = (section: SectionId) => activeSection === section ? "is-mobile-active" : "";
@@ -878,6 +976,21 @@ export function App() {
     } finally {
       setInstallingAgentId("");
     }
+  }
+
+  function removeAgentFromProfile(agent: Agent) {
+    setConfirmation({
+      title: "Remove this helper?",
+      message: `${agent.name} will be removed from your profile and lose access to your private info. Your saved private notes stay safe.`,
+      confirmLabel: "Remove helper",
+      tone: "danger",
+      onConfirm: async () => {
+        await apiDelete(`/api/agents/${agent.id}`);
+        setToolResult(`${agent.name} was removed from your profile.`);
+        setSelectedAgentId((current) => current === agent.id ? "" : current);
+        await refresh();
+      }
+    });
   }
 
   function updateAgentDraft(patch: Partial<AgentDraft>) {
@@ -1544,9 +1657,24 @@ export function App() {
                   value={marketplaceCategory}
                 >
                   <option value="All">All</option>
-                  {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+                  {categoryOptions.map((category) => <option key={category} value={category}>{friendlyCategoryName(category)}</option>)}
                 </select>
               </label>
+            </div>
+            <div className="marketplace-filter-row" aria-label="Marketplace filters">
+              {marketplaceFilterLabels.map((filter) => (
+                <label key={filter.id}>
+                  <input
+                    checked={marketplaceFilters[filter.id]}
+                    onChange={(event) => {
+                      const isChecked = event.currentTarget.checked;
+                      setMarketplaceFilters((current) => ({ ...current, [filter.id]: isChecked }));
+                    }}
+                    type="checkbox"
+                  />
+                  <span>{filter.label}</span>
+                </label>
+              ))}
             </div>
             {refreshError ? <p className="error-text">{refreshError}</p> : null}
             {marketplaceError ? <p className="error-text">{marketplaceError}</p> : null}
@@ -1562,7 +1690,7 @@ export function App() {
                     <div className="marketplace-card-top">
                       <div>
                         <strong>{agent.name}</strong>
-                        <small>{agent.category} / Trust {agent.trustScore}</small>
+                        <small>{friendlyCategoryName(agent.category)} / {friendlyTrustLabel(agent.trustScore)}</small>
                       </div>
                       <StatusPill tone={alreadyInstalled ? "green" : "blue"}>
                         {alreadyInstalled ? "installed" : "hub"}
@@ -1570,11 +1698,12 @@ export function App() {
                     </div>
                     <p>{agent.tagline || agent.description}</p>
                     <div className="marketplace-meta">
-                      <span>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span>
-                      <span>{manifest.requestedSchemas?.join(", ") || "No private info requested"}</span>
+                      <span><strong>Helps with</strong>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span>
+                      <span><strong>Private info</strong>{manifest.requestedSchemas?.join(", ") || "No private info requested"}</span>
+                      <span><strong>Safety</strong>{marketplaceSafetyCopy(agent)}</span>
                     </div>
                     <div className="marketplace-card-actions">
-                      <small>{agent.installCount} installs</small>
+                      <small>{agent.installCount} installs / {agent.averageRating.toFixed(1)} rating</small>
                       <button onClick={() => setSelectedMarketplaceAgentId(agent.id)} type="button">Details</button>
                       <button
                         disabled={alreadyInstalled || installingAgentId === agent.id}
@@ -1598,15 +1727,24 @@ export function App() {
                         <div className="marketplace-card-top">
                           <div>
                             <strong>{selectedMarketplaceAgent.name}</strong>
-                            <small>{selectedMarketplaceAgent.category} / Trust {selectedMarketplaceAgent.trustScore}</small>
+                            <small>{friendlyCategoryName(selectedMarketplaceAgent.category)} / {friendlyTrustLabel(selectedMarketplaceAgent.trustScore)}</small>
                           </div>
                           <StatusPill tone={alreadyInstalled ? "green" : "blue"}>{alreadyInstalled ? "installed" : "available"}</StatusPill>
                         </div>
                         <p>{selectedMarketplaceAgent.description}</p>
+                        <div className="trust-row">
+                          <span>{selectedMarketplaceAgent.creator?.verified ? "Verified creator" : "Community listing"}</span>
+                          <span>{selectedMarketplaceAgent.installCount} installs</span>
+                          <span>{selectedMarketplaceAgent.averageRating.toFixed(1)} rating</span>
+                        </div>
                         <div className="manifest-grid marketplace-detail-grid">
-                          <div><strong>Tools</strong><span>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span></div>
-                          <div><strong>Private info requested</strong><span>{manifest.requestedSchemas?.join(", ") || "None"}</span></div>
-                          <div><strong>Must ask before</strong><span>{manifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
+                          <div><strong>What it can do</strong><span>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span></div>
+                          <div><strong>What it may ask to read</strong><span>{manifest.requestedSchemas?.join(", ") || "None"}</span></div>
+                          <div><strong>Always asks before</strong><span>{manifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
+                        </div>
+                        <div className="example-prompt-list">
+                          <strong>Try after installing</strong>
+                          {marketplaceExamplePrompts(selectedMarketplaceAgent).map((prompt) => <span key={prompt}>{prompt}</span>)}
                         </div>
                         <button
                           disabled={alreadyInstalled || installingAgentId === selectedMarketplaceAgent.id}
@@ -1624,21 +1762,44 @@ export function App() {
           </div>
 
           <div className={`panel agent-list mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`} id="agents">
-            <div className="panel-title">Your AI Helpers</div>
+            <div className="panel-heading-row">
+              <div>
+                <div className="panel-title">My AI Helpers</div>
+                <p className="mobile-section-intro">Open a helper, review its access, or remove it from your profile.</p>
+              </div>
+              <StatusPill tone="blue">{agents.length} total</StatusPill>
+            </div>
             <div className="mobile-panel-actions">
               <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Helper</button>
             </div>
-            {visibleAgents.map((agent) => (
-              <button
-                key={agent.id}
-                className={agent.id === selectedAgent?.id ? "agent-row selected" : "agent-row"}
-                onClick={() => setSelectedAgentId(agent.id)}
-              >
-                <span>{agent.name}</span>
-                <small>{agent.category} / {friendlyTrustLabel(agent.trustScore)}</small>
-              </button>
-            ))}
-            {agents.length > visibleAgents.length ? <p className="empty">Showing {visibleAgents.length} of {agents.length} helpers.</p> : null}
+            <div className="installed-agent-list">
+              {installedAgentCards.slice(0, 10).map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => (
+                <article className={agent.id === selectedAgent?.id ? "installed-agent-card selected" : "installed-agent-card"} key={agent.id}>
+                  <button className="agent-row" onClick={() => setSelectedAgentId(agent.id)} type="button">
+                    <span>{agent.name}</span>
+                    <small>{friendlyCategoryName(agent.category)} / {friendlyTrustLabel(agent.trustScore)}</small>
+                  </button>
+                  <div className="installed-agent-status">
+                    <StatusPill tone={cardReadiness.tone}>{cardReadiness.label}</StatusPill>
+                    <small>{permissions.allowed} of {permissions.requested} info categories allowed</small>
+                    {pendingApprovals ? <small>{pendingApprovals} approval waiting</small> : null}
+                  </div>
+                  <div className="installed-agent-actions">
+                    <button onClick={() => {
+                      setSelectedAgentId(agent.id);
+                      scrollToSection("agents");
+                    }} type="button"><MessageSquare size={15} /> Open chat</button>
+                    <button onClick={() => {
+                      setSelectedAgentId(agent.id);
+                      scrollToSection("clearance");
+                    }} type="button"><KeyRound size={15} /> Edit access</button>
+                    <button className="danger" onClick={() => removeAgentFromProfile(agent)} type="button"><Trash2 size={15} /> Remove</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            {agents.length === 0 ? <p className="empty">Add your first helper from the marketplace above.</p> : null}
+            {agents.length > 10 ? <p className="empty">Showing 10 of {agents.length} helpers. Use search next as your profile grows.</p> : null}
           </div>
 
           <div className={`panel detail-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}>
@@ -1810,6 +1971,7 @@ export function App() {
                       <button onClick={runVaultSearch}><Database size={16} /> Search personal info</button>
                       <button className="danger" onClick={triggerHighRiskAction}><Zap size={16} /> Try approval flow</button>
                       <button onClick={revokeSelectedAgentAccess} type="button"><KeyRound size={16} /> Revoke access</button>
+                      <button className="danger" onClick={() => removeAgentFromProfile(selectedAgent)} type="button"><Trash2 size={16} /> Remove helper</button>
                     </div>
                   </aside>
                 </div>
@@ -1818,18 +1980,36 @@ export function App() {
           </div>
 
           <div className={`panel clearance-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`} id="clearance">
-            <div className="panel-title">Permissions</div>
-            <p className="mobile-section-intro">Choose what {selectedAgent?.name ?? "this helper"} can read. You can change this anytime.</p>
-            {schemas.map((schema) => {
+            <div className="panel-heading-row">
+              <div>
+                <div className="panel-title">Permissions</div>
+                <p className="mobile-section-intro">Choose what {selectedAgent?.name ?? "this helper"} can read. You can change this anytime.</p>
+              </div>
+              <StatusPill tone={ungrantedRequestedSchemas.length ? "amber" : "green"}>
+                {ungrantedRequestedSchemas.length ? `${ungrantedRequestedSchemas.length} needs review` : "all clear"}
+              </StatusPill>
+            </div>
+            <div className="permission-center-summary">
+              <div><strong>{selectedAgent?.name ?? "Selected helper"}</strong><span>Selected helper</span></div>
+              <div><strong>{allowedPermissionCount}</strong><span>Allowed categories</span></div>
+              <div><strong>{hitl.length}</strong><span>Approvals waiting</span></div>
+            </div>
+            {permissionCenterRows.map(({ schema, allowedAgents, requestingAgents }) => {
               const granted = Boolean(selectedAgent?.permissions.some((permission) => permission.vaultSchemaId === schema.id && permission.permissionType === "read"));
+              const selectedRequestsThis = Boolean(selectedAgent?.capabilityManifest.requestedSchemas?.includes(schema.name));
               return (
-                <label className="clearance-row" key={schema.id}>
-                  <input type="checkbox" checked={granted} onChange={(event) => void togglePermission(schema, event.currentTarget.checked)} />
-                  <span>
+                <div className="clearance-row permission-category-row" key={schema.id}>
+                  <label>
+                    <input type="checkbox" checked={granted} onChange={(event) => void togglePermission(schema, event.currentTarget.checked)} />
+                    <span>{granted ? "Allowed" : selectedRequestsThis ? "Requested" : "Not allowed"}</span>
+                  </label>
+                  <div>
                     <strong>{schema.name}</strong>
                     <small>{schema.description}</small>
-                  </span>
-                </label>
+                    <small>{allowedAgents.length ? `Can read this: ${allowedAgents.map((agent) => agent.name).join(", ")}` : "No helper can read this yet."}</small>
+                    {requestingAgents.length ? <small>Requested by: {requestingAgents.map((agent) => agent.name).join(", ")}</small> : null}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -1885,7 +2065,13 @@ export function App() {
           </div>
 
           <div className={`panel audit-panel mobile-section desktop-section ${activeMobileClass("activity")} ${sectionClass("activity")}`} id="activity">
-            <div className="panel-title">Recent Activity</div>
+            <div className="panel-heading-row">
+              <div>
+                <div className="panel-title">Recent Activity</div>
+                <p className="mobile-section-intro">Every helper access, approval, and block appears here.</p>
+              </div>
+              <StatusPill tone="blue">{logs.length} events</StatusPill>
+            </div>
             {recentLogs.map((log) => (
               <div className="log-row" key={log.id}>
                 <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>
@@ -1893,9 +2079,11 @@ export function App() {
                 </StatusPill>
                 <span>{friendlyLogText(log)}</span>
                 {friendlyNotificationText(log) ? <small>{friendlyNotificationText(log)}</small> : null}
-                <small>{log.dataAccessed ?? "No extra detail"}</small>
+                <small>{friendlyLogDetail(log)}</small>
+                <small>{friendlyDate(log.createdAt)}</small>
               </div>
             ))}
+            {recentLogs.length === 0 ? <p className="empty">No activity yet. Once a helper reads info or asks for approval, it will show here.</p> : null}
           </div>
 
           <div className={`panel hitl-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`}>

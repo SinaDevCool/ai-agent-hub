@@ -37,6 +37,7 @@ enum ConnectionStatus {
 
 enum ActivityActionType {
   agent_created
+  agent_removed
   vault_read
   vault_write
   api_callback
