@@ -122,6 +122,14 @@ const sectionHeadings: Record<SectionId, { title: string; description: string }>
 };
 
 const categoryOptions = ["Financial", "Executive", "Wellness", "Domestic", "Legal", "Travel", "Maintenance", "Custom"];
+const marketplaceCategoryOptions = ["All", "Money", "Travel", "Home", "Productivity", "Health"];
+const marketplaceNeedOptions = [
+  { id: "Money", title: "Money", detail: "Budget, cards, payments" },
+  { id: "Travel", title: "Travel", detail: "Trips, bookings, loyalty" },
+  { id: "Productivity", title: "Productivity", detail: "Email, reminders, planning" },
+  { id: "Home", title: "Home", detail: "Shopping, errands, household" },
+  { id: "Health", title: "Health", detail: "Private health notes" }
+];
 const toolOptions = ["vault.search", "action.execute", "calendar.read", "email.draft", "web.fetch"];
 const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:4141/ws`;
 const marketplaceFilterLabels: Array<{ id: keyof MarketplaceFilters; label: string }> = [
@@ -355,17 +363,6 @@ function marketplaceExamplePrompts(agent: MarketplaceAgent | undefined) {
   return ["Find useful private info", "Help with this task", "Ask before risky actions"];
 }
 
-function marketplaceSafetyCopy(agent: MarketplaceAgent | undefined) {
-  const manifest = agent?.versions[0]?.capabilityManifest ?? {};
-  const infoCount = manifest.requestedSchemas?.length ?? 0;
-  const actionCount = manifest.highRiskActions?.length ?? 0;
-  if (infoCount === 0 && actionCount === 0) return "Starts with no private info access and no listed risky actions.";
-  const parts = [];
-  if (infoCount) parts.push(`asks for ${infoCount} private info ${infoCount === 1 ? "category" : "categories"}`);
-  if (actionCount) parts.push(`must ask before ${actionCount} sensitive ${actionCount === 1 ? "action" : "actions"}`);
-  return `This helper ${parts.join(" and ")}.`;
-}
-
 function permissionProgress(agent: Agent | undefined, schemas: VaultSchema[]) {
   if (!agent) return { allowed: 0, requested: 0, missing: 0 };
   const requested = agent.capabilityManifest.requestedSchemas ?? [];
@@ -534,6 +531,8 @@ export function App() {
     needsApproval: false
   });
   const [selectedMarketplaceAgentId, setSelectedMarketplaceAgentId] = useState("");
+  const [showMobileMarketplace, setShowMobileMarketplace] = useState(false);
+  const [confirmInstallAgent, setConfirmInstallAgent] = useState<MarketplaceAgent | null>(null);
   const [schemas, setSchemas] = useState<VaultSchema[]>([]);
   const [documents, setDocuments] = useState<VaultDocument[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -689,7 +688,7 @@ export function App() {
     const search = marketplaceSearch.trim().toLowerCase();
     return marketplaceAgents.filter((agent) => {
       const manifest = agent.versions[0]?.capabilityManifest ?? {};
-      const matchesCategory = marketplaceCategory === "All" || agent.category === marketplaceCategory;
+      const matchesCategory = marketplaceCategory === "All" || friendlyCategoryName(agent.category) === marketplaceCategory;
       const matchesSearch = !search || [agent.name, agent.tagline, agent.description, agent.category, friendlyCategoryName(agent.category)]
         .some((value) => value.toLowerCase().includes(search));
       const matchesPrivateInfo = !marketplaceFilters.usesPrivateInfo || Boolean(manifest.requestedSchemas?.length);
@@ -699,9 +698,23 @@ export function App() {
     });
   }, [marketplaceAgents, marketplaceCategory, marketplaceFilters, marketplaceSearch]);
 
+  const prioritizedMarketplaceAgents = useMemo(
+    () => [...visibleMarketplaceAgents].sort((left, right) => {
+      const leftInstalled = Number(Boolean(left.installed || installedDefinitionIds.has(left.id)));
+      const rightInstalled = Number(Boolean(right.installed || installedDefinitionIds.has(right.id)));
+      return leftInstalled - rightInstalled;
+    }),
+    [installedDefinitionIds, visibleMarketplaceAgents]
+  );
+
   const selectedMarketplaceAgent = useMemo(
-    () => visibleMarketplaceAgents.find((agent) => agent.id === selectedMarketplaceAgentId) ?? visibleMarketplaceAgents[0],
-    [selectedMarketplaceAgentId, visibleMarketplaceAgents]
+    () => prioritizedMarketplaceAgents.find((agent) => agent.id === selectedMarketplaceAgentId) ?? prioritizedMarketplaceAgents[0],
+    [prioritizedMarketplaceAgents, selectedMarketplaceAgentId]
+  );
+
+  const hasInstallableMarketplaceAgent = useMemo(
+    () => prioritizedMarketplaceAgents.some((agent) => !agent.installed && !installedDefinitionIds.has(agent.id)),
+    [installedDefinitionIds, prioritizedMarketplaceAgents]
   );
 
   const permissionReview = useMemo(() => {
@@ -1149,11 +1162,20 @@ export function App() {
       if (installedAgentId) setSelectedAgentId(installedAgentId);
       setToolResult(`${result.install.displayName} was added to your profile. Review its permissions before giving access.`);
       setActiveSection("agents");
+      setShowMobileMarketplace(false);
+      return true;
     } catch (error) {
       setMarketplaceError(friendlyAppError(error));
+      return false;
     } finally {
       setInstallingAgentId("");
     }
+  }
+
+  async function confirmMarketplaceInstall() {
+    if (!confirmInstallAgent) return;
+    const installed = await installMarketplaceAgent(confirmInstallAgent);
+    if (installed) setConfirmInstallAgent(null);
   }
 
   function removeAgentFromProfile(agent: Agent) {
@@ -1194,6 +1216,19 @@ export function App() {
     setCreateAgentError("");
     setAgentWizardStep(1);
     setIsAddingAgent(true);
+    setShowMobileMarketplace(false);
+  }
+
+  function openMarketplace() {
+    setActiveSection("agents");
+    setShowMobileMarketplace(true);
+    setIsAddingAgent(false);
+    setIsGuidedSetupOpen(false);
+    setIsAddingVaultItem(false);
+    setMarketplaceError("");
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
   }
 
   function openGuidedSetup(templateId = guidedTemplateId) {
@@ -1430,7 +1465,7 @@ export function App() {
               <span className="connection-text">{connectionState === "live" ? "live" : "syncing"}</span>
             </span>
             {session ? <span className="user-chip">{session.user.email}</span> : null}
-            <button className="topbar-primary" onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Helper</button>
+            <button className="topbar-primary" onClick={openMarketplace} type="button"><Bot size={16} /> Add AI Helper</button>
             <button className="topbar-secondary" onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Private Info</button>
             <label className="upload-button topbar-secondary">
               <Upload size={16} /> Upload
@@ -1831,37 +1866,55 @@ export function App() {
           </form>
         ) : null}
 
-        <section className={`grid workspace-grid section-${activeSection} ${agents.length ? "has-helpers" : "has-no-helpers"}`}>
+        <section className={`grid workspace-grid section-${activeSection} ${agents.length ? "has-helpers" : "has-no-helpers"} ${showMobileMarketplace ? "show-mobile-marketplace" : ""}`}>
           <div className={`panel marketplace-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}>
             <div className="panel-heading-row">
               <div>
-                <div className="panel-title">Agent Hub Marketplace</div>
-                <p className="mobile-section-intro">Browse agents created for common personal tasks. Install one, then choose what it can access.</p>
+                <div className="panel-title">Find an AI Helper</div>
+                <p className="mobile-section-intro">Choose what you need help with. Helpers start restricted, and you decide what private info they can read.</p>
               </div>
-              <StatusPill tone="blue">{installedAgents.length} installed</StatusPill>
+              <div className="marketplace-heading-actions">
+                <StatusPill tone="blue">{installedAgents.length} installed</StatusPill>
+                <button className="marketplace-mobile-exit" onClick={() => setShowMobileMarketplace(false)} type="button">Back to my helpers</button>
+              </div>
+            </div>
+            <div className="marketplace-need-row" aria-label="Common helper needs">
+              {marketplaceNeedOptions.map((need) => (
+                <button
+                  className={marketplaceCategory === need.id ? "selected" : ""}
+                  key={need.id}
+                  onClick={() => {
+                    setMarketplaceCategory(need.id);
+                    setMarketplaceSearch("");
+                  }}
+                  type="button"
+                >
+                  <strong>{need.title}</strong>
+                  <span>{need.detail}</span>
+                </button>
+              ))}
             </div>
             <div className="marketplace-controls">
               <label>
-                <span>Find an agent</span>
+                <span>What do you need help with?</span>
                 <div className="search-input-wrap">
                   <Search size={16} />
                   <input
                     aria-label="Search marketplace agents"
                     onChange={(event) => setMarketplaceSearch(event.currentTarget.value)}
-                    placeholder="Travel, money, inbox..."
+                    placeholder="Try travel, money, email..."
                     value={marketplaceSearch}
                   />
                 </div>
               </label>
               <label>
-                <span>Category</span>
+                <span>Browse by need</span>
                 <select
                   aria-label="Filter marketplace category"
                   onChange={(event) => setMarketplaceCategory(event.currentTarget.value)}
                   value={marketplaceCategory}
                 >
-                  <option value="All">All</option>
-                  {categoryOptions.map((category) => <option key={category} value={category}>{friendlyCategoryName(category)}</option>)}
+                  {marketplaceCategoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
                 </select>
               </label>
             </div>
@@ -1907,9 +1960,16 @@ export function App() {
                 }} type="button">Clear filters</button>
               </div>
             ) : null}
+            {!isRefreshing && prioritizedMarketplaceAgents.length > 0 && !hasInstallableMarketplaceAgent ? (
+              <div className="marketplace-all-added">
+                <strong>You already added these helpers</strong>
+                <span>Try another need, search for a different helper, or create a custom one.</span>
+                <button onClick={openAgentWizard} type="button"><Pencil size={16} /> Create custom helper</button>
+              </div>
+            ) : null}
             <div className="marketplace-layout">
               <div className="marketplace-grid">
-              {visibleMarketplaceAgents.slice(0, 6).map((agent) => {
+              {prioritizedMarketplaceAgents.slice(0, 6).map((agent) => {
                 const manifest = agent.versions[0]?.capabilityManifest ?? {};
                 const alreadyInstalled = Boolean(agent.installed || installedDefinitionIds.has(agent.id));
                 return (
@@ -1930,16 +1990,16 @@ export function App() {
                       <span>{manifest.highRiskActions?.length ? "Asks before actions" : "No risky actions"}</span>
                     </div>
                     <div className="marketplace-meta">
-                      <span><strong>Helps with</strong>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span>
-                      <span><strong>Private info</strong>{manifest.requestedSchemas?.join(", ") || "No private info requested"}</span>
-                      <span><strong>Safety</strong>{marketplaceSafetyCopy(agent)}</span>
+                      <span><strong>Best for</strong>{agent.tagline || agent.description}</span>
+                      <span><strong>Needs access to</strong>{manifest.requestedSchemas?.join(", ") || "No private info"}</span>
+                      <span><strong>Always asks before</strong>{manifest.highRiskActions?.map(friendlyActionName).join(", ") || "No risky actions listed"}</span>
                     </div>
                     <div className="marketplace-card-actions">
                       <small>{agent.installCount} installs / {agent.averageRating.toFixed(1)} rating</small>
                       <button onClick={() => setSelectedMarketplaceAgentId(agent.id)} type="button">Details</button>
                       <button
                         disabled={alreadyInstalled || installingAgentId === agent.id}
-                        onClick={() => void installMarketplaceAgent(agent)}
+                        onClick={() => setConfirmInstallAgent(agent)}
                         type="button"
                       >
                         <Download size={16} /> {alreadyInstalled ? "Added" : installingAgentId === agent.id ? "Adding..." : "Add to profile"}
@@ -1980,11 +2040,12 @@ export function App() {
                         </div>
                         <button
                           disabled={alreadyInstalled || installingAgentId === selectedMarketplaceAgent.id}
-                          onClick={() => void installMarketplaceAgent(selectedMarketplaceAgent)}
+                          onClick={() => setConfirmInstallAgent(selectedMarketplaceAgent)}
                           type="button"
                         >
                           <Download size={16} /> {alreadyInstalled ? "Added to profile" : installingAgentId === selectedMarketplaceAgent.id ? "Adding..." : "Add to profile"}
                         </button>
+                        <p className="marketplace-confidence">You can review and revoke access after adding this helper.</p>
                       </>
                     );
                   })()}
@@ -2002,7 +2063,8 @@ export function App() {
               <StatusPill tone="blue">{agents.length} total</StatusPill>
             </div>
             <div className="mobile-panel-actions">
-              <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Helper</button>
+              <button onClick={openMarketplace} type="button"><Bot size={16} /> Add AI Helper</button>
+              <button onClick={openAgentWizard} type="button"><Pencil size={16} /> Create custom</button>
             </div>
             <div className="mobile-helper-list" aria-label="My AI helpers for mobile">
               {mobileInstalledAgentCards.map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
@@ -2074,7 +2136,7 @@ export function App() {
               <div className="friendly-empty-state">
                 <strong>No helpers yet</strong>
                 <p>Start with one helper for a real task like travel, money, schedule, or personal notes.</p>
-                <button onClick={() => openGuidedSetup()} type="button"><Bot size={16} /> Start guided setup</button>
+                <button onClick={openMarketplace} type="button"><Bot size={16} /> Find a helper</button>
               </div>
             ) : null}
             {agents.length > 10 ? <p className="empty">Showing 10 of {agents.length} helpers. Use search next as your profile grows.</p> : null}
@@ -2604,6 +2666,26 @@ export function App() {
                   {isConfirming ? "Working..." : confirmation.confirmLabel}
                 </button>
                 <button disabled={isConfirming} onClick={() => setConfirmation(null)} type="button">Cancel</button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+        {confirmInstallAgent ? (
+          <div className="confirm-backdrop" role="presentation">
+            <section aria-modal="true" className="confirm-dialog install-confirm-dialog" role="dialog">
+              <div className="panel-title">Add Helper</div>
+              <h2>Add {confirmInstallAgent.name}?</h2>
+              <p>This helper will be added to your profile. It cannot read private info until you allow it.</p>
+              <div className="install-review-grid">
+                <div><strong>Best for</strong><span>{confirmInstallAgent.tagline || confirmInstallAgent.description}</span></div>
+                <div><strong>Needs access to</strong><span>{confirmInstallAgent.versions[0]?.capabilityManifest.requestedSchemas?.join(", ") || "No private info"}</span></div>
+                <div><strong>Always asks before</strong><span>{confirmInstallAgent.versions[0]?.capabilityManifest.highRiskActions?.map(friendlyActionName).join(", ") || "No risky actions listed"}</span></div>
+              </div>
+              <div className="button-row">
+                <button disabled={installingAgentId === confirmInstallAgent.id} onClick={() => void confirmMarketplaceInstall()} type="button">
+                  <Download size={16} /> {installingAgentId === confirmInstallAgent.id ? "Adding..." : "Add helper"}
+                </button>
+                <button disabled={installingAgentId === confirmInstallAgent.id} onClick={() => setConfirmInstallAgent(null)} type="button">Cancel</button>
               </div>
             </section>
           </div>

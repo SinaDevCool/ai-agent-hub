@@ -811,6 +811,51 @@ legend {
   grid-column: 1 / -1;
 }
 
+.marketplace-heading-actions {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.marketplace-mobile-exit {
+  display: none;
+}
+
+.marketplace-need-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.marketplace-need-row button {
+  align-items: start;
+  background: rgba(15, 37, 61, 0.82);
+  border: 1px solid rgba(137, 163, 196, 0.16);
+  border-radius: 7px;
+  display: grid;
+  gap: 5px;
+  min-height: 72px;
+  padding: 10px;
+  text-align: left;
+}
+
+.marketplace-need-row button.selected {
+  background: rgba(30, 64, 105, 0.6);
+  border-color: rgba(74, 163, 255, 0.82);
+}
+
+.marketplace-need-row strong {
+  color: #f5f9ff;
+  font-size: 13px;
+}
+
+.marketplace-need-row span {
+  color: #a9bbcf;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .panel-heading-row,
 .marketplace-card-top,
 .marketplace-card-actions {
@@ -943,6 +988,38 @@ legend {
   padding: 6px 9px;
 }
 
+.marketplace-all-added {
+  align-items: center;
+  background: rgba(64, 156, 255, 0.08);
+  border: 1px solid rgba(64, 156, 255, 0.2);
+  border-radius: 7px;
+  display: grid;
+  gap: 7px 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 12px;
+  padding: 10px;
+}
+
+.marketplace-all-added strong,
+.marketplace-all-added span {
+  display: block;
+}
+
+.marketplace-all-added strong {
+  color: #f5f9ff;
+  font-size: 13px;
+}
+
+.marketplace-all-added span {
+  color: #a9bbcf;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.marketplace-all-added button {
+  grid-row: span 2;
+}
+
 .marketplace-meta {
   display: grid;
   gap: 7px;
@@ -985,6 +1062,12 @@ legend {
   font-size: 13px;
   line-height: 1.45;
   margin: 0;
+}
+
+.marketplace-confidence {
+  color: #91a4ba;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .trust-row {
@@ -1944,6 +2027,35 @@ pre {
   margin-bottom: 16px;
 }
 
+.install-confirm-dialog {
+  width: min(100%, 520px);
+}
+
+.install-review-grid {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.install-review-grid div {
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+}
+
+.install-review-grid strong {
+  color: #f6d18d;
+  font-size: 12px;
+}
+
+.install-review-grid span {
+  color: #d9e7f7;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .empty {
   color: #91a4ba;
   font-size: 13px;
@@ -2295,6 +2407,16 @@ textarea:focus-visible {
     display: none;
   }
 
+  .workspace-grid.section-agents.show-mobile-marketplace > .agent-list,
+  .workspace-grid.section-agents.show-mobile-marketplace > .detail-panel {
+    display: none;
+  }
+
+  .workspace-grid.section-agents.show-mobile-marketplace > .marketplace-panel {
+    display: grid;
+    order: 1;
+  }
+
   .section-clearance .hitl-panel {
     order: 1;
   }
@@ -2356,6 +2478,7 @@ textarea:focus-visible {
   .manifest-grid,
   .agent-simple-summary,
   .agent-use-grid,
+  .marketplace-need-row,
   .marketplace-controls,
   .marketplace-layout,
   .marketplace-grid,
@@ -2392,9 +2515,37 @@ textarea:focus-visible {
   .panel-heading-row,
   .marketplace-card-top,
   .marketplace-card-actions,
+  .marketplace-heading-actions,
   .installed-agent-actions,
   .installed-agent-status {
     display: grid;
+  }
+
+  .marketplace-heading-actions {
+    justify-items: stretch;
+  }
+
+  .marketplace-mobile-exit {
+    display: inline-flex;
+    justify-content: center;
+  }
+
+  .marketplace-need-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .marketplace-need-row button {
+    border-radius: 14px;
+    min-height: 78px;
+  }
+
+  .marketplace-all-added {
+    border-radius: 14px;
+    grid-template-columns: 1fr;
+  }
+
+  .marketplace-all-added button {
+    grid-row: auto;
   }
 
   .marketplace-filter-row {
