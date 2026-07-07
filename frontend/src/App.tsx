@@ -46,6 +46,15 @@ type VaultItemDraft = {
   vaultSchemaId: string;
   content: string;
 };
+type ChatTranscriptItem = {
+  role: "user" | "agent";
+  content: string;
+  status?: AgentRunResult["status"] | AgentMessageStatus;
+  requestId?: string;
+  actionName?: string;
+  provider?: AgentRunResult["provider"];
+};
+type AgentMessageStatus = "success" | "blocked_by_policy" | "pending_human_approval" | "error" | null;
 type AgentTemplate = {
   id: string;
   title: string;
@@ -214,6 +223,52 @@ function friendlyActionName(action: string) {
   return action.replace(/_/g, " ");
 }
 
+function agentReadiness(agent: Agent | undefined, missingCount: number, pendingApprovalCount: number) {
+  if (!agent) {
+    return {
+      tone: "red" as const,
+      label: "No agent selected",
+      detail: "Choose an agent to start."
+    };
+  }
+  if (pendingApprovalCount > 0) {
+    return {
+      tone: "amber" as const,
+      label: "Needs approval",
+      detail: "One action is paused until you approve or deny it."
+    };
+  }
+  if (missingCount > 0) {
+    return {
+      tone: "amber" as const,
+      label: "Needs permission",
+      detail: "Allow the requested private info before this agent can answer well."
+    };
+  }
+  return {
+    tone: "green" as const,
+    label: "Ready",
+    detail: "This agent can answer using only the info you approved."
+  };
+}
+
+function promptSuggestions(agent: Agent | undefined) {
+  const category = agent?.category.toLowerCase() ?? "";
+  if (category.includes("travel")) return ["What travel preferences do you know about me?", "Plan a weekend trip using my saved preferences", "Book a non-refundable trip"];
+  if (category.includes("financial")) return ["What spending rule should I follow?", "Find my payment preferences", "Transfer money for this purchase"];
+  if (category.includes("wellness")) return ["Summarize my saved health notes", "What health info can you access?", "Share my medical record"];
+  return ["What can you help me with?", "Find the private info you can use", "Try an action that needs approval"];
+}
+
+function runtimeSummary(result: AgentRunResult | null) {
+  if (!result) return null;
+  if (result.runtimeState === "needs_permission") return "This agent needs permission before it can use that private info.";
+  if (result.runtimeState === "needs_approval") return "This action is waiting for your approval.";
+  if (result.status === "blocked") return result.reason ?? "This request was blocked by your safety rules.";
+  if (result.provider === "openai") return `Answered with OpenAI${result.model ? ` (${result.model})` : ""}.`;
+  return "Answered with the local safe runtime.";
+}
+
 function getStarterPrompt(templateId: string) {
   const prompts: Record<string, string> = {
     travel: "Plan a weekend trip using my preferences",
@@ -319,13 +374,13 @@ export function App() {
   const [searchResults, setSearchResults] = useState<VaultDocument[]>([]);
   const [isSearchingVault, setIsSearchingVault] = useState(false);
   const [chatInput, setChatInput] = useState("");
-  const [chatTranscript, setChatTranscript] = useState<Array<{ role: "user" | "agent"; content: string }>>([]);
+  const [chatTranscript, setChatTranscript] = useState<ChatTranscriptItem[]>([]);
   const [isAgentRunning, setIsAgentRunning] = useState(false);
   const [agentRunResult, setAgentRunResult] = useState<AgentRunResult | null>(null);
   const [agentConversation, setAgentConversation] = useState<AgentConversation | null>(null);
   const [isConversationLoading, setIsConversationLoading] = useState(false);
-  const [grantDuration, setGrantDuration] = useState("3600000");
-  const [permissionDetailsOpen, setPermissionDetailsOpen] = useState(false);
+  const [lastFailedPrompt, setLastFailedPrompt] = useState("");
+  const grantDuration: string = "3600000";
   const [isGuidedSetupOpen, setIsGuidedSetupOpen] = useState(false);
   const [guidedSetupStep, setGuidedSetupStep] = useState(1);
   const [guidedTemplateId, setGuidedTemplateId] = useState("travel");
@@ -334,6 +389,7 @@ export function App() {
   const [isGuidedSetupSaving, setIsGuidedSetupSaving] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationDialog | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [decidingApprovalId, setDecidingApprovalId] = useState("");
 
   useEffect(() => {
     if (!supabase) return;
@@ -417,7 +473,14 @@ export function App() {
         setChatTranscript(
           conversation.messages
             .filter((message) => message.role === "user" || message.role === "agent")
-            .map((message) => ({ role: message.role as "user" | "agent", content: message.content }))
+            .map((message) => ({
+              role: message.role as "user" | "agent",
+              content: message.content,
+              status: message.status,
+              requestId: typeof message.metadata.requestId === "string" ? message.metadata.requestId : undefined,
+              actionName: typeof message.metadata.actionName === "string" ? message.metadata.actionName : undefined,
+              provider: message.metadata.provider === "openai" || message.metadata.provider === "local" ? message.metadata.provider : undefined
+            }))
         );
       })
       .catch(() => {
@@ -499,7 +562,14 @@ export function App() {
   }), [agents, documents, logs, session]);
 
   const pendingApproval = hitl[0];
+  const selectedAgentApprovals = useMemo(
+    () => hitl.filter((request) => request.agent.id === selectedAgent?.id),
+    [hitl, selectedAgent?.id]
+  );
   const allowedPermissionCount = permissionReview.filter((item) => item.granted).length;
+  const readiness = agentReadiness(selectedAgent, ungrantedRequestedSchemas.length, selectedAgentApprovals.length);
+  const suggestedPrompts = promptSuggestions(selectedAgent);
+  const runSummary = runtimeSummary(agentRunResult);
   const heading = sectionHeadings[activeSection];
   const sectionClass = (section: SectionId) => activeSection === section ? "is-section-active" : "";
   const activeMobileClass = (section: SectionId) => activeSection === section ? "is-mobile-active" : "";
@@ -596,37 +666,50 @@ export function App() {
     }
   }
 
-  async function runAgentChat(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!selectedAgent || !chatInput.trim()) return;
-    const prompt = chatInput.trim();
-    setChatTranscript((current) => [...current, { role: "user", content: prompt }]);
+  async function submitAgentPrompt(prompt: string) {
+    if (!selectedAgent || !prompt.trim()) return;
+    const cleanPrompt = prompt.trim();
+    setChatTranscript((current) => [...current, { role: "user", content: cleanPrompt }]);
     setChatInput("");
     setIsAgentRunning(true);
     setAgentRunResult(null);
+    setLastFailedPrompt("");
     try {
-      const result = await apiPost<AgentRunResult>(`/api/me/agents/${selectedAgent.id}/run`, { message: prompt });
+      const result = await apiPost<AgentRunResult>(`/api/me/agents/${selectedAgent.id}/run`, { message: cleanPrompt });
       setAgentRunResult(result);
       if (result.conversation) {
         setAgentConversation(result.conversation);
         setChatTranscript(
           result.conversation.messages
             .filter((message) => message.role === "user" || message.role === "agent")
-            .map((message) => ({ role: message.role as "user" | "agent", content: message.content }))
+            .map((message) => ({
+              role: message.role as "user" | "agent",
+              content: message.content,
+              status: message.status,
+              requestId: typeof message.metadata.requestId === "string" ? message.metadata.requestId : undefined,
+              actionName: typeof message.metadata.actionName === "string" ? message.metadata.actionName : undefined,
+              provider: message.metadata.provider === "openai" || message.metadata.provider === "local" ? message.metadata.provider : undefined
+            }))
         );
       } else {
-        setChatTranscript((current) => [...current, { role: "agent", content: result.reply }]);
+        setChatTranscript((current) => [...current, { role: "agent", content: result.reply, status: result.status, requestId: result.requestId, actionName: result.actionName, provider: result.provider }]);
       }
       setToolResult(result.reply);
       if (result.documents?.length) setSearchResults(result.documents);
       await refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Agent run failed.";
-      setChatTranscript((current) => [...current, { role: "agent", content: message }]);
+      setChatTranscript((current) => [...current, { role: "agent", content: `Something went wrong. ${message}`, status: "error" }]);
       setToolResult(message);
+      setLastFailedPrompt(cleanPrompt);
     } finally {
       setIsAgentRunning(false);
     }
+  }
+
+  async function runAgentChat(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitAgentPrompt(chatInput);
   }
 
   async function createVaultItem(event: FormEvent<HTMLFormElement>) {
@@ -723,9 +806,31 @@ export function App() {
   }
 
   async function decideHitl(id: string, approved: boolean) {
-    await apiPost(`/api/hitl/${id}/decision`, { approved });
-    setToolResult(approved ? "Approved. The agent can continue this action." : "Denied. The agent cannot continue this action.");
-    await refresh();
+    setDecidingApprovalId(id);
+    try {
+      await apiPost(`/api/hitl/${id}/decision`, { approved });
+      const message = approved ? "Approved. The agent can continue when you ask it to proceed." : "Denied. The agent will not continue this action.";
+      setToolResult(message);
+      setAgentRunResult((current) => current?.requestId === id
+        ? {
+          ...current,
+          status: approved ? "ok" : "blocked",
+          runtimeState: approved ? "ready" : "blocked",
+          nextStep: approved ? "The approval was recorded. Ask the agent to continue." : "The action was denied and will not continue.",
+          reply: message
+        }
+        : current);
+      setChatTranscript((current) => current.map((item) => item.requestId === id
+        ? {
+          ...item,
+          status: approved ? "success" : "blocked_by_policy",
+          content: message
+        }
+        : item));
+      await refresh();
+    } finally {
+      setDecidingApprovalId("");
+    }
   }
 
   async function createAgent(event: FormEvent<HTMLFormElement>) {
@@ -1537,118 +1642,178 @@ export function App() {
           </div>
 
           <div className={`panel detail-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}>
-            <div className="panel-title">What This Helper Can Do</div>
             {selectedAgent && (
-              <>
-                <div className="detail-heading">
+              <div className="agent-use-shell">
+                <div className="agent-use-header">
                   <div>
+                    <div className="panel-title">Use This Agent</div>
                     <h2>{selectedAgent.name}</h2>
                     <p>{selectedAgent.capabilityManifest.description}</p>
                   </div>
-                  <StatusPill tone="blue">active</StatusPill>
+                  <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
                 </div>
-                <div className="manifest-grid">
-                  <div><strong>Can do</strong><span>{selectedAgent.capabilityManifest.tools?.map(friendlyToolName).join(", ")}</span></div>
-                  <div><strong>Must ask before</strong><span>{selectedAgent.capabilityManifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
-                  <div><strong>Current access</strong><span>{selectedAgent.connections[0]?.connectionStatus ?? "none"}</span></div>
-                </div>
-                <div className="permission-review">
-                  <div className="permission-review-header">
-                    <div>
-                      <strong>Permissions</strong>
-                      <span>{allowedPermissionCount} of {permissionReview.length} info categories allowed</span>
-                    </div>
-                    <button
-                      disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"}
-                      onClick={() => void grantAllRequestedSchemas()}
-                      type="button"
-                    >
-                      <KeyRound size={16} /> Allow requested info
-                    </button>
-                    <button onClick={() => setPermissionDetailsOpen((current) => !current)} type="button">
-                      <KeyRound size={16} /> Details
-                    </button>
-                  </div>
-                  {permissionDetailsOpen ? (
-                    <div className="permission-details">
-                      <label>
-                        <span>Allow access for</span>
-                        <select onChange={(event) => setGrantDuration(event.currentTarget.value)} value={grantDuration}>
-                          <option value="3600000">1 hour</option>
-                          <option value="86400000">1 day</option>
-                          <option value="always">Always</option>
-                        </select>
-                      </label>
-                      <p className="empty">Access is scoped to your account, this agent, this info category, and the expiry you choose.</p>
-                    </div>
-                  ) : null}
-                  {permissionReview.length === 0 ? (
-                    <p className="empty">This helper has not requested access to private info.</p>
-                  ) : permissionReview.map((item) => (
-                    <div className="permission-review-row" key={item.schemaName}>
+
+                <div className="agent-use-grid">
+                  <section className="chat-panel agent-chat-panel" aria-label="Agent chat">
+                    <div className="chat-heading">
                       <div>
-                        <strong>{item.schemaName}</strong>
-                        <small>{item.schema?.description ?? "Unknown vault schema"}</small>
+                        <strong>Chat</strong>
+                        <p>{readiness.detail}</p>
                       </div>
-                      <StatusPill tone={item.granted ? "green" : item.schema ? "amber" : "red"}>
-                        {item.granted ? "allowed" : item.schema ? "needs review" : "unknown"}
-                      </StatusPill>
-                      <button
-                        disabled={!item.schema || item.granted || grantingSchemaName === item.schemaName || grantingSchemaName === "all"}
-                        onClick={() => item.schema ? void grantRequestedSchema(item.schema) : undefined}
-                        type="button"
-                      >
-                        Allow
-                      </button>
-                      {item.schema && item.granted ? (
-                        <button onClick={() => void togglePermission(item.schema!, false)} type="button">Revoke</button>
-                      ) : null}
+                      <StatusPill tone="blue">{isConversationLoading ? "loading" : "saved"}</StatusPill>
                     </div>
-                  ))}
-                </div>
-                <div className="chat-panel">
-                  <div className="chat-heading">
-                    <div>
-                      <div className="panel-title">Use This Agent</div>
-                      <p className="mobile-section-intro">Ask a question or request an action. The agent can only use approved info and pauses sensitive actions for you.</p>
+                    {agentConversation ? <p className="conversation-note">Conversation: {agentConversation.title}</p> : null}
+
+                    {chatTranscript.length === 0 && !isConversationLoading ? (
+                      <div className="chat-empty-state">
+                        <strong>Start with one simple request</strong>
+                        <span>This agent can only use approved private info and will pause risky actions.</span>
+                        <div className="suggestion-row">
+                          {suggestedPrompts.map((prompt) => (
+                            <button key={prompt} onClick={() => setChatInput(prompt)} type="button">{prompt}</button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {isConversationLoading ? (
+                      <div className="chat-loading">
+                        <span />
+                        <span />
+                        <span />
+                      </div>
+                    ) : null}
+
+                    {chatTranscript.length ? (
+                      <div className="chat-transcript">
+                        {chatTranscript.slice(-8).map((message, index) => {
+                          const pendingRequest = message.requestId ? selectedAgentApprovals.find((request) => request.id === message.requestId) : undefined;
+                          return (
+                            <div className={message.role === "user" ? "chat-bubble chat-user" : "chat-bubble chat-agent"} key={`${message.role}-${message.requestId ?? index}-${message.content.slice(0, 20)}`}>
+                              <span>{message.role === "user" ? "You" : selectedAgent.name}</span>
+                              <p>{message.content}</p>
+                              {message.provider ? <small>{message.provider === "openai" ? "OpenAI response" : "Local safe runtime"}</small> : null}
+                              {message.status === "error" ? (
+                                <button disabled={!lastFailedPrompt || isAgentRunning} onClick={() => void submitAgentPrompt(lastFailedPrompt)} type="button">Retry</button>
+                              ) : null}
+                              {pendingRequest ? (
+                                <div className="approval-card">
+                                  <StatusPill tone="amber">approval needed</StatusPill>
+                                  <strong>{friendlyActionName(pendingRequest.actionName)}</strong>
+                                  <small>This action is paused until you approve or deny it.</small>
+                                  <div className="button-row compact-row">
+                                    <button disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, true)} type="button">Approve</button>
+                                    <button className="danger" disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, false)} type="button">Deny</button>
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                        {isAgentRunning ? (
+                          <div className="chat-bubble chat-agent thinking-bubble">
+                            <span>{selectedAgent.name}</span>
+                            <p>Thinking safely...</p>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {agentRunResult ? (
+                      <div className="agent-run-summary">
+                        <StatusPill tone={agentRunResult.status === "ok" ? "green" : agentRunResult.status === "awaiting_human_approval" ? "amber" : "red"}>
+                          {agentRunResult.status === "awaiting_human_approval" ? "needs approval" : agentRunResult.status}
+                        </StatusPill>
+                        <span>{runSummary}</span>
+                        {agentRunResult.nextStep ? <small>{agentRunResult.nextStep}</small> : null}
+                        {agentRunResult.usedSchemas?.length ? <small>Used: {agentRunResult.usedSchemas.join(", ")}</small> : null}
+                      </div>
+                    ) : null}
+
+                    <form className="chat-form" onSubmit={(event) => void runAgentChat(event)}>
+                      <input
+                        aria-label="Message agent"
+                        name="helper-message"
+                        onChange={(event) => setChatInput(event.currentTarget.value)}
+                        placeholder="Ask it to find info or try an action that may need approval..."
+                        value={chatInput}
+                      />
+                      <button disabled={isAgentRunning || !chatInput.trim()} type="submit"><MessageSquare size={16} /> {isAgentRunning ? "Thinking..." : "Send"}</button>
+                    </form>
+                  </section>
+
+                  <aside className="agent-side-panel">
+                    <div className="agent-status-card">
+                      <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
+                      <strong>{readiness.detail}</strong>
+                      <small>{allowedPermissionCount} of {permissionReview.length} requested info categories allowed.</small>
                     </div>
-                    <StatusPill tone="blue">{isConversationLoading ? "loading" : "saved"}</StatusPill>
-                  </div>
-                  {agentConversation ? <p className="conversation-note">Conversation: {agentConversation.title}</p> : null}
-                  <form className="chat-form" onSubmit={(event) => void runAgentChat(event)}>
-                    <input
-                      aria-label="Message agent"
-                      name="helper-message"
-                      onChange={(event) => setChatInput(event.currentTarget.value)}
-                      placeholder="Ask it to find info or try an action that may need approval..."
-                      value={chatInput}
-                    />
-                    <button disabled={isAgentRunning || !chatInput.trim()} type="submit"><MessageSquare size={16} /> {isAgentRunning ? "Thinking..." : "Send"}</button>
-                  </form>
-                  {agentRunResult ? (
-                    <div className="agent-run-summary">
-                      <StatusPill tone={agentRunResult.status === "ok" ? "green" : agentRunResult.status === "awaiting_human_approval" ? "amber" : "red"}>
-                        {agentRunResult.status === "awaiting_human_approval" ? "needs approval" : agentRunResult.status}
-                      </StatusPill>
-                      <span>{agentRunResult.intent === "search" ? "Used personal info search" : agentRunResult.intent === "action" ? "Action request" : "Blocked"}</span>
-                      <small>{agentRunResult.provider === "openai" ? `OpenAI response${agentRunResult.model ? ` (${agentRunResult.model})` : ""}` : "Local safe runtime"}</small>
-                      {agentRunResult.usedSchemas?.length ? <small>Allowed info: {agentRunResult.usedSchemas.join(", ")}</small> : null}
+                    <div className="manifest-grid agent-side-grid">
+                      <div><strong>Can do</strong><span>{selectedAgent.capabilityManifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span></div>
+                      <div><strong>Must ask before</strong><span>{selectedAgent.capabilityManifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
+                      <div><strong>Connection</strong><span>{selectedAgent.connections[0]?.connectionStatus ?? "none"}</span></div>
                     </div>
-                  ) : null}
-                  {chatTranscript.length ? (
-                    <div className="chat-transcript">
-                      {chatTranscript.slice(-4).map((message, index) => (
-                        <pre className={message.role === "user" ? "chat-user" : "chat-agent"} key={`${message.role}-${index}`}>{message.content}</pre>
+                    <div className="permission-review compact-permission-review">
+                      <div className="permission-review-header">
+                        <div>
+                          <strong>Permissions</strong>
+                          <span>{allowedPermissionCount} of {permissionReview.length} info categories allowed</span>
+                        </div>
+                        <button
+                          disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"}
+                          onClick={() => void grantAllRequestedSchemas()}
+                          type="button"
+                        >
+                          <KeyRound size={16} /> Allow requested info
+                        </button>
+                      </div>
+                      {permissionReview.length === 0 ? (
+                        <p className="empty">This agent has not requested private info.</p>
+                      ) : permissionReview.map((item) => (
+                        <div className="permission-review-row" key={item.schemaName}>
+                          <div>
+                            <strong>{item.schemaName}</strong>
+                            <small>{item.schema?.description ?? "Unknown info category"}</small>
+                          </div>
+                          <StatusPill tone={item.granted ? "green" : item.schema ? "amber" : "red"}>
+                            {item.granted ? "allowed" : item.schema ? "needed" : "missing"}
+                          </StatusPill>
+                          <button
+                            disabled={!item.schema || item.granted || grantingSchemaName === item.schemaName || grantingSchemaName === "all"}
+                            onClick={() => item.schema ? void grantRequestedSchema(item.schema) : undefined}
+                            type="button"
+                          >
+                            Allow
+                          </button>
+                          {item.schema && item.granted ? (
+                            <button onClick={() => void togglePermission(item.schema!, false)} type="button">Revoke</button>
+                          ) : null}
+                        </div>
                       ))}
                     </div>
-                  ) : null}
+                    {selectedAgentApprovals.length ? (
+                      <div className="side-approval-list">
+                        <strong>Waiting for you</strong>
+                        {selectedAgentApprovals.map((request) => (
+                          <div className="approval-card" key={request.id}>
+                            <StatusPill tone="amber">paused</StatusPill>
+                            <strong>{friendlyActionName(request.actionName)}</strong>
+                            <div className="button-row compact-row">
+                              <button disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, true)} type="button">Approve</button>
+                              <button className="danger" disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, false)} type="button">Deny</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="button-row">
+                      <button onClick={runVaultSearch}><Database size={16} /> Search personal info</button>
+                      <button className="danger" onClick={triggerHighRiskAction}><Zap size={16} /> Try approval flow</button>
+                      <button onClick={revokeSelectedAgentAccess} type="button"><KeyRound size={16} /> Revoke access</button>
+                    </div>
+                  </aside>
                 </div>
-                <div className="button-row">
-                  <button onClick={runVaultSearch}><Database size={16} /> Search personal info</button>
-                  <button className="danger" onClick={triggerHighRiskAction}><Zap size={16} /> Try approval flow</button>
-                  <button onClick={revokeSelectedAgentAccess} type="button"><KeyRound size={16} /> Revoke access</button>
-                </div>
-              </>
+              </div>
             )}
           </div>
 
@@ -1741,12 +1906,12 @@ export function App() {
                 <span>{friendlyActionName(request.actionName)}</span>
                 <small>This action is paused until you approve or deny it.</small>
                 <div className="button-row">
-                  <button onClick={() => void decideHitl(request.id, true)}>Approve</button>
-                  <button className="danger" onClick={() => void decideHitl(request.id, false)}>Deny</button>
+                  <button disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, true)}>Approve</button>
+                  <button className="danger" disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, false)}>Deny</button>
                 </div>
               </div>
             ))}
-            <pre>{toolResult}</pre>
+            <p className="empty">{toolResult}</p>
           </div>
 
           <div className={`panel settings-panel mobile-section desktop-section ${activeMobileClass("settings")} ${sectionClass("settings")}`} id="settings">

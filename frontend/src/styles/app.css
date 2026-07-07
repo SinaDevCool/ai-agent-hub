@@ -851,6 +851,117 @@ legend {
   min-height: 270px;
 }
 
+.agent-use-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.agent-use-header {
+  align-items: start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.agent-use-header p,
+.chat-heading p {
+  color: #a9bbcf;
+  line-height: 1.45;
+}
+
+.agent-use-grid {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.38fr);
+}
+
+.agent-chat-panel {
+  min-height: 540px;
+}
+
+.agent-side-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.agent-status-card,
+.chat-empty-state,
+.approval-card,
+.side-approval-list {
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  background: rgba(7, 17, 31, 0.38);
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+}
+
+.agent-status-card strong,
+.chat-empty-state strong,
+.approval-card strong,
+.side-approval-list > strong {
+  color: #f5f9ff;
+}
+
+.agent-status-card small,
+.chat-empty-state span,
+.approval-card small {
+  color: #91a4ba;
+  line-height: 1.4;
+}
+
+.agent-side-grid {
+  grid-template-columns: 1fr;
+  margin-bottom: 0;
+}
+
+.suggestion-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suggestion-row button {
+  background: rgba(64, 156, 255, 0.08);
+  border-color: rgba(64, 156, 255, 0.24);
+  height: auto;
+  min-height: 34px;
+  white-space: normal;
+}
+
+.chat-loading {
+  display: grid;
+  gap: 8px;
+}
+
+.chat-loading span {
+  animation: pulse-line 1.2s ease-in-out infinite;
+  background: rgba(137, 163, 196, 0.14);
+  border-radius: 999px;
+  display: block;
+  height: 14px;
+}
+
+.chat-loading span:nth-child(2) {
+  width: 86%;
+}
+
+.chat-loading span:nth-child(3) {
+  width: 62%;
+}
+
+@keyframes pulse-line {
+  0%,
+  100% {
+    opacity: 0.44;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
 .detail-heading {
   display: flex;
   justify-content: space-between;
@@ -1083,12 +1194,57 @@ legend {
   gap: 8px;
 }
 
+.chat-bubble {
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  display: grid;
+  gap: 7px;
+  max-width: 78ch;
+  padding: 10px;
+}
+
+.chat-bubble span {
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.chat-bubble p {
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.chat-bubble small {
+  font-size: 12px;
+}
+
 .chat-user {
+  justify-self: end;
+  background: rgba(255, 201, 111, 0.08);
+  border-color: rgba(255, 201, 111, 0.18);
   color: #f6d18d;
 }
 
 .chat-agent {
+  justify-self: start;
+  background: rgba(64, 156, 255, 0.08);
   color: #bfe2ff;
+}
+
+.thinking-bubble {
+  opacity: 0.82;
+}
+
+.compact-permission-review {
+  margin-bottom: 0;
+}
+
+.compact-permission-review .permission-review-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.compact-permission-review .permission-review-row button {
+  min-height: 32px;
 }
 
 .log-row,
@@ -1276,6 +1432,10 @@ textarea:focus-visible {
   }
 
   .marketplace-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-use-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1563,7 +1723,9 @@ textarea:focus-visible {
   }
 
   .detail-heading,
-  .permission-review-header {
+  .permission-review-header,
+  .agent-use-header,
+  .chat-heading {
     display: grid;
   }
 
@@ -1579,6 +1741,7 @@ textarea:focus-visible {
 
   .grid,
   .manifest-grid,
+  .agent-use-grid,
   .marketplace-controls,
   .marketplace-layout,
   .marketplace-grid,
@@ -1628,6 +1791,9 @@ textarea:focus-visible {
   .manifest-grid div,
   .permission-review-header,
   .permission-review-row,
+  .agent-status-card,
+  .chat-empty-state,
+  .approval-card,
   .clearance-row,
   .doc-row,
   .log-row,
@@ -1649,6 +1815,20 @@ textarea:focus-visible {
     width: 100%;
     min-height: 44px;
     justify-content: center;
+  }
+
+  .agent-chat-panel {
+    min-height: 520px;
+  }
+
+  .chat-bubble {
+    max-width: 100%;
+    border-radius: 14px;
+  }
+
+  .suggestion-row {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .button-row,

@@ -19,6 +19,9 @@ type RuntimeResult = {
   intent: RuntimeIntent;
   reply: string;
   reason?: string;
+  runtimeState?: "ready" | "needs_permission" | "needs_approval" | "blocked" | "failed";
+  nextStep?: string;
+  missingPermissions?: string[];
   actionName?: string;
   requestId?: string;
   usedSchemas?: string[];
@@ -138,6 +141,9 @@ async function appendRuntimeMessages(input: {
         intent: input.result.intent,
         metadata: encodeJson({
           reason: input.result.reason,
+          runtimeState: input.result.runtimeState,
+          nextStep: input.result.nextStep,
+          missingPermissions: input.result.missingPermissions,
           actionName: input.result.actionName,
           requestId: input.result.requestId,
           usedSchemas: input.result.usedSchemas,
@@ -186,7 +192,9 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
       status: "blocked" as const,
       intent: "blocked" as const,
       reply: "This agent is not connected to your profile.",
-      reason: "Agent is not connected to this user."
+      reason: "Agent is not connected to this user.",
+      runtimeState: "blocked" as const,
+      nextStep: "Add this agent to your profile before using it."
     };
   }
 
@@ -204,7 +212,9 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
         status: "blocked" as const,
         intent,
         reply: `${agent.name} cannot search personal info because that tool is not enabled.`,
-        reason: "vault.search is not enabled for this agent."
+        reason: "vault.search is not enabled for this agent.",
+        runtimeState: "blocked" as const,
+        nextStep: "Choose an agent that can read personal info, or add vault.search to this agent."
         }
       });
     }
@@ -232,7 +242,10 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
         status: "blocked" as const,
         intent,
         reply: `${agent.name} needs permission before it can use your personal info.`,
-        reason: decision.reason
+        reason: decision.reason,
+        runtimeState: "needs_permission" as const,
+        nextStep: "Review and allow the requested private info for this agent.",
+        missingPermissions: manifest.requestedSchemas ?? []
         }
       });
     }
@@ -278,7 +291,9 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
       documents: serializedDocuments,
       usedSchemas: schemaNames,
       provider: generated.provider,
-      model: generated.model
+      model: generated.model,
+      runtimeState: "ready" as const,
+      nextStep: documents.length ? "Review the answer and ask a follow-up if needed." : "Try a more specific question or add more private info."
       }
     });
   }
@@ -293,7 +308,9 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
         status: "blocked" as const,
         intent,
         reply: `${agent.name} cannot take actions. It can only help with information lookup.`,
-        reason: "action.execute is not enabled for this agent."
+        reason: "action.execute is not enabled for this agent.",
+        runtimeState: "blocked" as const,
+        nextStep: "Use this agent for questions only, or add an action-capable agent."
         }
       });
     }
@@ -314,6 +331,8 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
         status: "awaiting_human_approval" as const,
         intent,
         reply: `${agent.name} paused this action and sent it to you for approval.`,
+        runtimeState: "needs_approval" as const,
+        nextStep: "Approve or deny this action before the agent continues.",
         actionName,
         requestId: request.id
         }
@@ -338,14 +357,18 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
         status: "ok" as const,
         intent,
         reply: `${agent.name} completed the allowed action: ${actionName.replace(/_/g, " ")}.`,
-        actionName
+        actionName,
+        runtimeState: "ready" as const,
+        nextStep: "Check the activity log for the recorded action."
       }
       : {
         status: "blocked" as const,
         intent,
         reply: `${agent.name} is not allowed to do that yet.`,
         reason: decision.reason,
-        actionName
+        actionName,
+        runtimeState: "blocked" as const,
+        nextStep: "Review this agent's action permissions before trying again."
       };
     return withPersistedConversation({ userId: input.userId, agent, message, result });
   }
@@ -358,7 +381,9 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
     status: "blocked" as const,
     intent,
     reply: "Please ask a clear question or action.",
-    reason: "Empty message."
+    reason: "Empty message.",
+    runtimeState: "blocked" as const,
+    nextStep: "Type a question or an action request for this agent."
     }
   });
 }

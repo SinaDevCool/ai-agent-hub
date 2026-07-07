@@ -123,6 +123,9 @@ export type AgentRunResult = {
   intent: "search" | "action" | "blocked";
   reply: string;
   reason?: string;
+  runtimeState?: "ready" | "needs_permission" | "needs_approval" | "blocked" | "failed";
+  nextStep?: string;
+  missingPermissions?: string[];
   actionName?: string;
   requestId?: string;
   usedSchemas?: string[];
