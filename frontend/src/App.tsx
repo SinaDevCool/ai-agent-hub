@@ -701,6 +701,8 @@ export function App() {
     permissions: permissionProgress(agent, schemas),
     pendingApprovals: hitl.filter((request) => request.agent.id === agent.id).length
   })), [agents, hitl, schemas]);
+  const mobileInstalledAgentCards = installedAgentCards.slice(0, 5);
+  const visibleApprovals = hitl.slice(0, 3);
   const permissionCenterRows = useMemo(() => schemas.map((schema) => ({
     schema,
     allowedAgents: agents.filter((agent) => agent.permissions.some((permission) => permission.vaultSchemaId === schema.id && permission.permissionType === "read")),
@@ -1828,7 +1830,30 @@ export function App() {
             <div className="mobile-panel-actions">
               <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Helper</button>
             </div>
-            <div className="installed-agent-list">
+            <div className="mobile-helper-list" aria-label="My AI helpers for mobile">
+              {mobileInstalledAgentCards.map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => (
+                <article className={agent.id === selectedAgent?.id ? "mobile-helper-card selected" : "mobile-helper-card"} key={`mobile-${agent.id}`}>
+                  <button className="mobile-helper-main" onClick={() => {
+                    setSelectedAgentId(agent.id);
+                    setAgentProfileTab("chat");
+                  }} type="button">
+                    <span>{agent.name}</span>
+                    <small>{friendlyCategoryName(agent.category)} helper</small>
+                    <StatusPill tone={cardReadiness.tone}>{cardReadiness.label}</StatusPill>
+                  </button>
+                  <p>{agent.capabilityManifest.description}</p>
+                  <div className="mobile-helper-foot">
+                    <small>{permissions.allowed} of {permissions.requested} info categories allowed</small>
+                    {pendingApprovals ? <small>{pendingApprovals} approval waiting</small> : null}
+                    <button onClick={() => {
+                      setSelectedAgentId(agent.id);
+                      setAgentProfileTab("chat");
+                    }} type="button"><MessageSquare size={15} /> Use</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="installed-agent-list desktop-helper-list">
               {installedAgentCards.slice(0, 10).map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => (
                 <article className={agent.id === selectedAgent?.id ? "installed-agent-card selected" : "installed-agent-card"} key={agent.id}>
                   <button className="agent-row" onClick={() => setSelectedAgentId(agent.id)} type="button">
@@ -1859,8 +1884,8 @@ export function App() {
             {agents.length > 10 ? <p className="empty">Showing 10 of {agents.length} helpers. Use search next as your profile grows.</p> : null}
           </div>
 
+          {selectedAgent ? (
           <div className={`panel detail-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}>
-            {selectedAgent && (
               <div className="agent-use-shell">
                 <div className="agent-use-header">
                   <div>
@@ -2158,8 +2183,8 @@ export function App() {
                   </section>
                 ) : null}
               </div>
-            )}
           </div>
+          ) : null}
 
           <div className={`panel clearance-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`} id="clearance">
             <div className="panel-heading-row">
@@ -2179,6 +2204,12 @@ export function App() {
             {permissionCenterRows.map(({ schema, allowedAgents, requestingAgents }) => {
               const granted = Boolean(selectedAgent?.permissions.some((permission) => permission.vaultSchemaId === schema.id && permission.permissionType === "read"));
               const selectedRequestsThis = Boolean(selectedAgent?.capabilityManifest.requestedSchemas?.includes(schema.name));
+              const allowedSummary = allowedAgents.length
+                ? `${allowedAgents.length} helper${allowedAgents.length === 1 ? "" : "s"} can read this category.`
+                : "No helper can read this category yet.";
+              const requestSummary = requestingAgents.length
+                ? `${requestingAgents.length} helper${requestingAgents.length === 1 ? "" : "s"} may ask for this category.`
+                : "";
               return (
                 <div className="clearance-row permission-category-row" key={schema.id}>
                   <label>
@@ -2188,8 +2219,9 @@ export function App() {
                   <div>
                     <strong>{schema.name}</strong>
                     <small>{schema.description}</small>
-                    <small>{allowedAgents.length ? `Can read this: ${allowedAgents.map((agent) => agent.name).join(", ")}` : "No helper can read this yet."}</small>
-                    {requestingAgents.length ? <small>Requested by: {requestingAgents.map((agent) => agent.name).join(", ")}</small> : null}
+                    <small>{selectedRequestsThis ? `${selectedAgent?.name ?? "This helper"} requested this.` : `${selectedAgent?.name ?? "This helper"} has not requested this.`}</small>
+                    <small>{allowedSummary}</small>
+                    {requestSummary ? <small>{requestSummary}</small> : null}
                   </div>
                 </div>
               );
@@ -2208,13 +2240,14 @@ export function App() {
             </div>
             <form className="vault-search" onSubmit={(event) => void searchVault(event)}>
               <input
+                aria-label="Search private info"
                 name="private-info-search"
                 onChange={(event) => setSearchQuery(event.currentTarget.value)}
                 placeholder="Search personal info through the selected agent..."
                 required
                 value={searchQuery}
               />
-              <select onChange={(event) => setSearchSchemaId(event.currentTarget.value)} value={searchSchemaId}>
+              <select aria-label="Filter private info category" onChange={(event) => setSearchSchemaId(event.currentTarget.value)} value={searchSchemaId}>
                 <option value="">All allowed categories</option>
                 {schemas.map((schema) => <option key={schema.id} value={schema.id}>{schema.name}</option>)}
               </select>
@@ -2270,7 +2303,7 @@ export function App() {
 
           <div className={`panel hitl-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`}>
             <div className="panel-title">Needs Your Approval</div>
-            {hitl.length === 0 ? <p className="empty">No agent is waiting for approval.</p> : hitl.map((request) => (
+            {hitl.length === 0 ? <p className="empty">No agent is waiting for approval.</p> : visibleApprovals.map((request) => (
               <div className="hitl-row" key={request.id}>
                 <strong>{request.agent.name} wants to continue</strong>
                 <span>{friendlyActionName(request.actionName)}</span>
@@ -2281,6 +2314,7 @@ export function App() {
                 </div>
               </div>
             ))}
+            {hitl.length > visibleApprovals.length ? <p className="empty">Showing {visibleApprovals.length} of {hitl.length} approvals. Finish these first to keep review simple.</p> : null}
             <p className="empty">{toolResult}</p>
           </div>
 

@@ -20,7 +20,7 @@ button {
   border: 1px solid rgba(111, 143, 185, 0.28);
   background: #10223a;
   color: #e7eef8;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 12px;
   border-radius: 7px;
   font: inherit;
@@ -63,7 +63,7 @@ button.danger {
   border: 1px solid rgba(111, 143, 185, 0.28);
   background: #10223a;
   color: #e7eef8;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 12px;
   border-radius: 7px;
   font-size: 13px;
@@ -910,6 +910,10 @@ legend {
   gap: 10px;
 }
 
+.mobile-helper-list {
+  display: none;
+}
+
 .installed-agent-card {
   background: rgba(11, 27, 46, 0.62);
   border: 1px solid rgba(137, 163, 196, 0.14);
@@ -944,7 +948,67 @@ legend {
 }
 
 .installed-agent-actions button {
-  min-height: 34px;
+  min-height: 40px;
+}
+
+.mobile-helper-card {
+  background: rgba(11, 27, 46, 0.68);
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 14px;
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+}
+
+.mobile-helper-card.selected {
+  background: rgba(30, 64, 105, 0.5);
+  border-color: rgba(64, 156, 255, 0.68);
+}
+
+.mobile-helper-main {
+  align-items: center;
+  background: transparent;
+  border-color: transparent;
+  display: grid;
+  gap: 4px;
+  justify-content: stretch;
+  min-height: 56px;
+  padding: 0;
+  text-align: left;
+}
+
+.mobile-helper-main span {
+  color: #f5f9ff;
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.mobile-helper-main small,
+.mobile-helper-card p,
+.mobile-helper-foot small {
+  color: #a9bbcf;
+  line-height: 1.4;
+}
+
+.mobile-helper-card p {
+  font-size: 13px;
+  margin: 0;
+}
+
+.mobile-helper-foot {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.mobile-helper-foot small {
+  grid-column: 1;
+}
+
+.mobile-helper-foot button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
 }
 
 .detail-panel {
@@ -1321,7 +1385,7 @@ legend {
 }
 
 .compact-row button {
-  min-height: 32px;
+  min-height: 40px;
 }
 
 .vault-search,
@@ -1745,7 +1809,7 @@ textarea:focus-visible {
     min-height: 52px;
     justify-content: center;
     padding: 0 8px;
-    font-size: 10px;
+    font-size: 11px;
     line-height: 1.15;
     border-radius: 13px;
   }
@@ -1905,7 +1969,8 @@ textarea:focus-visible {
   }
 
   .grid {
-    display: block;
+    display: flex;
+    flex-direction: column;
   }
 
   .home-dashboard,
@@ -1921,6 +1986,26 @@ textarea:focus-visible {
   .mobile-section.is-mobile-active {
     display: grid;
     margin-bottom: 12px;
+  }
+
+  .section-agents .agent-list {
+    order: 1;
+  }
+
+  .section-agents .detail-panel {
+    order: 2;
+  }
+
+  .section-agents .marketplace-panel {
+    order: 3;
+  }
+
+  .section-clearance .hitl-panel {
+    order: 1;
+  }
+
+  .section-clearance .clearance-panel {
+    order: 2;
   }
 
   .panel {
@@ -2034,8 +2119,31 @@ textarea:focus-visible {
     min-height: 0;
   }
 
+  .marketplace-panel .marketplace-card:nth-child(n+4),
+  .marketplace-detail,
+  .marketplace-meta {
+    display: none;
+  }
+
+  .marketplace-card-actions small {
+    display: none;
+  }
+
+  .marketplace-card-actions {
+    grid-template-columns: 1fr;
+  }
+
   .installed-agent-card {
     border-radius: 14px;
+  }
+
+  .desktop-helper-list {
+    display: none;
+  }
+
+  .mobile-helper-list {
+    display: grid;
+    gap: 10px;
   }
 
   .agent-row span {
@@ -2079,7 +2187,11 @@ textarea:focus-visible {
   }
 
   .agent-chat-panel {
-    min-height: 520px;
+    min-height: 360px;
+  }
+
+  .agent-side-panel {
+    display: none;
   }
 
   .chat-bubble {
