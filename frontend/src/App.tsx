@@ -53,8 +53,14 @@ type ChatTranscriptItem = {
   requestId?: string;
   actionName?: string;
   provider?: AgentRunResult["provider"];
+  model?: string;
+  runtimeState?: AgentRunResult["runtimeState"];
+  nextStep?: string;
+  usedSchemas?: string[];
+  documents?: VaultDocument[];
 };
 type AgentMessageStatus = "success" | "blocked_by_policy" | "pending_human_approval" | "error" | null;
+type AgentProfileTab = "chat" | "permissions" | "activity" | "settings";
 type AgentTemplate = {
   id: string;
   title: string;
@@ -331,6 +337,39 @@ function runtimeSummary(result: AgentRunResult | null) {
   return "Answered with the local safe runtime.";
 }
 
+function stringArrayFromMetadata(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : undefined;
+}
+
+function vaultDocumentsFromMetadata(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  const documents = value.filter((item): item is VaultDocument => (
+    Boolean(item)
+    && typeof item === "object"
+    && typeof (item as VaultDocument).id === "string"
+    && typeof (item as VaultDocument).title === "string"
+  ));
+  return documents.length ? documents : undefined;
+}
+
+function chatItemFromMessage(message: AgentConversation["messages"][number]): ChatTranscriptItem {
+  return {
+    role: message.role as "user" | "agent",
+    content: message.content,
+    status: message.status,
+    requestId: typeof message.metadata.requestId === "string" ? message.metadata.requestId : undefined,
+    actionName: typeof message.metadata.actionName === "string" ? message.metadata.actionName : undefined,
+    provider: message.metadata.provider === "openai" || message.metadata.provider === "local" ? message.metadata.provider : undefined,
+    model: typeof message.metadata.model === "string" ? message.metadata.model : undefined,
+    runtimeState: ["ready", "needs_permission", "needs_approval", "blocked", "failed"].includes(String(message.metadata.runtimeState))
+      ? message.metadata.runtimeState as AgentRunResult["runtimeState"]
+      : undefined,
+    nextStep: typeof message.metadata.nextStep === "string" ? message.metadata.nextStep : undefined,
+    usedSchemas: stringArrayFromMetadata(message.metadata.usedSchemas),
+    documents: vaultDocumentsFromMetadata(message.metadata.documents)
+  };
+}
+
 function getStarterPrompt(templateId: string) {
   const prompts: Record<string, string> = {
     travel: "Plan a weekend trip using my preferences",
@@ -463,6 +502,8 @@ export function App() {
   const [agentConversation, setAgentConversation] = useState<AgentConversation | null>(null);
   const [isConversationLoading, setIsConversationLoading] = useState(false);
   const [lastFailedPrompt, setLastFailedPrompt] = useState("");
+  const [agentProfileTab, setAgentProfileTab] = useState<AgentProfileTab>("chat");
+  const [approvedContinuation, setApprovedContinuation] = useState<{ requestId: string; actionName: string } | null>(null);
   const grantDuration: string = "3600000";
   const [isGuidedSetupOpen, setIsGuidedSetupOpen] = useState(false);
   const [guidedSetupStep, setGuidedSetupStep] = useState(1);
@@ -556,14 +597,7 @@ export function App() {
         setChatTranscript(
           conversation.messages
             .filter((message) => message.role === "user" || message.role === "agent")
-            .map((message) => ({
-              role: message.role as "user" | "agent",
-              content: message.content,
-              status: message.status,
-              requestId: typeof message.metadata.requestId === "string" ? message.metadata.requestId : undefined,
-              actionName: typeof message.metadata.actionName === "string" ? message.metadata.actionName : undefined,
-              provider: message.metadata.provider === "openai" || message.metadata.provider === "local" ? message.metadata.provider : undefined
-            }))
+            .map(chatItemFromMessage)
         );
       })
       .catch(() => {
@@ -657,6 +691,10 @@ export function App() {
   const readiness = agentReadiness(selectedAgent, ungrantedRequestedSchemas.length, selectedAgentApprovals.length);
   const suggestedPrompts = promptSuggestions(selectedAgent);
   const runSummary = runtimeSummary(agentRunResult);
+  const selectedAgentLogs = useMemo(
+    () => logs.filter((log) => log.agent?.id === selectedAgent?.id).slice(0, 8),
+    [logs, selectedAgent?.id]
+  );
   const installedAgentCards = useMemo(() => agents.map((agent) => ({
     agent,
     readiness: agentReadinessFor(agent, schemas, hitl),
@@ -780,17 +818,22 @@ export function App() {
         setChatTranscript(
           result.conversation.messages
             .filter((message) => message.role === "user" || message.role === "agent")
-            .map((message) => ({
-              role: message.role as "user" | "agent",
-              content: message.content,
-              status: message.status,
-              requestId: typeof message.metadata.requestId === "string" ? message.metadata.requestId : undefined,
-              actionName: typeof message.metadata.actionName === "string" ? message.metadata.actionName : undefined,
-              provider: message.metadata.provider === "openai" || message.metadata.provider === "local" ? message.metadata.provider : undefined
-            }))
+            .map(chatItemFromMessage)
         );
       } else {
-        setChatTranscript((current) => [...current, { role: "agent", content: result.reply, status: result.status, requestId: result.requestId, actionName: result.actionName, provider: result.provider }]);
+        setChatTranscript((current) => [...current, {
+          role: "agent",
+          content: result.reply,
+          status: result.status,
+          requestId: result.requestId,
+          actionName: result.actionName,
+          provider: result.provider,
+          model: result.model,
+          runtimeState: result.runtimeState,
+          nextStep: result.nextStep,
+          usedSchemas: result.usedSchemas,
+          documents: result.documents
+        }]);
       }
       setToolResult(result.reply);
       if (result.documents?.length) setSearchResults(result.documents);
@@ -907,14 +950,20 @@ export function App() {
     setDecidingApprovalId(id);
     try {
       await apiPost(`/api/hitl/${id}/decision`, { approved });
+      const approvedRequest = selectedAgentApprovals.find((request) => request.id === id);
       const message = approved ? "Approved. The agent can continue when you ask it to proceed." : "Denied. The agent will not continue this action.";
+      if (approved && approvedRequest) {
+        setApprovedContinuation({ requestId: id, actionName: approvedRequest.actionName });
+      } else if (!approved) {
+        setApprovedContinuation((current) => current?.requestId === id ? null : current);
+      }
       setToolResult(message);
       setAgentRunResult((current) => current?.requestId === id
         ? {
           ...current,
           status: approved ? "ok" : "blocked",
           runtimeState: approved ? "ready" : "blocked",
-          nextStep: approved ? "The approval was recorded. Ask the agent to continue." : "The action was denied and will not continue.",
+          nextStep: approved ? "The approval was recorded. Continue the approved action when ready." : "The action was denied and will not continue.",
           reply: message
         }
         : current);
@@ -922,13 +971,20 @@ export function App() {
         ? {
           ...item,
           status: approved ? "success" : "blocked_by_policy",
-          content: message
+          content: message,
+          nextStep: approved ? "Continue the approved action when ready." : "This action was denied.",
+          actionName: item.actionName ?? approvedRequest?.actionName
         }
         : item));
       await refresh();
     } finally {
       setDecidingApprovalId("");
     }
+  }
+
+  async function continueApprovedAction(actionName: string) {
+    await submitAgentPrompt(`Continue the approved action: ${actionName}`);
+    setApprovedContinuation(null);
   }
 
   async function createAgent(event: FormEvent<HTMLFormElement>) {
@@ -1787,6 +1843,7 @@ export function App() {
                   <div className="installed-agent-actions">
                     <button onClick={() => {
                       setSelectedAgentId(agent.id);
+                      setAgentProfileTab("chat");
                       scrollToSection("agents");
                     }} type="button"><MessageSquare size={15} /> Open chat</button>
                     <button onClick={() => {
@@ -1814,7 +1871,27 @@ export function App() {
                   <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
                 </div>
 
-                <div className="agent-use-grid">
+                <div className="agent-profile-tabs" role="tablist" aria-label={`${selectedAgent.name} workspace`}>
+                  {([
+                    ["chat", "Chat"],
+                    ["permissions", "Permissions"],
+                    ["activity", "Activity"],
+                    ["settings", "Settings"]
+                  ] as Array<[AgentProfileTab, string]>).map(([tab, label]) => (
+                    <button
+                      aria-selected={agentProfileTab === tab}
+                      className={agentProfileTab === tab ? "active" : ""}
+                      key={tab}
+                      onClick={() => setAgentProfileTab(tab)}
+                      role="tab"
+                      type="button"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className={agentProfileTab === "chat" ? "agent-use-grid" : "agent-use-grid is-tab-hidden"}>
                   <section className="chat-panel agent-chat-panel" aria-label="Agent chat">
                     <div className="chat-heading">
                       <div>
@@ -1853,9 +1930,25 @@ export function App() {
                             <div className={message.role === "user" ? "chat-bubble chat-user" : "chat-bubble chat-agent"} key={`${message.role}-${message.requestId ?? index}-${message.content.slice(0, 20)}`}>
                               <span>{message.role === "user" ? "You" : selectedAgent.name}</span>
                               <p>{message.content}</p>
-                              {message.provider ? <small>{message.provider === "openai" ? "OpenAI response" : "Local safe runtime"}</small> : null}
+                              {message.provider ? <small>{message.provider === "openai" ? `OpenAI response${message.model ? ` (${message.model})` : ""}` : "Local safe runtime"}</small> : null}
+                              {message.role === "agent" && message.usedSchemas?.length ? (
+                                <div className="info-receipt">
+                                  <strong>Private info used</strong>
+                                  <span>{message.usedSchemas.join(", ")}</span>
+                                  {message.documents?.length ? <small>Sources: {message.documents.map((document) => document.title).join(", ")}</small> : null}
+                                </div>
+                              ) : null}
+                              {message.role === "agent" && !message.usedSchemas?.length && message.status === "success" ? (
+                                <small>No private info was used for this answer.</small>
+                              ) : null}
+                              {message.nextStep ? <small>Next: {message.nextStep}</small> : null}
                               {message.status === "error" ? (
                                 <button disabled={!lastFailedPrompt || isAgentRunning} onClick={() => void submitAgentPrompt(lastFailedPrompt)} type="button">Retry</button>
+                              ) : null}
+                              {approvedContinuation?.requestId === message.requestId && message.actionName ? (
+                                <button disabled={isAgentRunning} onClick={() => void continueApprovedAction(message.actionName!)} type="button">
+                                  <Zap size={15} /> Continue approved action
+                                </button>
                               ) : null}
                               {pendingRequest ? (
                                 <div className="approval-card">
@@ -1967,6 +2060,16 @@ export function App() {
                         ))}
                       </div>
                     ) : null}
+                    <div className="agent-activity-card">
+                      <strong>Recent activity</strong>
+                      {selectedAgentLogs.length ? selectedAgentLogs.slice(0, 3).map((log) => (
+                        <div className="mini-log-row" key={log.id}>
+                          <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>{log.status.replace(/_/g, " ")}</StatusPill>
+                          <span>{friendlyLogText(log)}</span>
+                          <small>{friendlyDate(log.createdAt)}</small>
+                        </div>
+                      )) : <small>No activity for this helper yet.</small>}
+                    </div>
                     <div className="button-row">
                       <button onClick={runVaultSearch}><Database size={16} /> Search personal info</button>
                       <button className="danger" onClick={triggerHighRiskAction}><Zap size={16} /> Try approval flow</button>
@@ -1975,6 +2078,85 @@ export function App() {
                     </div>
                   </aside>
                 </div>
+
+                {agentProfileTab === "permissions" ? (
+                  <section className="agent-tab-panel" aria-label="Agent permissions">
+                    <div className="permission-review-header">
+                      <div>
+                        <strong>Private info this helper can use</strong>
+                        <span>{allowedPermissionCount} of {permissionReview.length} requested categories allowed</span>
+                      </div>
+                      <button
+                        disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"}
+                        onClick={() => void grantAllRequestedSchemas()}
+                        type="button"
+                      >
+                        <KeyRound size={16} /> Allow requested info
+                      </button>
+                    </div>
+                    {permissionReview.length === 0 ? (
+                      <p className="empty">This helper has not requested private info.</p>
+                    ) : permissionReview.map((item) => (
+                      <div className="permission-review-row" key={item.schemaName}>
+                        <div>
+                          <strong>{item.schemaName}</strong>
+                          <small>{item.schema?.description ?? "Unknown info category"}</small>
+                        </div>
+                        <StatusPill tone={item.granted ? "green" : item.schema ? "amber" : "red"}>
+                          {item.granted ? "allowed" : item.schema ? "needed" : "missing"}
+                        </StatusPill>
+                        {item.schema && item.granted ? (
+                          <button onClick={() => void togglePermission(item.schema!, false)} type="button">Revoke</button>
+                        ) : (
+                          <button
+                            disabled={!item.schema || grantingSchemaName === item.schemaName || grantingSchemaName === "all"}
+                            onClick={() => item.schema ? void grantRequestedSchema(item.schema) : undefined}
+                            type="button"
+                          >
+                            Allow
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </section>
+                ) : null}
+
+                {agentProfileTab === "activity" ? (
+                  <section className="agent-tab-panel" aria-label="Agent activity">
+                    <div className="panel-heading-row">
+                      <div>
+                        <strong>What this helper did</strong>
+                        <p className="mobile-section-intro">Every read, approval, and action is logged here.</p>
+                      </div>
+                      <StatusPill tone="blue">{selectedAgentLogs.length} events</StatusPill>
+                    </div>
+                    <div className="agent-activity-list">
+                      {selectedAgentLogs.length ? selectedAgentLogs.map((log) => (
+                        <div className="log-row" key={log.id}>
+                          <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>{log.status.replace(/_/g, " ")}</StatusPill>
+                          <strong>{friendlyLogText(log)}</strong>
+                          <small>{friendlyLogDetail(log)}</small>
+                          <small>{friendlyDate(log.createdAt)}</small>
+                        </div>
+                      )) : <p className="empty">No activity for this helper yet.</p>}
+                    </div>
+                  </section>
+                ) : null}
+
+                {agentProfileTab === "settings" ? (
+                  <section className="agent-tab-panel" aria-label="Agent settings">
+                    <div className="manifest-grid">
+                      <div><strong>Category</strong><span>{friendlyCategoryName(selectedAgent.category)}</span></div>
+                      <div><strong>Trust</strong><span>{friendlyTrustLabel(selectedAgent.trustScore)} / {selectedAgent.trustScore}</span></div>
+                      <div><strong>Protocol</strong><span>{selectedAgent.apiProtocol}</span></div>
+                    </div>
+                    <div className="button-row">
+                      <button onClick={() => setAgentProfileTab("chat")} type="button"><MessageSquare size={16} /> Open chat</button>
+                      <button onClick={revokeSelectedAgentAccess} type="button"><KeyRound size={16} /> Revoke all access</button>
+                      <button className="danger" onClick={() => removeAgentFromProfile(selectedAgent)} type="button"><Trash2 size={16} /> Remove helper</button>
+                    </div>
+                  </section>
+                ) : null}
               </div>
             )}
           </div>

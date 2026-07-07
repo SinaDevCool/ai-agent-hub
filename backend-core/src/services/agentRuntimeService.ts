@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma.js";
 import { createHitlRequest } from "./hitlService.js";
+import { writeActivityLog } from "./activityLogService.js";
 import { decodeJson, encodeJson } from "./jsonService.js";
 import { evaluateVaultPermission, isHighRiskAction, logDecision } from "./permissionEngine.js";
 import { generateRuntimeReply } from "./openAiRuntimeService.js";
@@ -46,6 +47,10 @@ function getRequestedAction(message: string, highRiskActions: string[]) {
   if (/\bmedical|health|doctor|record\b/i.test(message)) return "share_medical_record";
   if (/\bsign|contract\b/i.test(message)) return "sign_contract";
   return highRiskActions[0] ?? "action_requested";
+}
+
+function friendlyActionName(action: string) {
+  return action.replace(/_/g, " ");
 }
 
 async function getAllowedSchemaIds(userId: string, agentId: string, requestedSchemas: string[]) {
@@ -147,6 +152,7 @@ async function appendRuntimeMessages(input: {
           actionName: input.result.actionName,
           requestId: input.result.requestId,
           usedSchemas: input.result.usedSchemas,
+          documents: input.result.documents,
           provider: input.result.provider,
           model: input.result.model
         })
@@ -201,6 +207,57 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
   const manifest = decodeJson<{ tools?: string[]; requestedSchemas?: string[]; highRiskActions?: string[]; description?: string }>(agent.capabilityManifest, {});
   const tools = new Set(manifest.tools ?? []);
   const intent = getRuntimeIntent(message);
+
+  if (/^continue the approved action:/i.test(message) || /^continue approved action:/i.test(message)) {
+    const approvedRequest = await prisma.hitlRequest.findFirst({
+      where: {
+        userId: input.userId,
+        agentId: agent.id,
+        status: "success"
+      },
+      orderBy: { decidedAt: "desc" }
+    });
+    if (!approvedRequest) {
+      return withPersistedConversation({
+        userId: input.userId,
+        agent,
+        message,
+        result: {
+          status: "blocked" as const,
+          intent: "action" as const,
+          reply: `${agent.name} could not find an approved action to continue.`,
+          reason: "No approved human-in-the-loop request was found for this agent.",
+          runtimeState: "blocked" as const,
+          nextStep: "Approve the paused action first, then continue it."
+        }
+      });
+    }
+    await writeActivityLog({
+      userId: input.userId,
+      agentId: agent.id,
+      actionType: "execution_triggered",
+      status: "success",
+      dataAccessed: approvedRequest.actionName,
+      dynamicMetadata: {
+        requestId: approvedRequest.id,
+        source: "approved_hitl_continuation"
+      }
+    });
+    return withPersistedConversation({
+      userId: input.userId,
+      agent,
+      message,
+      result: {
+        status: "ok" as const,
+        intent: "action" as const,
+        reply: `${agent.name} completed the approved action: ${friendlyActionName(approvedRequest.actionName)}.`,
+        actionName: approvedRequest.actionName,
+        requestId: approvedRequest.id,
+        runtimeState: "ready" as const,
+        nextStep: "The action is recorded in Activity."
+      }
+    });
+  }
 
   if (intent === "search") {
     if (!tools.has("vault.search")) {

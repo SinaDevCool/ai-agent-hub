@@ -969,11 +969,40 @@ legend {
   line-height: 1.45;
 }
 
+.agent-profile-tabs {
+  align-items: center;
+  background: rgba(7, 17, 31, 0.42);
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+}
+
+.agent-profile-tabs button {
+  background: transparent;
+  border-color: transparent;
+  color: #a9bbcf;
+  flex: 1;
+  min-height: 36px;
+}
+
+.agent-profile-tabs button.active,
+.agent-profile-tabs button[aria-selected="true"] {
+  background: #123154;
+  border-color: rgba(64, 156, 255, 0.36);
+  color: #f5f9ff;
+}
+
 .agent-use-grid {
   align-items: start;
   display: grid;
   gap: 14px;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.38fr);
+}
+
+.agent-use-grid.is-tab-hidden {
+  display: none;
 }
 
 .agent-chat-panel {
@@ -988,7 +1017,9 @@ legend {
 .agent-status-card,
 .chat-empty-state,
 .approval-card,
-.side-approval-list {
+.side-approval-list,
+.agent-activity-card,
+.agent-tab-panel {
   border: 1px solid rgba(137, 163, 196, 0.14);
   border-radius: 7px;
   background: rgba(7, 17, 31, 0.38);
@@ -1000,15 +1031,40 @@ legend {
 .agent-status-card strong,
 .chat-empty-state strong,
 .approval-card strong,
-.side-approval-list > strong {
+.side-approval-list > strong,
+.agent-activity-card > strong,
+.agent-tab-panel > strong {
   color: #f5f9ff;
 }
 
 .agent-status-card small,
 .chat-empty-state span,
-.approval-card small {
+.approval-card small,
+.agent-activity-card small {
   color: #91a4ba;
   line-height: 1.4;
+}
+
+.agent-tab-panel {
+  gap: 12px;
+}
+
+.agent-activity-list {
+  display: grid;
+  gap: 8px;
+}
+
+.mini-log-row {
+  border-top: 1px solid rgba(137, 163, 196, 0.12);
+  display: grid;
+  gap: 5px;
+  padding-top: 8px;
+}
+
+.mini-log-row span {
+  color: #d9e7f7;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .agent-side-grid {
@@ -1361,6 +1417,26 @@ legend {
 }
 
 .chat-bubble small {
+  font-size: 12px;
+}
+
+.info-receipt {
+  background: rgba(4, 13, 24, 0.6);
+  border: 1px solid rgba(64, 156, 255, 0.18);
+  border-radius: 7px;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+}
+
+.info-receipt strong {
+  color: #f6d18d;
+  font-size: 12px;
+}
+
+.info-receipt span,
+.info-receipt small {
+  color: #cfe1f4;
   font-size: 12px;
 }
 
@@ -1875,6 +1951,16 @@ textarea:focus-visible {
     display: grid;
   }
 
+  .agent-profile-tabs {
+    border-radius: 14px;
+    overflow-x: auto;
+  }
+
+  .agent-profile-tabs button {
+    flex: 0 0 auto;
+    min-width: 122px;
+  }
+
   .agent-list,
   .marketplace-panel,
   .clearance-panel,
@@ -1961,12 +2047,15 @@ textarea:focus-visible {
   .permission-review-row,
   .agent-status-card,
   .chat-empty-state,
-    .approval-card,
+  .approval-card,
+  .agent-activity-card,
+  .agent-tab-panel,
+  .info-receipt,
   .installed-agent-card,
   .permission-center-summary div,
   .trust-row span,
   .example-prompt-list span,
-    .clearance-row,
+  .clearance-row,
   .doc-row,
   .log-row,
   .hitl-row,
@@ -1996,6 +2085,10 @@ textarea:focus-visible {
   .chat-bubble {
     max-width: 100%;
     border-radius: 14px;
+  }
+
+  .agent-tab-panel .manifest-grid {
+    margin-bottom: 0;
   }
 
   .suggestion-row {
