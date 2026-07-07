@@ -450,6 +450,14 @@ function friendlyResult(result: Record<string, unknown>) {
   return status.replace(/_/g, " ");
 }
 
+function friendlyAppError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (/failed:\s*5\d\d/i.test(message)) return "We could not load your workspace right now. Please try again in a moment.";
+  if (/failed:\s*4\d\d/i.test(message)) return "This action needs a valid signed-in session. Please sign in again if it keeps happening.";
+  if (/failed to fetch|network|connection/i.test(message)) return "Your workspace is offline. Check the connection and try again.";
+  return message || "Something went wrong. Please try again.";
+}
+
 export function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(isAuthConfigured);
@@ -556,7 +564,7 @@ export function App() {
       setSelectedAgentId((current) => current || agentData.agents[0]?.id || "");
       setSelectedMarketplaceAgentId((current) => current || marketplaceData.agents[0]?.id || "");
     } catch (error) {
-      setRefreshError(error instanceof Error ? error.message : "Could not load your workspace.");
+      setRefreshError(friendlyAppError(error));
     } finally {
       setIsRefreshing(false);
     }
@@ -720,6 +728,38 @@ export function App() {
   const visibleDocuments = documents.slice(0, 10);
   const recentLogs = logs.slice(0, 6);
   const homeActivity = logs.slice(0, 3);
+  const setupSteps = [
+    {
+      label: "Add helper",
+      detail: agents.length ? `${agents.length} ready to configure` : "Pick your first AI helper",
+      done: agents.length > 0
+    },
+    {
+      label: "Add private info",
+      detail: documents.length ? `${documents.length} saved notes` : "Save one useful note",
+      done: documents.length > 0
+    },
+    {
+      label: "Approve access",
+      detail: ungrantedRequestedSchemas.length ? `${ungrantedRequestedSchemas.length} requests to review` : "Only share what you allow",
+      done: agents.length > 0 && ungrantedRequestedSchemas.length === 0
+    },
+    {
+      label: "Use helper",
+      detail: selectedAgent ? "Send a first request" : "Choose a helper to start",
+      done: Boolean(selectedAgent && chatTranscript.length > 0)
+    }
+  ];
+  const setupProgress = setupSteps.filter((step) => step.done).length;
+  const primarySetupLabel = agents.length === 0
+    ? "Start guided setup"
+    : documents.length === 0
+      ? "Add private info"
+      : ungrantedRequestedSchemas.length > 0
+        ? "Review access"
+        : selectedAgent
+          ? "Use selected helper"
+          : "Open Agent Hub";
 
   async function togglePermission(schema: VaultSchema, enabled: boolean) {
     if (!selectedAgent) return;
@@ -755,6 +795,24 @@ export function App() {
     } finally {
       setGrantingSchemaName("");
     }
+  }
+
+  function runPrimarySetupAction() {
+    if (agents.length === 0) {
+      openGuidedSetup();
+      return;
+    }
+    if (documents.length === 0) {
+      setIsAddingVaultItem(true);
+      scrollToSection("vault");
+      return;
+    }
+    if (ungrantedRequestedSchemas.length > 0) {
+      scrollToSection("clearance");
+      return;
+    }
+    scrollToSection("agents");
+    setAgentProfileTab("chat");
   }
 
   async function runVaultSearch() {
@@ -871,7 +929,7 @@ export function App() {
       await refresh();
       scrollToSection("vault");
     } catch (error) {
-      setCreateVaultItemError(error instanceof Error ? error.message : "Vault item creation failed.");
+      setCreateVaultItemError(friendlyAppError(error));
     } finally {
       setIsCreatingVaultItem(false);
     }
@@ -894,7 +952,7 @@ export function App() {
       setToolResult(`${result.document.title} was updated.`);
       await refresh();
     } catch (error) {
-      setCreateVaultItemError(error instanceof Error ? error.message : "Vault item update failed.");
+      setCreateVaultItemError(friendlyAppError(error));
     } finally {
       setIsCreatingVaultItem(false);
     }
@@ -1011,7 +1069,7 @@ export function App() {
       setSelectedAgentId(result.agent.id);
       scrollToSection("agents");
     } catch (error) {
-      setCreateAgentError(error instanceof Error ? error.message : "Agent creation failed.");
+      setCreateAgentError(friendlyAppError(error));
     } finally {
       setIsCreatingAgent(false);
     }
@@ -1030,7 +1088,7 @@ export function App() {
       setToolResult(`${result.install.displayName} was added to your profile. Review its permissions before giving access.`);
       setActiveSection("agents");
     } catch (error) {
-      setMarketplaceError(error instanceof Error ? error.message : "Agent install failed.");
+      setMarketplaceError(friendlyAppError(error));
     } finally {
       setInstallingAgentId("");
     }
@@ -1118,7 +1176,7 @@ export function App() {
       setGuidedSetupStep(1);
       setGuidedInfoText("");
     } catch (error) {
-      setGuidedSetupError(error instanceof Error ? error.message : "Guided setup failed.");
+      setGuidedSetupError(friendlyAppError(error));
     } finally {
       setIsGuidedSetupSaving(false);
     }
@@ -1346,8 +1404,19 @@ export function App() {
               <div><strong>{documents.length}</strong><span>Info notes</span></div>
               <div><strong>{hitl.length}</strong><span>Approvals</span></div>
             </div>
+            <div className="setup-roadmap compact" aria-label="Setup progress">
+              {setupSteps.map((step, index) => (
+                <div className={step.done ? "setup-step done" : "setup-step"} key={step.label}>
+                  <span>{index + 1}</span>
+                  <div>
+                    <strong>{step.label}</strong>
+                    <small>{step.detail}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="mobile-quick-actions">
-              <button onClick={() => openGuidedSetup()} type="button"><Bot size={16} /> Start guided setup</button>
+              <button onClick={runPrimarySetupAction} type="button"><Bot size={16} /> {primarySetupLabel}</button>
               <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Private Info</button>
             </div>
           </div>
@@ -1370,8 +1439,23 @@ export function App() {
               <div><strong>{documents.length}</strong><span>private notes</span></div>
               <div><strong>{hitl.length}</strong><span>waiting approvals</span></div>
             </div>
+            <div className="setup-progress-line">
+              <span>{setupProgress} of {setupSteps.length} steps complete</span>
+              <div aria-hidden="true"><span style={{ width: `${(setupProgress / setupSteps.length) * 100}%` }} /></div>
+            </div>
+            <div className="setup-roadmap" aria-label="Setup progress">
+              {setupSteps.map((step, index) => (
+                <div className={step.done ? "setup-step done" : "setup-step"} key={step.label}>
+                  <span>{index + 1}</span>
+                  <div>
+                    <strong>{step.label}</strong>
+                    <small>{step.detail}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="button-row">
-              <button onClick={() => openGuidedSetup()} type="button"><Bot size={16} /> Start guided setup</button>
+              <button onClick={runPrimarySetupAction} type="button"><Bot size={16} /> {primarySetupLabel}</button>
               <button onClick={() => scrollToSection("clearance")} type="button"><KeyRound size={16} /> Review permissions</button>
             </div>
           </div>
@@ -1685,7 +1769,7 @@ export function App() {
           </form>
         ) : null}
 
-        <section className={`grid workspace-grid section-${activeSection}`}>
+        <section className={`grid workspace-grid section-${activeSection} ${agents.length ? "has-helpers" : "has-no-helpers"}`}>
           <div className={`panel marketplace-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}>
             <div className="panel-heading-row">
               <div>
@@ -1734,10 +1818,33 @@ export function App() {
                 </label>
               ))}
             </div>
-            {refreshError ? <p className="error-text">{refreshError}</p> : null}
-            {marketplaceError ? <p className="error-text">{marketplaceError}</p> : null}
-            {isRefreshing && marketplaceAgents.length === 0 ? <p className="empty">Loading marketplace agents...</p> : null}
-            {!isRefreshing && visibleMarketplaceAgents.length === 0 ? <p className="empty">No marketplace agents match that search.</p> : null}
+            {refreshError ? (
+              <div className="friendly-error" role="status" aria-live="polite">
+                <p>{refreshError}</p>
+                <button onClick={() => void refresh()} type="button">Retry</button>
+              </div>
+            ) : null}
+            {marketplaceError ? (
+              <div className="friendly-error" role="status" aria-live="polite">
+                <p>{friendlyAppError(marketplaceError)}</p>
+                <button onClick={() => {
+                  setMarketplaceError("");
+                  void refresh();
+                }} type="button">Retry</button>
+              </div>
+            ) : null}
+            {isRefreshing && marketplaceAgents.length === 0 ? <p className="empty">Loading marketplace agents…</p> : null}
+            {!isRefreshing && visibleMarketplaceAgents.length === 0 ? (
+              <div className="friendly-empty-state">
+                <strong>No matching helpers found</strong>
+                <p>Try “Travel”, “Money”, or clear the filters to see more helpers.</p>
+                <button onClick={() => {
+                  setMarketplaceSearch("");
+                  setMarketplaceCategory("All");
+                  setMarketplaceFilters({ usesPrivateInfo: false, canTakeActions: false, needsApproval: false });
+                }} type="button">Clear filters</button>
+              </div>
+            ) : null}
             <div className="marketplace-layout">
               <div className="marketplace-grid">
               {visibleMarketplaceAgents.slice(0, 6).map((agent) => {
@@ -1748,13 +1855,18 @@ export function App() {
                     <div className="marketplace-card-top">
                       <div>
                         <strong>{agent.name}</strong>
-                        <small>{friendlyCategoryName(agent.category)} / {friendlyTrustLabel(agent.trustScore)}</small>
+                        <small>{friendlyCategoryName(agent.category)} helper</small>
                       </div>
                       <StatusPill tone={alreadyInstalled ? "green" : "blue"}>
-                        {alreadyInstalled ? "installed" : "hub"}
+                        {alreadyInstalled ? "installed" : "available"}
                       </StatusPill>
                     </div>
                     <p>{agent.tagline || agent.description}</p>
+                    <div className="marketplace-safety-badges" aria-label={`${agent.name} safety summary`}>
+                      <span>{friendlyTrustLabel(agent.trustScore)}</span>
+                      <span>{manifest.requestedSchemas?.length ? "Uses private info" : "No info needed"}</span>
+                      <span>{manifest.highRiskActions?.length ? "Asks before actions" : "No risky actions"}</span>
+                    </div>
                     <div className="marketplace-meta">
                       <span><strong>Helps with</strong>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span>
                       <span><strong>Private info</strong>{manifest.requestedSchemas?.join(", ") || "No private info requested"}</span>
@@ -1831,56 +1943,78 @@ export function App() {
               <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Helper</button>
             </div>
             <div className="mobile-helper-list" aria-label="My AI helpers for mobile">
-              {mobileInstalledAgentCards.map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => (
-                <article className={agent.id === selectedAgent?.id ? "mobile-helper-card selected" : "mobile-helper-card"} key={`mobile-${agent.id}`}>
-                  <button className="mobile-helper-main" onClick={() => {
-                    setSelectedAgentId(agent.id);
-                    setAgentProfileTab("chat");
-                  }} type="button">
-                    <span>{agent.name}</span>
-                    <small>{friendlyCategoryName(agent.category)} helper</small>
-                    <StatusPill tone={cardReadiness.tone}>{cardReadiness.label}</StatusPill>
-                  </button>
-                  <p>{agent.capabilityManifest.description}</p>
-                  <div className="mobile-helper-foot">
-                    <small>{permissions.allowed} of {permissions.requested} info categories allowed</small>
-                    {pendingApprovals ? <small>{pendingApprovals} approval waiting</small> : null}
-                    <button onClick={() => {
+              {mobileInstalledAgentCards.map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
+                const cardActionLabel = pendingApprovals ? "Review approval" : permissions.missing ? "Review access" : "Use";
+                const cardActionIcon = pendingApprovals || permissions.missing ? <KeyRound size={15} /> : <MessageSquare size={15} />;
+                return (
+                  <article className={agent.id === selectedAgent?.id ? "mobile-helper-card selected" : "mobile-helper-card"} key={`mobile-${agent.id}`}>
+                    <button className="mobile-helper-main" onClick={() => {
                       setSelectedAgentId(agent.id);
                       setAgentProfileTab("chat");
-                    }} type="button"><MessageSquare size={15} /> Use</button>
-                  </div>
-                </article>
-              ))}
+                    }} type="button">
+                      <span>{agent.name}</span>
+                      <small>{friendlyCategoryName(agent.category)} helper</small>
+                      <StatusPill tone={cardReadiness.tone}>{cardReadiness.label}</StatusPill>
+                    </button>
+                    <p>{agent.capabilityManifest.description}</p>
+                    <div className="mobile-helper-foot">
+                      <small>{permissions.allowed} of {permissions.requested} info categories allowed</small>
+                      {pendingApprovals ? <small>{pendingApprovals} approval waiting</small> : null}
+                      <button onClick={() => {
+                        setSelectedAgentId(agent.id);
+                        if (pendingApprovals || permissions.missing) {
+                          scrollToSection("clearance");
+                        } else {
+                          setAgentProfileTab("chat");
+                        }
+                      }} type="button">{cardActionIcon} {cardActionLabel}</button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
             <div className="installed-agent-list desktop-helper-list">
-              {installedAgentCards.slice(0, 10).map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => (
-                <article className={agent.id === selectedAgent?.id ? "installed-agent-card selected" : "installed-agent-card"} key={agent.id}>
-                  <button className="agent-row" onClick={() => setSelectedAgentId(agent.id)} type="button">
-                    <span>{agent.name}</span>
-                    <small>{friendlyCategoryName(agent.category)} / {friendlyTrustLabel(agent.trustScore)}</small>
-                  </button>
-                  <div className="installed-agent-status">
-                    <StatusPill tone={cardReadiness.tone}>{cardReadiness.label}</StatusPill>
-                    <small>{permissions.allowed} of {permissions.requested} info categories allowed</small>
-                    {pendingApprovals ? <small>{pendingApprovals} approval waiting</small> : null}
-                  </div>
-                  <div className="installed-agent-actions">
-                    <button onClick={() => {
-                      setSelectedAgentId(agent.id);
-                      setAgentProfileTab("chat");
-                      scrollToSection("agents");
-                    }} type="button"><MessageSquare size={15} /> Open chat</button>
-                    <button onClick={() => {
-                      setSelectedAgentId(agent.id);
-                      scrollToSection("clearance");
-                    }} type="button"><KeyRound size={15} /> Edit access</button>
-                    <button className="danger" onClick={() => removeAgentFromProfile(agent)} type="button"><Trash2 size={15} /> Remove</button>
-                  </div>
-                </article>
-              ))}
+              {installedAgentCards.slice(0, 10).map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
+                const cardActionLabel = pendingApprovals ? "Review approval" : permissions.missing ? "Review access" : "Open chat";
+                return (
+                  <article className={agent.id === selectedAgent?.id ? "installed-agent-card selected" : "installed-agent-card"} key={agent.id}>
+                    <button className="agent-row" onClick={() => setSelectedAgentId(agent.id)} type="button">
+                      <span>{agent.name}</span>
+                      <small>{friendlyCategoryName(agent.category)} / {friendlyTrustLabel(agent.trustScore)}</small>
+                    </button>
+                    <div className="installed-agent-status">
+                      <StatusPill tone={cardReadiness.tone}>{cardReadiness.label}</StatusPill>
+                      <small>{cardReadiness.detail}</small>
+                      <small>{permissions.allowed} of {permissions.requested} info categories allowed</small>
+                      {pendingApprovals ? <small>{pendingApprovals} approval waiting</small> : null}
+                    </div>
+                    <div className="installed-agent-actions">
+                      <button onClick={() => {
+                        setSelectedAgentId(agent.id);
+                        if (pendingApprovals || permissions.missing) {
+                          scrollToSection("clearance");
+                        } else {
+                          setAgentProfileTab("chat");
+                          scrollToSection("agents");
+                        }
+                      }} type="button">{pendingApprovals || permissions.missing ? <KeyRound size={15} /> : <MessageSquare size={15} />} {cardActionLabel}</button>
+                      <button onClick={() => {
+                        setSelectedAgentId(agent.id);
+                        scrollToSection("clearance");
+                      }} type="button"><KeyRound size={15} /> Edit access</button>
+                      <button className="danger" onClick={() => removeAgentFromProfile(agent)} type="button"><Trash2 size={15} /> Remove</button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-            {agents.length === 0 ? <p className="empty">Add your first helper from the marketplace above.</p> : null}
+            {agents.length === 0 ? (
+              <div className="friendly-empty-state">
+                <strong>No helpers yet</strong>
+                <p>Start with one helper for a real task like travel, money, schedule, or personal notes.</p>
+                <button onClick={() => openGuidedSetup()} type="button"><Bot size={16} /> Start guided setup</button>
+              </div>
+            ) : null}
             {agents.length > 10 ? <p className="empty">Showing 10 of {agents.length} helpers. Use search next as your profile grows.</p> : null}
           </div>
 
@@ -1889,11 +2023,25 @@ export function App() {
               <div className="agent-use-shell">
                 <div className="agent-use-header">
                   <div>
-                    <div className="panel-title">Use This Agent</div>
+                    <div className="panel-title">Use This Helper</div>
                     <h2>{selectedAgent.name}</h2>
                     <p>{selectedAgent.capabilityManifest.description}</p>
                   </div>
                   <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
+                </div>
+                <div className="agent-simple-summary" aria-label={`${selectedAgent.name} safety summary`}>
+                  <div>
+                    <strong>Can help with</strong>
+                    <span>{selectedAgent.capabilityManifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span>
+                  </div>
+                  <div>
+                    <strong>Can read</strong>
+                    <span>{permissionReview.filter((item) => item.granted).map((item) => item.schemaName).join(", ") || "Nothing yet"}</span>
+                  </div>
+                  <div>
+                    <strong>Must ask before</strong>
+                    <span>{selectedAgent.capabilityManifest.highRiskActions?.map(friendlyActionName).join(", ") || "No risky actions listed"}</span>
+                  </div>
                 </div>
 
                 <div className="agent-profile-tabs" role="tablist" aria-label={`${selectedAgent.name} workspace`}>
@@ -1930,7 +2078,7 @@ export function App() {
                     {chatTranscript.length === 0 && !isConversationLoading ? (
                       <div className="chat-empty-state">
                         <strong>Start with one simple request</strong>
-                        <span>This agent can only use approved private info and will pause risky actions.</span>
+                        <span>This helper can only use approved private info and will pause sensitive actions.</span>
                         <div className="suggestion-row">
                           {suggestedPrompts.map((prompt) => (
                             <button key={prompt} onClick={() => setChatInput(prompt)} type="button">{prompt}</button>
@@ -2303,7 +2451,7 @@ export function App() {
 
           <div className={`panel hitl-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`}>
             <div className="panel-title">Needs Your Approval</div>
-            {hitl.length === 0 ? <p className="empty">No agent is waiting for approval.</p> : visibleApprovals.map((request) => (
+            {hitl.length === 0 ? <p className="empty">No helper is waiting for approval.</p> : visibleApprovals.map((request) => (
               <div className="hitl-row" key={request.id}>
                 <strong>{request.agent.name} wants to continue</strong>
                 <span>{friendlyActionName(request.actionName)}</span>

@@ -399,6 +399,89 @@ small {
   font-size: 12px;
 }
 
+.setup-progress-line {
+  display: grid;
+  gap: 7px;
+}
+
+.setup-progress-line > span {
+  color: #a9bbcf;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.setup-progress-line > div {
+  background: rgba(137, 163, 196, 0.13);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.setup-progress-line > div span {
+  background: linear-gradient(90deg, #ffc96f, #409cff);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  min-width: 8px;
+}
+
+.setup-roadmap {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.setup-roadmap.compact {
+  grid-template-columns: 1fr;
+}
+
+.setup-step {
+  align-items: start;
+  background: rgba(7, 17, 31, 0.42);
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 9px;
+}
+
+.setup-step > span {
+  align-items: center;
+  background: rgba(64, 156, 255, 0.14);
+  border: 1px solid rgba(64, 156, 255, 0.28);
+  border-radius: 999px;
+  color: #d9e7f7;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.setup-step.done > span {
+  background: rgba(64, 209, 137, 0.18);
+  border-color: rgba(64, 209, 137, 0.36);
+  color: #a8ffd1;
+}
+
+.setup-step strong,
+.setup-step small {
+  display: block;
+}
+
+.setup-step strong {
+  color: #f5f9ff;
+  font-size: 13px;
+}
+
+.setup-step small {
+  color: #91a4ba;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .home-list-button {
   width: 100%;
   height: auto;
@@ -484,6 +567,7 @@ textarea {
   border-radius: 7px;
   font: inherit;
   font-size: 13px;
+  min-height: 44px;
   padding: 9px 10px;
 }
 
@@ -685,6 +769,36 @@ legend {
   margin-bottom: 12px;
 }
 
+.friendly-error,
+.friendly-empty-state {
+  border: 1px solid rgba(255, 190, 86, 0.22);
+  background: rgba(43, 33, 20, 0.56);
+  border-radius: 7px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.friendly-error p,
+.friendly-empty-state p {
+  color: #ffd89a;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.friendly-empty-state {
+  background: rgba(7, 17, 31, 0.36);
+  border-color: rgba(137, 163, 196, 0.14);
+}
+
+.friendly-empty-state strong {
+  color: #f5f9ff;
+}
+
+.friendly-empty-state p {
+  color: #a9bbcf;
+}
+
 .agent-list,
 .clearance-panel,
 .audit-panel,
@@ -812,6 +926,23 @@ legend {
   line-height: 1.4;
 }
 
+.marketplace-safety-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.marketplace-safety-badges span {
+  border: 1px solid rgba(64, 156, 255, 0.24);
+  border-radius: 999px;
+  color: #cfe4ff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 30px;
+  padding: 6px 9px;
+}
+
 .marketplace-meta {
   display: grid;
   gap: 7px;
@@ -931,7 +1062,7 @@ legend {
 .installed-agent-card .agent-row {
   background: transparent;
   border-color: transparent;
-  min-height: 42px;
+  min-height: 44px;
   padding: 0;
 }
 
@@ -948,7 +1079,7 @@ legend {
 }
 
 .installed-agent-actions button {
-  min-height: 40px;
+  min-height: 44px;
 }
 
 .mobile-helper-card {
@@ -1048,7 +1179,7 @@ legend {
   border-color: transparent;
   color: #a9bbcf;
   flex: 1;
-  min-height: 36px;
+  min-height: 44px;
 }
 
 .agent-profile-tabs button.active,
@@ -1056,6 +1187,38 @@ legend {
   background: #123154;
   border-color: rgba(64, 156, 255, 0.36);
   color: #f5f9ff;
+}
+
+.agent-simple-summary {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.agent-simple-summary div {
+  background: rgba(7, 17, 31, 0.36);
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  display: grid;
+  gap: 5px;
+  min-height: 76px;
+  padding: 10px;
+}
+
+.agent-simple-summary strong,
+.agent-simple-summary span {
+  display: block;
+}
+
+.agent-simple-summary strong {
+  color: #f6d18d;
+  font-size: 12px;
+}
+
+.agent-simple-summary span {
+  color: #d9e7f7;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .agent-use-grid {
@@ -1385,7 +1548,7 @@ legend {
 }
 
 .compact-row button {
-  min-height: 40px;
+  min-height: 44px;
 }
 
 .vault-search,
@@ -1530,7 +1693,7 @@ legend {
 }
 
 .compact-permission-review .permission-review-row button {
-  min-height: 32px;
+  min-height: 44px;
 }
 
 .log-row,
@@ -1938,6 +2101,15 @@ textarea:focus-visible {
     font-size: 12px;
   }
 
+  .setup-roadmap,
+  .setup-roadmap.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .setup-step {
+    border-radius: 14px;
+  }
+
   .mobile-quick-actions,
   .mobile-panel-actions {
     display: grid;
@@ -1988,16 +2160,20 @@ textarea:focus-visible {
     margin-bottom: 12px;
   }
 
-  .section-agents .agent-list {
+  .workspace-grid.section-agents > .agent-list {
     order: 1;
   }
 
-  .section-agents .detail-panel {
+  .workspace-grid.section-agents > .detail-panel {
     order: 2;
   }
 
-  .section-agents .marketplace-panel {
+  .workspace-grid.section-agents > .marketplace-panel {
     order: 3;
+  }
+
+  .workspace-grid.section-agents.has-helpers > .marketplace-panel {
+    display: none;
   }
 
   .section-clearance .hitl-panel {
@@ -2043,6 +2219,7 @@ textarea:focus-visible {
 
   .agent-profile-tabs button {
     flex: 0 0 auto;
+    min-height: 44px;
     min-width: 122px;
   }
 
@@ -2058,6 +2235,7 @@ textarea:focus-visible {
 
   .grid,
   .manifest-grid,
+  .agent-simple-summary,
   .agent-use-grid,
   .marketplace-controls,
   .marketplace-layout,
@@ -2133,6 +2311,11 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .marketplace-safety-badges {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .installed-agent-card {
     border-radius: 14px;
   }
@@ -2188,6 +2371,12 @@ textarea:focus-visible {
 
   .agent-chat-panel {
     min-height: 360px;
+  }
+
+  .agent-simple-summary div,
+  .friendly-error,
+  .friendly-empty-state {
+    border-radius: 14px;
   }
 
   .agent-side-panel {
