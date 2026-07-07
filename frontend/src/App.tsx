@@ -24,7 +24,14 @@ import type { ActivityLog, Agent, HitlRequest, VaultDocument, VaultSchema } from
 import { StatusPill } from "./components/StatusPill";
 
 type RealtimeEvent = { type: string; payload: unknown };
-type SectionId = "agents" | "vault" | "clearance" | "activity" | "settings";
+type SectionId = "home" | "agents" | "vault" | "clearance" | "activity" | "settings";
+type ConfirmationDialog = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  tone?: "danger";
+  onConfirm: () => Promise<void> | void;
+};
 type AgentDraft = {
   name: string;
   category: string;
@@ -52,12 +59,40 @@ type AgentTemplate = {
 };
 
 const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
-  { id: "agents", label: "AI Agents", icon: Bot },
-  { id: "vault", label: "Personal Info", icon: Database },
+  { id: "home", label: "Home", icon: ShieldCheck },
+  { id: "agents", label: "AI Helpers", icon: Bot },
+  { id: "vault", label: "Private Info", icon: Database },
   { id: "clearance", label: "Permissions", icon: KeyRound },
   { id: "activity", label: "Activity", icon: Activity },
   { id: "settings", label: "Settings", icon: Settings }
 ];
+
+const sectionHeadings: Record<SectionId, { title: string; description: string }> = {
+  home: {
+    title: "Your AI helpers are protected",
+    description: "Add helpers, share only the info they need, and approve sensitive actions before they happen."
+  },
+  agents: {
+    title: "AI Helpers",
+    description: "Manage what each helper can do, what it can read, and when it must ask you first."
+  },
+  vault: {
+    title: "Private Info",
+    description: "Keep important notes in one place so approved helpers can use them safely."
+  },
+  clearance: {
+    title: "Permissions",
+    description: "Choose exactly which private info each helper can access."
+  },
+  activity: {
+    title: "Activity",
+    description: "See what was allowed, blocked, or paused for your approval."
+  },
+  settings: {
+    title: "Settings",
+    description: "Export your data, revoke access, and manage your account."
+  }
+};
 
 const categoryOptions = ["Financial", "Executive", "Wellness", "Domestic", "Legal", "Travel", "Maintenance", "Custom"];
 const toolOptions = ["vault.search", "action.execute", "calendar.read", "email.draft", "web.fetch"];
@@ -169,6 +204,12 @@ function friendlyToolName(tool: string) {
   return labels[tool] ?? tool;
 }
 
+function friendlyTrustLabel(score: number) {
+  if (score >= 90) return "Very trusted";
+  if (score >= 80) return "Trusted";
+  return "Standard";
+}
+
 function friendlyActionName(action: string) {
   return action.replace(/_/g, " ");
 }
@@ -251,7 +292,7 @@ export function App() {
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [connectionState, setConnectionState] = useState("connecting");
   const [toolResult, setToolResult] = useState<string>("No agent action yet.");
-  const [activeSection, setActiveSection] = useState<SectionId>("agents");
+  const [activeSection, setActiveSection] = useState<SectionId>("home");
   const [isAddingAgent, setIsAddingAgent] = useState(false);
   const [agentWizardStep, setAgentWizardStep] = useState(1);
   const [selectedTemplateId, setSelectedTemplateId] = useState("travel");
@@ -278,6 +319,8 @@ export function App() {
   const [guidedInfoText, setGuidedInfoText] = useState("");
   const [guidedSetupError, setGuidedSetupError] = useState("");
   const [isGuidedSetupSaving, setIsGuidedSetupSaving] = useState(false);
+  const [confirmation, setConfirmation] = useState<ConfirmationDialog | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -379,12 +422,18 @@ export function App() {
 
   const pendingApproval = hitl[0];
   const allowedPermissionCount = permissionReview.filter((item) => item.granted).length;
+  const heading = sectionHeadings[activeSection];
+  const sectionClass = (section: SectionId) => activeSection === section ? "is-section-active" : "";
   const activeMobileClass = (section: SectionId) => activeSection === section ? "is-mobile-active" : "";
   const guidedTemplates = agentTemplates.filter((template) => template.id !== "custom");
   const guidedTemplate = guidedTemplates.find((template) => template.id === guidedTemplateId) ?? guidedTemplates[0];
   const guidedAgentName = getAvailableAgentName(guidedTemplate.starterName, agents.map((agent) => agent.name));
   const guidedSchema = schemas.find((schema) => schema.name === guidedTemplate.requestedSchemas[0]);
   const guidedPrompt = getStarterPrompt(guidedTemplate.id);
+  const visibleAgents = agents.slice(0, 8);
+  const visibleDocuments = documents.slice(0, 10);
+  const recentLogs = logs.slice(0, 6);
+  const homeActivity = logs.slice(0, 3);
 
   async function togglePermission(schema: VaultSchema, enabled: boolean) {
     if (!selectedAgent) return;
@@ -546,12 +595,18 @@ export function App() {
     scrollToSection("vault");
   }
 
-  async function deleteVaultItem(document: VaultDocument) {
-    const confirmed = window.confirm(`Delete "${document.title}" from your vault?`);
-    if (!confirmed) return;
-    await apiDelete(`/api/vault/documents/${document.id}`);
-    setToolResult(`${document.title} was deleted from Personal Info.`);
-    await refresh();
+  function deleteVaultItem(document: VaultDocument) {
+    setConfirmation({
+      title: "Delete private info?",
+      message: `Delete "${document.title}"? Your helpers will no longer be able to use this note.`,
+      confirmLabel: "Delete note",
+      tone: "danger",
+      onConfirm: async () => {
+        await apiDelete(`/api/vault/documents/${document.id}`);
+        setToolResult(`${document.title} was deleted from Private Info.`);
+        await refresh();
+      }
+    });
   }
 
   async function uploadVaultFile(event: FormEvent) {
@@ -684,7 +739,7 @@ export function App() {
     }
   }
 
-  async function revokeSelectedAgentAccess() {
+  async function revokeSelectedAgentAccessNow() {
     if (!selectedAgent) return;
     const readPermissions = selectedAgent.permissions.filter((permission) => permission.vaultSchema);
     for (const permission of readPermissions) {
@@ -693,7 +748,18 @@ export function App() {
     setToolResult(`All readable personal info access was revoked for ${selectedAgent.name}.`);
   }
 
-  async function revokeAllAgentAccess() {
+  function revokeSelectedAgentAccess() {
+    if (!selectedAgent) return;
+    setConfirmation({
+      title: "Revoke this helper's access?",
+      message: `${selectedAgent.name} will lose access to every private info category you allowed.`,
+      confirmLabel: "Revoke access",
+      tone: "danger",
+      onConfirm: revokeSelectedAgentAccessNow
+    });
+  }
+
+  async function revokeAllAgentAccessNow() {
     for (const agent of agents) {
       for (const permission of agent.permissions.filter((item) => item.vaultSchema)) {
         if (permission.vaultSchema) {
@@ -708,7 +774,17 @@ export function App() {
       }
     }
     await refresh();
-    setToolResult("All agent access to Personal Info was revoked.");
+    setToolResult("All helper access to Private Info was revoked.");
+  }
+
+  function revokeAllAgentAccess() {
+    setConfirmation({
+      title: "Revoke all helper access?",
+      message: "Every helper will lose access to every private info category. You can grant access again later.",
+      confirmLabel: "Revoke all access",
+      tone: "danger",
+      onConfirm: revokeAllAgentAccessNow
+    });
   }
 
   function exportMyData() {
@@ -729,12 +805,19 @@ export function App() {
   function scrollToSection(id: SectionId) {
     setActiveSection(id);
     window.requestAnimationFrame(() => {
-      if (window.matchMedia("(max-width: 720px)").matches) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        return;
-      }
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
+  }
+
+  async function runConfirmation() {
+    if (!confirmation) return;
+    setIsConfirming(true);
+    try {
+      await confirmation.onConfirm();
+      setConfirmation(null);
+    } finally {
+      setIsConfirming(false);
+    }
   }
 
   async function sendMagicLink(event: FormEvent<HTMLFormElement>) {
@@ -794,6 +877,7 @@ export function App() {
               <input
                 autoComplete="email"
                 inputMode="email"
+                name="email"
                 onChange={(event) => setEmail(event.currentTarget.value)}
                 placeholder="you@example.com"
                 required
@@ -832,8 +916,8 @@ export function App() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <h1>Your AI Agent Hub</h1>
-            <p>Add AI helpers, choose what they can see, and approve important actions before they happen.</p>
+            <h1>{heading.title}</h1>
+            <p>{heading.description}</p>
           </div>
           <div className="topbar-actions">
             <span className={`connection-status ${connectionState === "live" ? "is-live" : "is-syncing"}`} title={`Connection: ${connectionState}`}>
@@ -841,8 +925,8 @@ export function App() {
               <span className="connection-text">{connectionState === "live" ? "live" : "syncing"}</span>
             </span>
             {session ? <span className="user-chip">{session.user.email}</span> : null}
-            <button className="topbar-primary" onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Agent</button>
-            <button className="topbar-secondary" onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Personal Info</button>
+            <button className="topbar-primary" onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Helper</button>
+            <button className="topbar-secondary" onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Private Info</button>
             <label className="upload-button topbar-secondary">
               <Upload size={16} /> Upload
               <input accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void uploadVaultFile(event)} type="file" />
@@ -852,7 +936,7 @@ export function App() {
           </div>
         </header>
 
-        <section className="panel quick-start-panel">
+        <section className={`panel quick-start-panel desktop-section ${sectionClass("home")}`}>
           <div>
             <div className="panel-title">Quick Start</div>
             <h2>Set up a useful AI helper in under a minute</h2>
@@ -867,19 +951,19 @@ export function App() {
           </div>
         </section>
 
-        <section className={`mobile-home ${activeSection === "agents" ? "is-mobile-home-active" : ""}`} aria-label="Mobile overview">
+        <section className={`mobile-home ${activeSection === "home" ? "is-mobile-home-active" : ""}`} aria-label="Mobile overview">
           <div className="mobile-home-card">
             <span className="mobile-label">Protected by default</span>
             <h2>Your AI helpers</h2>
             <p>Add agents, share only the info they need, and approve important actions before they happen.</p>
             <div className="mobile-stat-grid">
-              <div><strong>{agents.length}</strong><span>Agents</span></div>
+              <div><strong>{agents.length}</strong><span>Helpers</span></div>
               <div><strong>{documents.length}</strong><span>Info notes</span></div>
               <div><strong>{hitl.length}</strong><span>Approvals</span></div>
             </div>
             <div className="mobile-quick-actions">
               <button onClick={() => openGuidedSetup()} type="button"><Bot size={16} /> Start guided setup</button>
-              <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Personal Info</button>
+              <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Private Info</button>
             </div>
           </div>
           {pendingApproval ? (
@@ -889,6 +973,66 @@ export function App() {
               <small>{friendlyActionName(pendingApproval.actionName)}</small>
             </button>
           ) : null}
+        </section>
+
+        <section className={`home-dashboard desktop-section ${sectionClass("home")}`} id="home">
+          <div className="panel home-card home-primary-card">
+            <div className="panel-title">Your Safety Snapshot</div>
+            <h2>Everything starts private until you say yes.</h2>
+            <p>Add a helper, save a useful private note, then approve exactly what that helper can read.</p>
+            <div className="home-stat-grid">
+              <div><strong>{agents.length}</strong><span>AI helpers</span></div>
+              <div><strong>{documents.length}</strong><span>private notes</span></div>
+              <div><strong>{hitl.length}</strong><span>waiting approvals</span></div>
+            </div>
+            <div className="button-row">
+              <button onClick={() => openGuidedSetup()} type="button"><Bot size={16} /> Start guided setup</button>
+              <button onClick={() => scrollToSection("clearance")} type="button"><KeyRound size={16} /> Review permissions</button>
+            </div>
+          </div>
+
+          <div className="panel home-card">
+            <div className="panel-title">Recent Helpers</div>
+            {visibleAgents.slice(0, 3).map((agent) => (
+              <button
+                className="home-list-button"
+                key={`home-${agent.id}`}
+                onClick={() => {
+                  setSelectedAgentId(agent.id);
+                  scrollToSection("agents");
+                }}
+                type="button"
+              >
+                <span>{agent.name}</span>
+                <small>{agent.category} / {friendlyTrustLabel(agent.trustScore)}</small>
+              </button>
+            ))}
+            {agents.length === 0 ? <p className="empty">Create your first helper to get started.</p> : null}
+          </div>
+
+          <div className="panel home-card">
+            <div className="panel-title">What Needs You</div>
+            {pendingApproval ? (
+              <button className="home-list-button alert" onClick={() => scrollToSection("clearance")} type="button">
+                <span>{pendingApproval.agent.name} needs approval</span>
+                <small>{friendlyActionName(pendingApproval.actionName)}</small>
+              </button>
+            ) : (
+              <p className="empty">No approvals waiting. You are all clear.</p>
+            )}
+          </div>
+
+          <div className="panel home-card home-wide-card">
+            <div className="panel-title">Recent Activity</div>
+            {homeActivity.length ? homeActivity.map((log) => (
+              <div className="log-row compact-log-row" key={`home-log-${log.id}`}>
+                <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>
+                  {log.status === "success" ? "done" : log.status === "pending_human_approval" ? "needs approval" : "blocked"}
+                </StatusPill>
+                <span>{friendlyLogText(log)}</span>
+              </div>
+            )) : <p className="empty">Your activity trail will appear here.</p>}
+          </div>
         </section>
 
         {isGuidedSetupOpen ? (
@@ -1006,6 +1150,7 @@ export function App() {
                     <span>Agent name</span>
                     <input
                       maxLength={80}
+                      name="agent-name"
                       onChange={(event) => updateAgentDraft({ name: event.currentTarget.value })}
                       placeholder="My Travel Planner"
                       required
@@ -1023,6 +1168,7 @@ export function App() {
                     <textarea
                       maxLength={500}
                       minLength={10}
+                      name="agent-description"
                       onChange={(event) => updateAgentDraft({ description: event.currentTarget.value })}
                       placeholder="Plans trips using my preferences and asks before booking."
                       required
@@ -1108,6 +1254,7 @@ export function App() {
                 <span>Title</span>
                 <input
                   maxLength={120}
+                  name="private-info-title"
                   onChange={(event) => updateVaultItemDraft({ title: event.currentTarget.value })}
                   placeholder="Travel meal preferences"
                   required
@@ -1117,6 +1264,7 @@ export function App() {
               <label>
                 <span>Category</span>
                 <select
+                  name="private-info-category"
                   onChange={(event) => updateVaultItemDraft({ vaultSchemaId: event.currentTarget.value })}
                   value={vaultItemDraft.vaultSchemaId}
                 >
@@ -1129,6 +1277,7 @@ export function App() {
                 <textarea
                   maxLength={5000}
                   minLength={10}
+                  name="private-info-note"
                   onChange={(event) => updateVaultItemDraft({ content: event.currentTarget.value })}
                   placeholder="I prefer aisle seats, vegetarian meals, and Star Alliance when possible."
                   required
@@ -1151,26 +1300,27 @@ export function App() {
           </form>
         ) : null}
 
-        <section className="grid">
-          <div className={`panel agent-list mobile-section ${activeMobileClass("agents")}`} id="agents">
-            <div className="panel-title">My AI Agents</div>
+        <section className={`grid workspace-grid section-${activeSection}`}>
+          <div className={`panel agent-list mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`} id="agents">
+            <div className="panel-title">Your AI Helpers</div>
             <div className="mobile-panel-actions">
-              <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Agent</button>
+              <button onClick={openAgentWizard} type="button"><Bot size={16} /> Add AI Helper</button>
             </div>
-            {agents.map((agent) => (
+            {visibleAgents.map((agent) => (
               <button
                 key={agent.id}
                 className={agent.id === selectedAgent?.id ? "agent-row selected" : "agent-row"}
                 onClick={() => setSelectedAgentId(agent.id)}
               >
                 <span>{agent.name}</span>
-                <small>{agent.category} / trust {agent.trustScore}</small>
+                <small>{agent.category} / {friendlyTrustLabel(agent.trustScore)}</small>
               </button>
             ))}
+            {agents.length > visibleAgents.length ? <p className="empty">Showing {visibleAgents.length} of {agents.length} helpers.</p> : null}
           </div>
 
-          <div className={`panel detail-panel mobile-section ${activeMobileClass("agents")}`}>
-            <div className="panel-title">What This Agent Can Do</div>
+          <div className={`panel detail-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}>
+            <div className="panel-title">What This Helper Can Do</div>
             {selectedAgent && (
               <>
                 <div className="detail-heading">
@@ -1178,7 +1328,7 @@ export function App() {
                     <h2>{selectedAgent.name}</h2>
                     <p>{selectedAgent.capabilityManifest.description}</p>
                   </div>
-                  <StatusPill tone="blue">connected</StatusPill>
+                  <StatusPill tone="blue">active</StatusPill>
                 </div>
                 <div className="manifest-grid">
                   <div><strong>Can do</strong><span>{selectedAgent.capabilityManifest.tools?.map(friendlyToolName).join(", ")}</span></div>
@@ -1216,7 +1366,7 @@ export function App() {
                     </div>
                   ) : null}
                   {permissionReview.length === 0 ? (
-                    <p className="empty">This agent has not requested access to personal info.</p>
+                    <p className="empty">This helper has not requested access to private info.</p>
                   ) : permissionReview.map((item) => (
                     <div className="permission-review-row" key={item.schemaName}>
                       <div>
@@ -1240,9 +1390,10 @@ export function App() {
                   ))}
                 </div>
                 <div className="chat-panel">
-                  <div className="panel-title">Ask This Agent</div>
+                  <div className="panel-title">Try This Helper</div>
                   <form className="chat-form" onSubmit={(event) => void runAgentChat(event)}>
                     <input
+                      name="helper-message"
                       onChange={(event) => setChatInput(event.currentTarget.value)}
                       placeholder="Ask it to find info or try an action that may need approval..."
                       value={chatInput}
@@ -1260,15 +1411,15 @@ export function App() {
                 <div className="button-row">
                   <button onClick={runVaultSearch}><Database size={16} /> Search personal info</button>
                   <button className="danger" onClick={triggerHighRiskAction}><Zap size={16} /> Try approval flow</button>
-                  <button onClick={() => void revokeSelectedAgentAccess()} type="button"><KeyRound size={16} /> Revoke access</button>
+                  <button onClick={revokeSelectedAgentAccess} type="button"><KeyRound size={16} /> Revoke access</button>
                 </div>
               </>
             )}
           </div>
 
-          <div className={`panel clearance-panel mobile-section ${activeMobileClass("clearance")}`} id="clearance">
-            <div className="panel-title">Permission Center</div>
-            <p className="mobile-section-intro">Choose what {selectedAgent?.name ?? "this agent"} can read. You can change this anytime.</p>
+          <div className={`panel clearance-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`} id="clearance">
+            <div className="panel-title">Permissions</div>
+            <p className="mobile-section-intro">Choose what {selectedAgent?.name ?? "this helper"} can read. You can change this anytime.</p>
             {schemas.map((schema) => {
               const granted = Boolean(selectedAgent?.permissions.some((permission) => permission.vaultSchemaId === schema.id && permission.permissionType === "read"));
               return (
@@ -1283,10 +1434,10 @@ export function App() {
             })}
           </div>
 
-          <div className={`panel vault-panel mobile-section ${activeMobileClass("vault")}`} id="vault">
-            <div className="panel-title">Personal Info</div>
+          <div className={`panel vault-panel mobile-section desktop-section ${activeMobileClass("vault")} ${sectionClass("vault")}`} id="vault">
+            <div className="panel-title">Private Info</div>
             <div className="mobile-panel-actions">
-              <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Personal Info</button>
+              <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Private Info</button>
               <label className="upload-button">
                 <Upload size={16} /> Upload
                 <input accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void uploadVaultFile(event)} type="file" />
@@ -1295,6 +1446,7 @@ export function App() {
             </div>
             <form className="vault-search" onSubmit={(event) => void searchVault(event)}>
               <input
+                name="private-info-search"
                 onChange={(event) => setSearchQuery(event.currentTarget.value)}
                 placeholder="Search personal info through the selected agent..."
                 required
@@ -1312,28 +1464,29 @@ export function App() {
                 {searchResults.map((document) => (
                   <article className="doc-row" key={`result-${document.id}`}>
                     <strong>{document.title}</strong>
-                    <span>{document.vaultSchema?.name ?? "Uncategorized"} / {document.relativePath}</span>
+                    <span>{document.vaultSchema?.name ?? "Uncategorized"}</span>
                     <p>{document.excerpt}</p>
                   </article>
                 ))}
               </div>
             ) : null}
-            {documents.map((document) => (
+            {visibleDocuments.map((document) => (
               <article className="doc-row" key={document.id}>
                 <strong>{document.title}</strong>
-                <span>{document.vaultSchema?.name ?? "Uncategorized"} / {document.relativePath}</span>
+                <span>{document.vaultSchema?.name ?? "Uncategorized"}</span>
                 <p>{document.excerpt}</p>
                 <div className="button-row compact-row">
                   <button onClick={() => beginEditVaultItem(document)} type="button"><Pencil size={15} /> Edit</button>
-                  <button className="danger" onClick={() => void deleteVaultItem(document)} type="button"><Trash2 size={15} /> Delete</button>
+                  <button className="danger" onClick={() => deleteVaultItem(document)} type="button"><Trash2 size={15} /> Delete</button>
                 </div>
               </article>
             ))}
+            {documents.length > visibleDocuments.length ? <p className="empty">Showing {visibleDocuments.length} of {documents.length} notes. Use search to find older notes.</p> : null}
           </div>
 
-          <div className={`panel audit-panel mobile-section ${activeMobileClass("activity")}`} id="activity">
-            <div className="panel-title">Activity History</div>
-            {logs.slice(0, 8).map((log) => (
+          <div className={`panel audit-panel mobile-section desktop-section ${activeMobileClass("activity")} ${sectionClass("activity")}`} id="activity">
+            <div className="panel-title">Recent Activity</div>
+            {recentLogs.map((log) => (
               <div className="log-row" key={log.id}>
                 <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>
                   {log.status === "success" ? "done" : log.status === "pending_human_approval" ? "needs approval" : "blocked"}
@@ -1345,7 +1498,7 @@ export function App() {
             ))}
           </div>
 
-          <div className={`panel hitl-panel mobile-section ${activeMobileClass("clearance")}`}>
+          <div className={`panel hitl-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`}>
             <div className="panel-title">Needs Your Approval</div>
             {hitl.length === 0 ? <p className="empty">No agent is waiting for approval.</p> : hitl.map((request) => (
               <div className="hitl-row" key={request.id}>
@@ -1361,22 +1514,42 @@ export function App() {
             <pre>{toolResult}</pre>
           </div>
 
-          <div className={`panel settings-panel mobile-section ${activeMobileClass("settings")}`} id="settings">
-            <div className="panel-title">Settings + Privacy</div>
+          <div className={`panel settings-panel mobile-section desktop-section ${activeMobileClass("settings")} ${sectionClass("settings")}`} id="settings">
+            <div className="panel-title">Settings</div>
             <div className="settings-grid">
               <div><strong>Account</strong><span>{session?.user.email ?? "Local development user"}</span></div>
-              <div><strong>Agents</strong><span>{agents.length}</span></div>
-              <div><strong>Personal Info</strong><span>{documents.length}</span></div>
+              <div><strong>Helpers</strong><span>{agents.length}</span></div>
+              <div><strong>Private Info</strong><span>{documents.length}</span></div>
               <div><strong>Activity</strong><span>{logs.length}</span></div>
             </div>
             <div className="privacy-actions">
               <button onClick={exportMyData} type="button"><Download size={16} /> Export my data</button>
-              <button onClick={() => void revokeAllAgentAccess()} type="button"><KeyRound size={16} /> Revoke all agent access</button>
+              <button onClick={revokeAllAgentAccess} type="button"><KeyRound size={16} /> Revoke all helper access</button>
               {session ? <button onClick={() => void signOut()} type="button"><LogOut size={16} /> Sign out</button> : null}
             </div>
-            <p className="empty">Your workspace data is scoped to your signed-in account. Agents start restricted, and personal info access can be revoked at any time.</p>
+            <p className="empty">Your workspace data is scoped to your signed-in account. Helpers start restricted, and private info access can be revoked at any time.</p>
           </div>
         </section>
+        {confirmation ? (
+          <div className="confirm-backdrop" role="presentation">
+            <section aria-modal="true" className="confirm-dialog" role="dialog">
+              <div className="panel-title">Please Confirm</div>
+              <h2>{confirmation.title}</h2>
+              <p>{confirmation.message}</p>
+              <div className="button-row">
+                <button
+                  className={confirmation.tone === "danger" ? "danger" : ""}
+                  disabled={isConfirming}
+                  onClick={() => void runConfirmation()}
+                  type="button"
+                >
+                  {isConfirming ? "Working..." : confirmation.confirmLabel}
+                </button>
+                <button disabled={isConfirming} onClick={() => setConfirmation(null)} type="button">Cancel</button>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </section>
     </main>
   );
