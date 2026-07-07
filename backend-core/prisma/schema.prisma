@@ -72,20 +72,109 @@ enum NotificationStatus {
   failed
 }
 
+enum MarketplaceStatus {
+  draft
+  published
+  archived
+}
+
+enum AgentMessageRole {
+  user
+  agent
+  system
+}
+
 model User {
   id                  String           @id @default(cuid())
   email               String           @unique
   vaultLocalPath      String           @map("vault_local_path")
   vaultEncryptionSalt String           @map("vault_encryption_salt")
   createdAt           DateTime         @default(now()) @map("created_at")
+  creatorProfile      CreatorProfile?
+  agentInstalls       UserAgentInstall[]
   connections         UserConnection[]
   permissions         AgentPermission[]
   activityLogs        ActivityLog[]
   vaultDocuments      VaultDocument[]
   hitlRequests        HitlRequest[]
   notifications       Notification[]
+  conversations       AgentConversation[]
 
   @@map("users")
+}
+
+model CreatorProfile {
+  id               String            @id @default(cuid())
+  userId           String            @unique @map("user_id")
+  displayName      String            @map("display_name")
+  bio              String            @default("")
+  verified         Boolean           @default(false)
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentDefinitions AgentDefinition[]
+
+  @@map("creator_profiles")
+}
+
+model AgentDefinition {
+  id             String             @id @default(cuid())
+  creatorId      String?            @map("creator_id")
+  slug           String             @unique
+  name           String
+  tagline        String
+  description    String
+  category       AgentCategory
+  status         MarketplaceStatus  @default(published)
+  trustScore     Int                @default(70) @map("trust_score")
+  installCount   Int                @default(0) @map("install_count")
+  averageRating  Float              @default(0) @map("average_rating")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  creator        CreatorProfile?    @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  versions       AgentVersion[]
+  installs       UserAgentInstall[]
+
+  @@index([status, category])
+  @@index([status, trustScore])
+  @@map("agent_definitions")
+}
+
+model AgentVersion {
+  id                String             @id @default(cuid())
+  agentDefinitionId String             @map("agent_definition_id")
+  version           String             @default("1.0.0")
+  apiProtocol       ApiProtocol        @map("api_protocol")
+  capabilityManifest String            @map("capability_manifest")
+  releaseNotes      String             @default("") @map("release_notes")
+  isActive          Boolean            @default(true) @map("is_active")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  agentDefinition   AgentDefinition    @relation(fields: [agentDefinitionId], references: [id], onDelete: Cascade)
+  installs          UserAgentInstall[]
+
+  @@unique([agentDefinitionId, version])
+  @@index([agentDefinitionId, isActive])
+  @@map("agent_versions")
+}
+
+model UserAgentInstall {
+  id                String             @id @default(cuid())
+  userId            String             @map("user_id")
+  agentDefinitionId String             @map("agent_definition_id")
+  agentVersionId    String             @map("agent_version_id")
+  agentId           String?            @map("agent_id")
+  displayName       String             @map("display_name")
+  connectionStatus  ConnectionStatus   @default(restricted) @map("connection_status")
+  installedAt       DateTime           @default(now()) @map("installed_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentDefinition   AgentDefinition    @relation(fields: [agentDefinitionId], references: [id], onDelete: Cascade)
+  agentVersion      AgentVersion       @relation(fields: [agentVersionId], references: [id], onDelete: Cascade)
+  agent             Agent?             @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, agentDefinitionId])
+  @@index([userId, connectionStatus])
+  @@map("user_agent_installs")
 }
 
 model Agent {
@@ -95,12 +184,44 @@ model Agent {
   apiProtocol        ApiProtocol        @map("api_protocol")
   trustScore         Int               @default(70) @map("trust_score")
   capabilityManifest String            @map("capability_manifest")
+  installs           UserAgentInstall[]
   permissions        AgentPermission[]
   connections        UserConnection[]
   activityLogs       ActivityLog[]
   hitlRequests       HitlRequest[]
+  conversations      AgentConversation[]
 
   @@map("agents")
+}
+
+model AgentConversation {
+  id        String         @id @default(cuid())
+  userId    String         @map("user_id")
+  agentId   String         @map("agent_id")
+  title     String
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent     Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages  AgentMessage[]
+
+  @@index([userId, agentId, updatedAt])
+  @@map("agent_conversations")
+}
+
+model AgentMessage {
+  id             String            @id @default(cuid())
+  conversationId String            @map("conversation_id")
+  role           AgentMessageRole
+  content        String
+  status         ActivityStatus?
+  intent         String?
+  metadata       String            @default("{}")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("agent_messages")
 }
 
 model VaultSchema {

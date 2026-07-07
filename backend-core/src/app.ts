@@ -14,6 +14,9 @@ import { permissionRoutes } from "./routes/permissionRoutes.js";
 import { activityRoutes } from "./routes/activityRoutes.js";
 import { mcpRoutes } from "./routes/mcpRoutes.js";
 import { hitlRoutes } from "./routes/hitlRoutes.js";
+import { marketplaceRoutes } from "./routes/marketplaceRoutes.js";
+import { installRoutes } from "./routes/installRoutes.js";
+import { agentRuntimeRoutes } from "./routes/agentRuntimeRoutes.js";
 
 export function createApp() {
   const app = express();
@@ -31,6 +34,9 @@ export function createApp() {
   app.use("/api/activity", activityRoutes);
   app.use("/api/mcp", mcpRoutes);
   app.use("/api/hitl", hitlRoutes);
+  app.use("/api/marketplace", marketplaceRoutes);
+  app.use("/api/me/agents", agentRuntimeRoutes);
+  app.use("/api/me", installRoutes);
 
   app.use(errorHandler);
   return app;

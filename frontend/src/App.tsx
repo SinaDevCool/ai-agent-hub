@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { apiDelete, apiGet, apiPost, apiPut, setApiAccessToken } from "./api/client";
 import { isAuthConfigured, supabase, type AuthSession } from "./api/supabaseClient";
-import type { ActivityLog, Agent, HitlRequest, VaultDocument, VaultSchema } from "./api/types";
+import type { ActivityLog, Agent, AgentConversation, AgentRunResult, HitlRequest, MarketplaceAgent, UserAgentInstall, VaultDocument, VaultSchema } from "./api/types";
 import { StatusPill } from "./components/StatusPill";
 
 type RealtimeEvent = { type: string; payload: unknown };
@@ -60,7 +60,7 @@ type AgentTemplate = {
 
 const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
   { id: "home", label: "Home", icon: ShieldCheck },
-  { id: "agents", label: "AI Helpers", icon: Bot },
+  { id: "agents", label: "Agent Hub", icon: Bot },
   { id: "vault", label: "Private Info", icon: Database },
   { id: "clearance", label: "Permissions", icon: KeyRound },
   { id: "activity", label: "Activity", icon: Activity },
@@ -73,8 +73,8 @@ const sectionHeadings: Record<SectionId, { title: string; description: string }>
     description: "Add helpers, share only the info they need, and approve sensitive actions before they happen."
   },
   agents: {
-    title: "AI Helpers",
-    description: "Manage what each helper can do, what it can read, and when it must ask you first."
+    title: "Agent Hub",
+    description: "Find agents, add them to your profile, and manage what each one can access."
   },
   vault: {
     title: "Private Info",
@@ -285,6 +285,11 @@ export function App() {
   const [authMessage, setAuthMessage] = useState("");
   const [isSendingMagicLink, setIsSendingMagicLink] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [marketplaceAgents, setMarketplaceAgents] = useState<MarketplaceAgent[]>([]);
+  const [installedAgents, setInstalledAgents] = useState<UserAgentInstall[]>([]);
+  const [marketplaceSearch, setMarketplaceSearch] = useState("");
+  const [marketplaceCategory, setMarketplaceCategory] = useState("All");
+  const [selectedMarketplaceAgentId, setSelectedMarketplaceAgentId] = useState("");
   const [schemas, setSchemas] = useState<VaultSchema[]>([]);
   const [documents, setDocuments] = useState<VaultDocument[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -299,6 +304,10 @@ export function App() {
   const [agentDraft, setAgentDraft] = useState<AgentDraft>(initialAgentDraft);
   const [createAgentError, setCreateAgentError] = useState("");
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
+  const [installingAgentId, setInstallingAgentId] = useState("");
+  const [marketplaceError, setMarketplaceError] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(true);
+  const [refreshError, setRefreshError] = useState("");
   const [grantingSchemaName, setGrantingSchemaName] = useState("");
   const [isAddingVaultItem, setIsAddingVaultItem] = useState(false);
   const [vaultItemDraft, setVaultItemDraft] = useState<VaultItemDraft>(initialVaultItemDraft);
@@ -311,6 +320,10 @@ export function App() {
   const [isSearchingVault, setIsSearchingVault] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatTranscript, setChatTranscript] = useState<Array<{ role: "user" | "agent"; content: string }>>([]);
+  const [isAgentRunning, setIsAgentRunning] = useState(false);
+  const [agentRunResult, setAgentRunResult] = useState<AgentRunResult | null>(null);
+  const [agentConversation, setAgentConversation] = useState<AgentConversation | null>(null);
+  const [isConversationLoading, setIsConversationLoading] = useState(false);
   const [grantDuration, setGrantDuration] = useState("3600000");
   const [permissionDetailsOpen, setPermissionDetailsOpen] = useState(false);
   const [isGuidedSetupOpen, setIsGuidedSetupOpen] = useState(false);
@@ -341,19 +354,32 @@ export function App() {
   }, []);
 
   async function refresh() {
-    const [agentData, schemaData, documentData, logData, hitlData] = await Promise.all([
-      apiGet<{ agents: Agent[] }>("/api/agents"),
-      apiGet<{ schemas: VaultSchema[] }>("/api/vault/schemas"),
-      apiGet<{ documents: VaultDocument[] }>("/api/vault/documents"),
-      apiGet<{ logs: ActivityLog[] }>("/api/activity"),
-      apiGet<{ requests: HitlRequest[] }>("/api/hitl")
-    ]);
-    setAgents(agentData.agents);
-    setSchemas(schemaData.schemas);
-    setDocuments(documentData.documents);
-    setLogs(logData.logs);
-    setHitl(hitlData.requests);
-    setSelectedAgentId((current) => current || agentData.agents[0]?.id || "");
+    setIsRefreshing(true);
+    setRefreshError("");
+    try {
+      const [agentData, marketplaceData, installedData, schemaData, documentData, logData, hitlData] = await Promise.all([
+        apiGet<{ agents: Agent[] }>("/api/agents"),
+        apiGet<{ agents: MarketplaceAgent[] }>("/api/marketplace/agents"),
+        apiGet<{ installs: UserAgentInstall[] }>("/api/me/agents"),
+        apiGet<{ schemas: VaultSchema[] }>("/api/vault/schemas"),
+        apiGet<{ documents: VaultDocument[] }>("/api/vault/documents"),
+        apiGet<{ logs: ActivityLog[] }>("/api/activity"),
+        apiGet<{ requests: HitlRequest[] }>("/api/hitl")
+      ]);
+      setAgents(agentData.agents);
+      setMarketplaceAgents(marketplaceData.agents);
+      setInstalledAgents(installedData.installs);
+      setSchemas(schemaData.schemas);
+      setDocuments(documentData.documents);
+      setLogs(logData.logs);
+      setHitl(hitlData.requests);
+      setSelectedAgentId((current) => current || agentData.agents[0]?.id || "");
+      setSelectedMarketplaceAgentId((current) => current || marketplaceData.agents[0]?.id || "");
+    } catch (error) {
+      setRefreshError(error instanceof Error ? error.message : "Could not load your workspace.");
+    } finally {
+      setIsRefreshing(false);
+    }
   }
 
   useEffect(() => {
@@ -373,6 +399,58 @@ export function App() {
   const selectedAgent = useMemo(
     () => agents.find((agent) => agent.id === selectedAgentId) ?? agents[0],
     [agents, selectedAgentId]
+  );
+
+  useEffect(() => {
+    if (!selectedAgent?.id) {
+      setAgentConversation(null);
+      setChatTranscript([]);
+      return;
+    }
+    let cancelled = false;
+    setIsConversationLoading(true);
+    setAgentRunResult(null);
+    void apiGet<{ conversation: AgentConversation }>(`/api/me/agents/${selectedAgent.id}/conversation`)
+      .then(({ conversation }) => {
+        if (cancelled) return;
+        setAgentConversation(conversation);
+        setChatTranscript(
+          conversation.messages
+            .filter((message) => message.role === "user" || message.role === "agent")
+            .map((message) => ({ role: message.role as "user" | "agent", content: message.content }))
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAgentConversation(null);
+        setChatTranscript([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsConversationLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAgent?.id]);
+
+  const installedDefinitionIds = useMemo(
+    () => new Set(installedAgents.map((install) => install.agentDefinition.id)),
+    [installedAgents]
+  );
+
+  const visibleMarketplaceAgents = useMemo(() => {
+    const search = marketplaceSearch.trim().toLowerCase();
+    return marketplaceAgents.filter((agent) => {
+      const matchesCategory = marketplaceCategory === "All" || agent.category === marketplaceCategory;
+      const matchesSearch = !search || [agent.name, agent.tagline, agent.description, agent.category]
+        .some((value) => value.toLowerCase().includes(search));
+      return matchesCategory && matchesSearch;
+    });
+  }, [marketplaceAgents, marketplaceCategory, marketplaceSearch]);
+
+  const selectedMarketplaceAgent = useMemo(
+    () => visibleMarketplaceAgents.find((agent) => agent.id === selectedMarketplaceAgentId) ?? visibleMarketplaceAgents[0],
+    [selectedMarketplaceAgentId, visibleMarketplaceAgents]
   );
 
   const permissionReview = useMemo(() => {
@@ -524,19 +602,31 @@ export function App() {
     const prompt = chatInput.trim();
     setChatTranscript((current) => [...current, { role: "user", content: prompt }]);
     setChatInput("");
-
-    const wantsAction = /book|buy|transfer|execute|approve|reserve|pay/i.test(prompt);
-    const result = await apiPost<Record<string, unknown>>("/api/mcp/tool-call", {
-      agentId: selectedAgent.id,
-      toolName: wantsAction ? "action.execute" : "vault.search",
-      arguments: wantsAction
-        ? { actionName: "book_non_refundable_travel", request: prompt }
-        : { query: prompt, schema: selectedAgent.capabilityManifest.requestedSchemas?.[0] }
-    });
-    const friendlyMessage = friendlyResult(result);
-    setChatTranscript((current) => [...current, { role: "agent", content: friendlyMessage }]);
-    setToolResult(friendlyMessage);
-    await refresh();
+    setIsAgentRunning(true);
+    setAgentRunResult(null);
+    try {
+      const result = await apiPost<AgentRunResult>(`/api/me/agents/${selectedAgent.id}/run`, { message: prompt });
+      setAgentRunResult(result);
+      if (result.conversation) {
+        setAgentConversation(result.conversation);
+        setChatTranscript(
+          result.conversation.messages
+            .filter((message) => message.role === "user" || message.role === "agent")
+            .map((message) => ({ role: message.role as "user" | "agent", content: message.content }))
+        );
+      } else {
+        setChatTranscript((current) => [...current, { role: "agent", content: result.reply }]);
+      }
+      setToolResult(result.reply);
+      if (result.documents?.length) setSearchResults(result.documents);
+      await refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Agent run failed.";
+      setChatTranscript((current) => [...current, { role: "agent", content: message }]);
+      setToolResult(message);
+    } finally {
+      setIsAgentRunning(false);
+    }
   }
 
   async function createVaultItem(event: FormEvent<HTMLFormElement>) {
@@ -663,6 +753,25 @@ export function App() {
       setCreateAgentError(error instanceof Error ? error.message : "Agent creation failed.");
     } finally {
       setIsCreatingAgent(false);
+    }
+  }
+
+  async function installMarketplaceAgent(agent: MarketplaceAgent) {
+    setMarketplaceError("");
+    setInstallingAgentId(agent.id);
+    try {
+      const result = await apiPost<{ install: UserAgentInstall }>(`/api/marketplace/agents/${agent.id}/install`, {
+        displayName: agent.name
+      });
+      await refresh();
+      const installedAgentId = result.install.agent?.id;
+      if (installedAgentId) setSelectedAgentId(installedAgentId);
+      setToolResult(`${result.install.displayName} was added to your profile. Review its permissions before giving access.`);
+      setActiveSection("agents");
+    } catch (error) {
+      setMarketplaceError(error instanceof Error ? error.message : "Agent install failed.");
+    } finally {
+      setInstallingAgentId("");
     }
   }
 
@@ -1301,6 +1410,114 @@ export function App() {
         ) : null}
 
         <section className={`grid workspace-grid section-${activeSection}`}>
+          <div className={`panel marketplace-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}>
+            <div className="panel-heading-row">
+              <div>
+                <div className="panel-title">Agent Hub Marketplace</div>
+                <p className="mobile-section-intro">Browse agents created for common personal tasks. Install one, then choose what it can access.</p>
+              </div>
+              <StatusPill tone="blue">{installedAgents.length} installed</StatusPill>
+            </div>
+            <div className="marketplace-controls">
+              <label>
+                <span>Find an agent</span>
+                <div className="search-input-wrap">
+                  <Search size={16} />
+                  <input
+                    aria-label="Search marketplace agents"
+                    onChange={(event) => setMarketplaceSearch(event.currentTarget.value)}
+                    placeholder="Travel, money, inbox..."
+                    value={marketplaceSearch}
+                  />
+                </div>
+              </label>
+              <label>
+                <span>Category</span>
+                <select
+                  aria-label="Filter marketplace category"
+                  onChange={(event) => setMarketplaceCategory(event.currentTarget.value)}
+                  value={marketplaceCategory}
+                >
+                  <option value="All">All</option>
+                  {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+              </label>
+            </div>
+            {refreshError ? <p className="error-text">{refreshError}</p> : null}
+            {marketplaceError ? <p className="error-text">{marketplaceError}</p> : null}
+            {isRefreshing && marketplaceAgents.length === 0 ? <p className="empty">Loading marketplace agents...</p> : null}
+            {!isRefreshing && visibleMarketplaceAgents.length === 0 ? <p className="empty">No marketplace agents match that search.</p> : null}
+            <div className="marketplace-layout">
+              <div className="marketplace-grid">
+              {visibleMarketplaceAgents.slice(0, 6).map((agent) => {
+                const manifest = agent.versions[0]?.capabilityManifest ?? {};
+                const alreadyInstalled = Boolean(agent.installed || installedDefinitionIds.has(agent.id));
+                return (
+                  <article className={agent.id === selectedMarketplaceAgent?.id ? "marketplace-card selected" : "marketplace-card"} key={agent.id}>
+                    <div className="marketplace-card-top">
+                      <div>
+                        <strong>{agent.name}</strong>
+                        <small>{agent.category} / Trust {agent.trustScore}</small>
+                      </div>
+                      <StatusPill tone={alreadyInstalled ? "green" : "blue"}>
+                        {alreadyInstalled ? "installed" : "hub"}
+                      </StatusPill>
+                    </div>
+                    <p>{agent.tagline || agent.description}</p>
+                    <div className="marketplace-meta">
+                      <span>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span>
+                      <span>{manifest.requestedSchemas?.join(", ") || "No private info requested"}</span>
+                    </div>
+                    <div className="marketplace-card-actions">
+                      <small>{agent.installCount} installs</small>
+                      <button onClick={() => setSelectedMarketplaceAgentId(agent.id)} type="button">Details</button>
+                      <button
+                        disabled={alreadyInstalled || installingAgentId === agent.id}
+                        onClick={() => void installMarketplaceAgent(agent)}
+                        type="button"
+                      >
+                        <Download size={16} /> {alreadyInstalled ? "Added" : installingAgentId === agent.id ? "Adding..." : "Add to profile"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+              </div>
+              {selectedMarketplaceAgent ? (
+                <aside className="marketplace-detail">
+                  {(() => {
+                    const manifest = selectedMarketplaceAgent.versions[0]?.capabilityManifest ?? {};
+                    const alreadyInstalled = Boolean(selectedMarketplaceAgent.installed || installedDefinitionIds.has(selectedMarketplaceAgent.id));
+                    return (
+                      <>
+                        <div className="marketplace-card-top">
+                          <div>
+                            <strong>{selectedMarketplaceAgent.name}</strong>
+                            <small>{selectedMarketplaceAgent.category} / Trust {selectedMarketplaceAgent.trustScore}</small>
+                          </div>
+                          <StatusPill tone={alreadyInstalled ? "green" : "blue"}>{alreadyInstalled ? "installed" : "available"}</StatusPill>
+                        </div>
+                        <p>{selectedMarketplaceAgent.description}</p>
+                        <div className="manifest-grid marketplace-detail-grid">
+                          <div><strong>Tools</strong><span>{manifest.tools?.map(friendlyToolName).join(", ") || "No tools listed"}</span></div>
+                          <div><strong>Private info requested</strong><span>{manifest.requestedSchemas?.join(", ") || "None"}</span></div>
+                          <div><strong>Must ask before</strong><span>{manifest.highRiskActions?.map(friendlyActionName).join(", ") || "Nothing listed"}</span></div>
+                        </div>
+                        <button
+                          disabled={alreadyInstalled || installingAgentId === selectedMarketplaceAgent.id}
+                          onClick={() => void installMarketplaceAgent(selectedMarketplaceAgent)}
+                          type="button"
+                        >
+                          <Download size={16} /> {alreadyInstalled ? "Added to profile" : installingAgentId === selectedMarketplaceAgent.id ? "Adding..." : "Add to profile"}
+                        </button>
+                      </>
+                    );
+                  })()}
+                </aside>
+              ) : null}
+            </div>
+          </div>
+
           <div className={`panel agent-list mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`} id="agents">
             <div className="panel-title">Your AI Helpers</div>
             <div className="mobile-panel-actions">
@@ -1390,16 +1607,34 @@ export function App() {
                   ))}
                 </div>
                 <div className="chat-panel">
-                  <div className="panel-title">Try This Helper</div>
+                  <div className="chat-heading">
+                    <div>
+                      <div className="panel-title">Use This Agent</div>
+                      <p className="mobile-section-intro">Ask a question or request an action. The agent can only use approved info and pauses sensitive actions for you.</p>
+                    </div>
+                    <StatusPill tone="blue">{isConversationLoading ? "loading" : "saved"}</StatusPill>
+                  </div>
+                  {agentConversation ? <p className="conversation-note">Conversation: {agentConversation.title}</p> : null}
                   <form className="chat-form" onSubmit={(event) => void runAgentChat(event)}>
                     <input
+                      aria-label="Message agent"
                       name="helper-message"
                       onChange={(event) => setChatInput(event.currentTarget.value)}
                       placeholder="Ask it to find info or try an action that may need approval..."
                       value={chatInput}
                     />
-                    <button type="submit"><MessageSquare size={16} /> Send</button>
+                    <button disabled={isAgentRunning || !chatInput.trim()} type="submit"><MessageSquare size={16} /> {isAgentRunning ? "Thinking..." : "Send"}</button>
                   </form>
+                  {agentRunResult ? (
+                    <div className="agent-run-summary">
+                      <StatusPill tone={agentRunResult.status === "ok" ? "green" : agentRunResult.status === "awaiting_human_approval" ? "amber" : "red"}>
+                        {agentRunResult.status === "awaiting_human_approval" ? "needs approval" : agentRunResult.status}
+                      </StatusPill>
+                      <span>{agentRunResult.intent === "search" ? "Used personal info search" : agentRunResult.intent === "action" ? "Action request" : "Blocked"}</span>
+                      <small>{agentRunResult.provider === "openai" ? `OpenAI response${agentRunResult.model ? ` (${agentRunResult.model})` : ""}` : "Local safe runtime"}</small>
+                      {agentRunResult.usedSchemas?.length ? <small>Allowed info: {agentRunResult.usedSchemas.join(", ")}</small> : null}
+                    </div>
+                  ) : null}
                   {chatTranscript.length ? (
                     <div className="chat-transcript">
                       {chatTranscript.slice(-4).map((message, index) => (

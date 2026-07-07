@@ -14,6 +14,30 @@ export function serializeAgent<T extends { capabilityManifest: string; permissio
   };
 }
 
+export function serializeAgentVersion<T extends { capabilityManifest: string }>(version: T) {
+  return {
+    ...version,
+    capabilityManifest: decodeJson(version.capabilityManifest, {})
+  };
+}
+
+export function serializeAgentDefinition(definition: any) {
+  return {
+    ...definition,
+    versions: definition.versions?.map(serializeAgentVersion),
+    installed: Boolean(definition.installs?.length)
+  };
+}
+
+export function serializeUserAgentInstall(install: any) {
+  return {
+    ...install,
+    agentDefinition: install.agentDefinition ? serializeAgentDefinition(install.agentDefinition) : install.agentDefinition,
+    agentVersion: install.agentVersion ? serializeAgentVersion(install.agentVersion) : install.agentVersion,
+    agent: install.agent ? serializeAgent(install.agent) : install.agent
+  };
+}
+
 export function serializeVaultSchema<T extends { structuralTemplate: string }>(schema: T) {
   return { ...schema, structuralTemplate: decodeJson(schema.structuralTemplate, {}) };
 }
@@ -40,5 +64,20 @@ export function serializeHitlRequest<T extends { payload: string; agent?: any }>
     ...request,
     payload: decodeJson(request.payload, {}),
     agent: request.agent ? serializeAgent(request.agent) : request.agent
+  };
+}
+
+export function serializeAgentMessage<T extends { metadata: string }>(message: T) {
+  return {
+    ...message,
+    metadata: decodeJson(message.metadata, {})
+  };
+}
+
+export function serializeAgentConversation<T extends { messages?: Array<{ metadata: string }>; agent?: any }>(conversation: T) {
+  return {
+    ...conversation,
+    messages: conversation.messages?.map(serializeAgentMessage) ?? [],
+    agent: conversation.agent ? serializeAgent(conversation.agent) : conversation.agent
   };
 }

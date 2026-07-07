@@ -28,7 +28,9 @@ const schema = z.object({
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
   APP_PUBLIC_URL: z.string().url().optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
-  NOTIFICATION_FROM_EMAIL: z.string().min(3).default("AI Agent Hub <onboarding@resend.dev>")
+  NOTIFICATION_FROM_EMAIL: z.string().min(3).default("AI Agent Hub <onboarding@resend.dev>"),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_MODEL: z.string().min(1).default("gpt-4o-mini")
 }).superRefine((value, context) => {
   if (value.NODE_ENV === "production" && (!value.SUPABASE_URL || !value.SUPABASE_ANON_KEY)) {
     context.addIssue({

@@ -48,8 +48,23 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await addVaultForm.getByRole("button", { name: "Save info" }).click();
   await expect(page.locator("#vault").getByText(vaultTitle, { exact: true })).toBeVisible();
 
-  await nav.getByRole("button", { name: "AI Helpers", exact: true }).click();
-  await expect(nav.getByRole("button", { name: "AI Helpers", exact: true })).toHaveClass(/nav-active/);
+  await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
+  await expect(nav.getByRole("button", { name: "Agent Hub", exact: true })).toHaveClass(/nav-active/);
+
+  await expect(page.getByText("Agent Hub Marketplace")).toBeVisible();
+  await page.getByLabel("Search marketplace agents").fill("Banker");
+  const bankerCard = page.locator(".marketplace-card").filter({ hasText: "The Banker" }).first();
+  await expect(bankerCard).toBeVisible();
+  await bankerCard.getByRole("button", { name: "Details" }).click();
+  const marketplaceDetail = page.locator(".marketplace-detail");
+  await expect(marketplaceDetail).toContainText("The Banker");
+  const installButton = marketplaceDetail.getByRole("button", { name: /Add to profile|Added to profile/ });
+  if (await installButton.isEnabled()) {
+    await installButton.click();
+  }
+  await expect(marketplaceDetail.getByRole("button", { name: "Added to profile" })).toBeVisible();
+  await page.getByLabel("Search marketplace agents").clear();
+
   const agentName = `Smoke Agent ${Date.now()}`;
 
   await page.getByRole("button", { name: "Add AI Helper" }).click();
@@ -76,10 +91,15 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await page.getByRole("button", { name: "Search Info" }).click();
   await expect(page.locator(".search-results")).toContainText("Financial Preferences");
 
-  await nav.getByRole("button", { name: "AI Helpers", exact: true }).click();
+  await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
+  await expect(page.getByText("Use This Agent")).toBeVisible();
   await page.getByPlaceholder("Ask it to find info or try an action that may need approval...").fill("Find my approval threshold");
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.locator(".chat-transcript")).toContainText("Found");
+  await expect(page.locator(".conversation-note")).toContainText("Conversation:");
+  await page.getByPlaceholder("Ask it to find info or try an action that may need approval...").fill("Book a non-refundable trip");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.locator(".chat-transcript")).toContainText("approval");
 
   const uploadTitle = `Smoke Upload ${Date.now()}`;
   await page.locator(".topbar .upload-button input").setInputFiles({
@@ -107,7 +127,7 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await nav.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settings")).toContainText("Settings");
 
-  await nav.getByRole("button", { name: "AI Helpers", exact: true }).click();
+  await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
   await page.getByRole("button", { name: "Search personal info" }).click();
   await expect(page.locator(".hitl-panel")).toContainText(/Found|Blocked/);
 
@@ -126,7 +146,7 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await expect(page.locator(".guided-setup-panel")).toBeVisible();
   await page.locator(".guided-setup-panel").getByRole("button", { name: "Cancel" }).click();
   await expect(page.locator(".mobile-home")).toBeVisible();
-  await nav.getByRole("button", { name: "AI Helpers", exact: true }).click();
+  await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
   await expect(page.locator(".agent-list")).toBeVisible();
   await expect(page.locator("#vault")).toBeHidden();
 
@@ -144,7 +164,7 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await expect(page.locator(".audit-panel")).toBeVisible();
   await expect(page.locator("#clearance")).toBeHidden();
 
-  await nav.getByRole("button", { name: "AI Helpers", exact: true }).click();
+  await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
   await page.getByRole("button", { name: "Add AI Helper" }).first().click();
   await expect(page.locator(".add-agent-panel")).toBeVisible();
   await expect(page.getByRole("heading", { name: "What kind of helper do you want?" })).toBeVisible();

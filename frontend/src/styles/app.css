@@ -693,6 +693,142 @@ legend {
   gap: 10px;
 }
 
+.marketplace-panel {
+  grid-column: 1 / -1;
+}
+
+.panel-heading-row,
+.marketplace-card-top,
+.marketplace-card-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.marketplace-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.marketplace-controls label {
+  display: grid;
+  gap: 7px;
+}
+
+.marketplace-controls span {
+  color: #f7c96b;
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.search-input-wrap {
+  position: relative;
+}
+
+.search-input-wrap svg {
+  color: #91a4ba;
+  left: 10px;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.search-input-wrap input {
+  padding-left: 34px;
+}
+
+.marketplace-layout {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+}
+
+.marketplace-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.marketplace-card {
+  border: 1px solid rgba(137, 163, 196, 0.16);
+  border-radius: 7px;
+  background: rgba(11, 27, 46, 0.72);
+  padding: 12px;
+  display: grid;
+  gap: 11px;
+  min-height: 220px;
+}
+
+.marketplace-card.selected {
+  background: rgba(30, 64, 105, 0.52);
+  border-color: rgba(74, 163, 255, 0.82);
+}
+
+.marketplace-card strong,
+.marketplace-card small,
+.marketplace-card span {
+  display: block;
+}
+
+.marketplace-card strong {
+  color: #f5f9ff;
+  font-size: 15px;
+}
+
+.marketplace-card p {
+  color: #a9bbcf;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.marketplace-meta {
+  display: grid;
+  gap: 7px;
+  color: #d9e7f7;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.marketplace-meta span {
+  border: 1px solid rgba(137, 163, 196, 0.12);
+  border-radius: 7px;
+  padding: 8px;
+}
+
+.marketplace-card-actions {
+  margin-top: auto;
+  align-items: center;
+}
+
+.marketplace-detail {
+  background: rgba(12, 26, 43, 0.82);
+  border: 1px solid rgba(137, 163, 196, 0.16);
+  border-radius: 7px;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  position: sticky;
+  top: 12px;
+}
+
+.marketplace-detail p {
+  color: #a9bbcf;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.marketplace-detail-grid {
+  grid-template-columns: 1fr;
+  margin-bottom: 0;
+}
+
 .agent-row {
   display: grid;
   justify-content: stretch;
@@ -904,8 +1040,42 @@ legend {
   padding: 10px;
 }
 
+.chat-heading {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.conversation-note {
+  color: #91a4ba;
+  font-size: 12px;
+  margin: -2px 0 2px;
+}
+
 .chat-form {
   grid-template-columns: minmax(220px, 1fr) auto;
+}
+
+.agent-run-summary {
+  align-items: center;
+  background: rgba(4, 13, 24, 0.72);
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+}
+
+.agent-run-summary span {
+  color: #d9e7f7;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.agent-run-summary small {
+  color: #91a4ba;
 }
 
 .chat-transcript {
@@ -1098,10 +1268,19 @@ textarea:focus-visible {
   .form-grid,
   .choice-grid,
   .template-grid,
+  .marketplace-grid,
   .quick-start-panel,
   .guided-review,
   .home-dashboard {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .marketplace-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .marketplace-detail {
+    position: static;
   }
 
   .vault-panel {
@@ -1389,6 +1568,7 @@ textarea:focus-visible {
   }
 
   .agent-list,
+  .marketplace-panel,
   .clearance-panel,
   .audit-panel,
   .hitl-panel,
@@ -1399,6 +1579,9 @@ textarea:focus-visible {
 
   .grid,
   .manifest-grid,
+  .marketplace-controls,
+  .marketplace-layout,
+  .marketplace-grid,
   .form-grid,
   .choice-grid,
   .template-grid,
@@ -1421,6 +1604,21 @@ textarea:focus-visible {
     min-height: 68px;
     border-radius: 14px;
     padding: 12px;
+  }
+
+  .panel-heading-row,
+  .marketplace-card-top,
+  .marketplace-card-actions {
+    display: grid;
+  }
+
+  .marketplace-detail {
+    border-radius: 14px;
+  }
+
+  .marketplace-card {
+    border-radius: 14px;
+    min-height: 0;
   }
 
   .agent-row span {

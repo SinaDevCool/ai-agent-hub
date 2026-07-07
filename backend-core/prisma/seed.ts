@@ -106,6 +106,14 @@ const agents: Array<{
   }
 ];
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/^the\s+/, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 async function main() {
   const user = await prisma.user.upsert({
     where: { email: "sample.user@local.ai" },
@@ -128,6 +136,43 @@ async function main() {
   }
 
   for (const agentData of agents) {
+    const marketplaceAgent = await prisma.agentDefinition.upsert({
+      where: { slug: slugify(agentData.name) },
+      update: {
+        name: agentData.name,
+        tagline: String(agentData.capabilityManifest.description ?? ""),
+        description: String(agentData.capabilityManifest.description ?? ""),
+        category: agentData.category,
+        trustScore: agentData.trustScore,
+        status: "published"
+      },
+      create: {
+        slug: slugify(agentData.name),
+        name: agentData.name,
+        tagline: String(agentData.capabilityManifest.description ?? ""),
+        description: String(agentData.capabilityManifest.description ?? ""),
+        category: agentData.category,
+        trustScore: agentData.trustScore,
+        status: "published"
+      }
+    });
+    const marketplaceVersion = await prisma.agentVersion.upsert({
+      where: { agentDefinitionId_version: { agentDefinitionId: marketplaceAgent.id, version: "1.0.0" } },
+      update: {
+        apiProtocol: agentData.capabilityManifest.protocol === "OpenAPI" ? "OpenAPI" : "MCP",
+        capabilityManifest: encodeJson(agentData.capabilityManifest),
+        isActive: true
+      },
+      create: {
+        agentDefinitionId: marketplaceAgent.id,
+        version: "1.0.0",
+        apiProtocol: agentData.capabilityManifest.protocol === "OpenAPI" ? "OpenAPI" : "MCP",
+        capabilityManifest: encodeJson(agentData.capabilityManifest),
+        releaseNotes: "Seeded marketplace agent.",
+        isActive: true
+      }
+    });
+
     const agent = await prisma.agent.upsert({
       where: { name: agentData.name },
       update: {
@@ -149,6 +194,23 @@ async function main() {
         agentId: agent.id,
         connectionStatus: agent.name === "The Curator" ? "restricted" : "active",
         tokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }
+    });
+    await prisma.userAgentInstall.upsert({
+      where: { userId_agentDefinitionId: { userId: user.id, agentDefinitionId: marketplaceAgent.id } },
+      update: {
+        agentVersionId: marketplaceVersion.id,
+        agentId: agent.id,
+        displayName: agent.name,
+        connectionStatus: agent.name === "The Curator" ? "restricted" : "active"
+      },
+      create: {
+        userId: user.id,
+        agentDefinitionId: marketplaceAgent.id,
+        agentVersionId: marketplaceVersion.id,
+        agentId: agent.id,
+        displayName: agent.name,
+        connectionStatus: agent.name === "The Curator" ? "restricted" : "active"
       }
     });
     const requestedSchemas = agentData.capabilityManifest.requestedSchemas as string[];
