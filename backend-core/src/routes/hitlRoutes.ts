@@ -8,7 +8,11 @@ export const hitlRoutes = Router();
 
 hitlRoutes.get("/", async (req, res) => {
   const requests = await prisma.hitlRequest.findMany({
-    where: { userId: req.userId, status: "pending_human_approval" },
+    where: {
+      userId: req.userId,
+      status: "pending_human_approval",
+      expiresAt: { gt: new Date() }
+    },
     include: { agent: true },
     orderBy: { createdAt: "desc" }
   });

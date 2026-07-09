@@ -155,7 +155,8 @@ async function appendRuntimeMessages(input: {
           usedSchemas: input.result.usedSchemas,
           documents: input.result.documents,
           provider: input.result.provider,
-          model: input.result.model
+          model: input.result.model,
+          providerFallbackReason: input.result.providerFallbackReason
         })
       }
     }),
@@ -214,7 +215,9 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
       where: {
         userId: input.userId,
         agentId: agent.id,
-        status: "success"
+        status: "success",
+        expiresAt: { gt: new Date() },
+        continuedAt: null
       },
       orderBy: { decidedAt: "desc" }
     });
@@ -227,9 +230,34 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
           status: "blocked" as const,
           intent: "action" as const,
           reply: `${agent.name} could not find an approved action to continue.`,
-          reason: "No approved human-in-the-loop request was found for this agent.",
+          reason: "No unused, unexpired approval request was found for this agent.",
           runtimeState: "blocked" as const,
-          nextStep: "Approve the paused action first, then continue it."
+          nextStep: "Approve the paused action first, then continue it before the approval expires."
+        }
+      });
+    }
+    const consumed = await prisma.hitlRequest.updateMany({
+      where: {
+        id: approvedRequest.id,
+        userId: input.userId,
+        status: "success",
+        expiresAt: { gt: new Date() },
+        continuedAt: null
+      },
+      data: { continuedAt: new Date() }
+    });
+    if (consumed.count === 0) {
+      return withPersistedConversation({
+        userId: input.userId,
+        agent,
+        message,
+        result: {
+          status: "blocked" as const,
+          intent: "action" as const,
+          reply: `${agent.name} could not continue that approval because it was already used or expired.`,
+          reason: "The approved action was already continued or expired.",
+          runtimeState: "blocked" as const,
+          nextStep: "Create a fresh approval request if you still want this action."
         }
       });
     }
@@ -255,7 +283,7 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
         actionName: approvedRequest.actionName,
         requestId: approvedRequest.id,
         runtimeState: "ready" as const,
-        nextStep: "The action is recorded in Activity."
+        nextStep: "The action is recorded in Receipts."
       }
     });
   }

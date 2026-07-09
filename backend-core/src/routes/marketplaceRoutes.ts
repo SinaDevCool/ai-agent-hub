@@ -19,15 +19,18 @@ function matchesMarketplaceSearch(definition: { name: string; tagline: string; d
 }
 
 async function resolveInstallAgentName(userId: string, requestedName: string) {
-  const existingAgent = await prisma.agent.findUnique({
-    where: { name: requestedName },
-    include: { connections: { where: { userId }, select: { id: true } } }
+  const existingAgent = await prisma.agent.findFirst({
+    where: { name: requestedName, connections: { some: { userId } } },
+    select: { id: true }
   });
-  if (!existingAgent?.connections.length) return requestedName;
+  if (!existingAgent) return requestedName;
 
   for (let index = 2; index < 100; index += 1) {
     const candidate = `${requestedName} ${index}`;
-    const conflict = await prisma.agent.findUnique({ where: { name: candidate }, select: { id: true } });
+    const conflict = await prisma.agent.findFirst({
+      where: { name: candidate, connections: { some: { userId } } },
+      select: { id: true }
+    });
     if (!conflict) return candidate;
   }
   return `${requestedName} ${Date.now()}`;
@@ -91,15 +94,8 @@ marketplaceRoutes.post("/agents/:id/install", async (req, res) => {
 
   const resolvedDisplayName = await resolveInstallAgentName(userId, displayName);
   const install = await prisma.$transaction(async (tx) => {
-    const agent = await tx.agent.upsert({
-      where: { name: resolvedDisplayName },
-      update: {
-        category: definition.category,
-        apiProtocol: version.apiProtocol,
-        trustScore: definition.trustScore,
-        capabilityManifest: version.capabilityManifest
-      },
-      create: {
+    const agent = await tx.agent.create({
+      data: {
         name: resolvedDisplayName,
         category: definition.category,
         apiProtocol: version.apiProtocol,

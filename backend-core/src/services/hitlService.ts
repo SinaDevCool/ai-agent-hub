@@ -4,6 +4,10 @@ import { writeActivityLog } from "./activityLogService.js";
 import { encodeJson } from "./jsonService.js";
 import { sendApprovalNotification } from "./notificationService.js";
 
+function invalidApprovalError(message: string) {
+  return Object.assign(new Error(message), { statusCode: 409, code: "invalid_approval_state" });
+}
+
 export async function createHitlRequest(input: {
   userId: string;
   agentId: string;
@@ -42,13 +46,21 @@ export async function createHitlRequest(input: {
 }
 
 export async function decideHitlRequest(id: string, userId: string, approved: boolean) {
-  await prisma.hitlRequest.updateMany({
-    where: { id, userId },
+  const result = await prisma.hitlRequest.updateMany({
+    where: {
+      id,
+      userId,
+      status: "pending_human_approval",
+      expiresAt: { gt: new Date() }
+    },
     data: {
       status: approved ? "success" : "blocked_by_policy",
       decidedAt: new Date()
     }
   });
+  if (result.count === 0) {
+    throw invalidApprovalError("This approval request is no longer pending or has expired.");
+  }
   const request = await prisma.hitlRequest.findFirstOrThrow({
     where: { id, userId }
   });

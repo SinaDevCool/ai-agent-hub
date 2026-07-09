@@ -35,73 +35,195 @@ const schemas = [
     structuralTemplate: {
       fields: ["conditions", "allergies", "medications", "providers"]
     }
+  },
+  {
+    name: "Career Profile",
+    description: "Resume facts, work preferences, portfolio links, and job-search boundaries.",
+    structuralTemplate: {
+      fields: ["resumeHighlights", "targetRoles", "portfolioLinks", "salaryBoundaries", "locationPreferences"]
+    }
+  },
+  {
+    name: "Home Preferences",
+    description: "Household preferences, maintenance notes, subscriptions, and vendor rules.",
+    structuralTemplate: {
+      fields: ["homeAddress", "preferredVendors", "subscriptionRules", "maintenanceHistory", "shoppingPreferences"]
+    }
   }
 ];
 
-const agents: Array<{
+type SeedAgent = {
   name: string;
   category: AgentCategory;
+  tagline: string;
+  description: string;
   trustScore: number;
+  installCount: number;
+  averageRating: number;
   capabilityManifest: Record<string, unknown>;
-}> = [
+};
+
+const agents: SeedAgent[] = [
   {
-    name: "The Concierge",
+    name: "Trip Companion",
     category: "Travel",
+    tagline: "Plans trips around your preferences and pauses before bookings.",
+    description: "Compare destinations, build itineraries, use loyalty details, and prepare booking choices without making non-refundable travel decisions until you approve.",
     trustScore: 86,
+    installCount: 1420,
+    averageRating: 4.7,
     capabilityManifest: {
       protocol: "MCP",
       tools: ["vault.search", "action.execute"],
       requestedSchemas: ["Personal Identity Profile", "Frequent Flyer Ledger"],
       highRiskActions: ["book_non_refundable_travel"],
-      description: "Travel booking, itinerary assembly, and document-aware reservation support."
+      description: "Plans trips around your preferences and pauses before bookings.",
+      examplePrompts: ["Plan a weekend trip using my preferences", "Compare flight options using my loyalty programs", "Build a three-day itinerary near public transit"],
+      trustReasons: ["Shows which travel notes it used", "Cannot book non-refundable travel without approval", "Keeps identity details restricted until granted"]
     }
   },
   {
-    name: "The Banker",
+    name: "Budget Guard",
     category: "Financial",
+    tagline: "Helps with budgets, card choices, and spending guardrails.",
+    description: "Review spending preferences, compare card or payment choices, and flag decisions that should wait for your approval.",
     trustScore: 81,
+    installCount: 1188,
+    averageRating: 4.5,
     capabilityManifest: {
       protocol: "MCP",
       tools: ["vault.search", "action.execute"],
       requestedSchemas: ["Financial Preferences"],
       highRiskActions: ["open_credit_card", "transfer_funds"],
-      description: "Credit card optimization, expense tracking, and spending-policy enforcement."
+      description: "Helps with budgets, card choices, and spending guardrails.",
+      examplePrompts: ["Find the spending rule I should follow", "Compare which card fits this purchase", "Tell me if this payment needs approval"],
+      trustReasons: ["Cannot move money without approval", "Uses only financial preferences you allow", "Explains blocked or risky finance actions"]
     }
   },
   {
-    name: "The Chief of Staff",
+    name: "Daily Task Helper",
     category: "Executive",
+    tagline: "Turns loose errands, reminders, and follow-ups into a simple plan.",
+    description: "Organize everyday tasks, draft checklists, and coordinate reminders using only the personal context you choose to share.",
     trustScore: 89,
+    installCount: 2034,
+    averageRating: 4.8,
     capabilityManifest: {
       protocol: "MCP",
       tools: ["vault.search", "action.execute"],
       requestedSchemas: ["Personal Identity Profile"],
-      highRiskActions: [],
-      description: "Task coordination, calendar context, reminders, and household operations."
+      highRiskActions: ["share_personal_info"],
+      description: "Turns loose errands, reminders, and follow-ups into a simple plan.",
+      examplePrompts: ["Make a plan for my errands today", "Turn this messy note into a checklist", "Draft a follow-up reminder"],
+      trustReasons: ["Can work without broad account access", "Asks before sharing personal details", "Receipts show what context was used"]
     }
   },
   {
-    name: "The Curator",
+    name: "Shopping Scout",
     category: "Domestic",
+    tagline: "Compares products and subscriptions without surprise purchases.",
+    description: "Use preferences and budget rules to compare items, audit subscriptions, and prepare buying options while purchases stay approval-gated.",
     trustScore: 74,
+    installCount: 876,
+    averageRating: 4.2,
     capabilityManifest: {
       protocol: "OpenAPI",
       tools: ["vault.search", "action.execute"],
-      requestedSchemas: ["Financial Preferences"],
-      highRiskActions: [],
-      description: "Shopping, groceries, subscription audits, and preference-aware recommendations."
+      requestedSchemas: ["Financial Preferences", "Home Preferences"],
+      highRiskActions: ["buy_item", "share_payment_info"],
+      description: "Compares products and subscriptions without surprise purchases.",
+      examplePrompts: ["Compare these options against my preferences", "Find subscriptions I should review", "Help me choose without buying anything"],
+      trustReasons: ["Cannot buy items without approval", "Keeps payment info gated", "Shows preference and budget rules it used"]
     }
   },
   {
-    name: "The Archivist",
-    category: "Maintenance",
-    trustScore: 94,
+    name: "Health Notes Organizer",
+    category: "Wellness",
+    tagline: "Organizes health notes while keeping sensitive details tightly controlled.",
+    description: "Summarize saved health context, prepare questions for appointments, and keep medical details private unless you explicitly allow access.",
+    trustScore: 92,
+    installCount: 642,
+    averageRating: 4.6,
     capabilityManifest: {
       protocol: "MCP",
       tools: ["vault.search"],
-      requestedSchemas: ["Personal Identity Profile", "Financial Preferences", "Frequent Flyer Ledger", "Medical History"],
+      requestedSchemas: ["Medical History", "Personal Identity Profile"],
+      highRiskActions: ["share_medical_record"],
+      description: "Organizes health notes while keeping sensitive details tightly controlled.",
+      examplePrompts: ["Summarize the health note I saved", "Prepare questions for my next appointment", "Find allergy details in my private notes"],
+      trustReasons: ["Read-only by default", "Health sharing is approval-gated", "Uses narrow medical permissions"]
+    }
+  },
+  {
+    name: "Job Application Coach",
+    category: "Executive",
+    tagline: "Helps tailor resumes, cover letters, and application follow-ups.",
+    description: "Use your career profile to draft application materials, compare job fit, and prepare follow-ups without submitting anything on your behalf.",
+    trustScore: 88,
+    installCount: 991,
+    averageRating: 4.7,
+    capabilityManifest: {
+      protocol: "MCP",
+      tools: ["vault.search", "email.draft"],
+      requestedSchemas: ["Career Profile", "Personal Identity Profile"],
+      highRiskActions: ["submit_job_application", "share_personal_info", "send_email"],
+      description: "Helps tailor resumes, cover letters, and application follow-ups.",
+      examplePrompts: ["Tailor my resume summary for this role", "Draft a cover letter using my career profile", "Write a polite application follow-up"],
+      trustReasons: ["Drafts but does not submit applications", "Asks before sharing identity details", "Keeps career data permissioned"]
+    }
+  },
+  {
+    name: "Inbox Follow-Up Helper",
+    category: "Executive",
+    tagline: "Drafts replies and follow-ups in your preferred tone.",
+    description: "Prepare email drafts, summarize open loops, and create polite follow-ups while sending remains under your control.",
+    trustScore: 84,
+    installCount: 1356,
+    averageRating: 4.4,
+    capabilityManifest: {
+      protocol: "MCP",
+      tools: ["vault.search", "email.draft"],
+      requestedSchemas: ["Personal Identity Profile", "Career Profile"],
+      highRiskActions: ["send_email", "share_personal_info"],
+      description: "Drafts replies and follow-ups in your preferred tone.",
+      examplePrompts: ["Draft a polite follow-up email", "Summarize what I still owe this person", "Rewrite this reply in my usual tone"],
+      trustReasons: ["Draft-only email behavior", "Asks before sharing personal details", "Shows what profile context shaped the draft"]
+    }
+  },
+  {
+    name: "Home Maintenance Helper",
+    category: "Maintenance",
+    tagline: "Keeps home tasks, repairs, and vendor notes organized.",
+    description: "Track household maintenance, prepare repair checklists, compare vendors, and pause before booking or sharing your address.",
+    trustScore: 83,
+    installCount: 711,
+    averageRating: 4.3,
+    capabilityManifest: {
+      protocol: "MCP",
+      tools: ["vault.search", "action.execute"],
+      requestedSchemas: ["Home Preferences", "Personal Identity Profile"],
+      highRiskActions: ["book_home_service", "share_home_address"],
+      description: "Keeps home tasks, repairs, and vendor notes organized.",
+      examplePrompts: ["Make a home maintenance checklist", "Compare repair options using my vendor rules", "Find the last note about this appliance"],
+      trustReasons: ["Address sharing is approval-gated", "Can compare before booking", "Receipts show home info access"]
+    }
+  },
+  {
+    name: "Private Info Librarian",
+    category: "Maintenance",
+    tagline: "Finds and organizes your saved private notes.",
+    description: "Clean up saved context, detect duplicates, and help you understand what private info exists before other helpers use it.",
+    trustScore: 94,
+    installCount: 1542,
+    averageRating: 4.9,
+    capabilityManifest: {
+      protocol: "MCP",
+      tools: ["vault.search"],
+      requestedSchemas: ["Personal Identity Profile", "Financial Preferences", "Frequent Flyer Ledger", "Medical History", "Career Profile", "Home Preferences"],
       highRiskActions: [],
-      description: "Vault indexing, schema hygiene, duplicate detection, and context maintenance."
+      description: "Finds and organizes your saved private notes.",
+      examplePrompts: ["Find what private info I have saved", "Show duplicate or stale notes", "Summarize what helpers could ask to read"],
+      trustReasons: ["Read-only helper", "No real-world actions", "Useful before granting other helpers access"]
     }
   }
 ];
@@ -140,19 +262,23 @@ async function main() {
       where: { slug: slugify(agentData.name) },
       update: {
         name: agentData.name,
-        tagline: String(agentData.capabilityManifest.description ?? ""),
-        description: String(agentData.capabilityManifest.description ?? ""),
+        tagline: agentData.tagline,
+        description: agentData.description,
         category: agentData.category,
         trustScore: agentData.trustScore,
+        installCount: agentData.installCount,
+        averageRating: agentData.averageRating,
         status: "published"
       },
       create: {
         slug: slugify(agentData.name),
         name: agentData.name,
-        tagline: String(agentData.capabilityManifest.description ?? ""),
-        description: String(agentData.capabilityManifest.description ?? ""),
+        tagline: agentData.tagline,
+        description: agentData.description,
         category: agentData.category,
         trustScore: agentData.trustScore,
+        installCount: agentData.installCount,
+        averageRating: agentData.averageRating,
         status: "published"
       }
     });
@@ -173,19 +299,30 @@ async function main() {
       }
     });
 
-    const agent = await prisma.agent.upsert({
-      where: { name: agentData.name },
-      update: {
-        ...agentData,
-        capabilityManifest: encodeJson(agentData.capabilityManifest),
-        apiProtocol: agentData.capabilityManifest.protocol === "OpenAPI" ? "OpenAPI" : "MCP"
-      },
-      create: {
-        ...agentData,
-        capabilityManifest: encodeJson(agentData.capabilityManifest),
-        apiProtocol: agentData.capabilityManifest.protocol === "OpenAPI" ? "OpenAPI" : "MCP"
-      }
+    const existingAgent = await prisma.agent.findFirst({
+      where: { name: agentData.name, connections: { some: { userId: user.id } } }
     });
+    const agent = existingAgent
+      ? await prisma.agent.update({
+        where: { id: existingAgent.id },
+        data: {
+          name: agentData.name,
+          category: agentData.category,
+          trustScore: agentData.trustScore,
+          capabilityManifest: encodeJson(agentData.capabilityManifest),
+          apiProtocol: agentData.capabilityManifest.protocol === "OpenAPI" ? "OpenAPI" : "MCP"
+        }
+      })
+      : await prisma.agent.create({
+        data: {
+          name: agentData.name,
+          category: agentData.category,
+          trustScore: agentData.trustScore,
+          capabilityManifest: encodeJson(agentData.capabilityManifest),
+          apiProtocol: agentData.capabilityManifest.protocol === "OpenAPI" ? "OpenAPI" : "MCP"
+        }
+      }
+      );
     await prisma.userConnection.upsert({
       where: { userId_agentId: { userId: user.id, agentId: agent.id } },
       update: { connectionStatus: agent.name === "The Curator" ? "restricted" : "active" },

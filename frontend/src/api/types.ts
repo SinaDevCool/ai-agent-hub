@@ -24,6 +24,8 @@ export type Agent = {
     requestedSchemas?: string[];
     highRiskActions?: string[];
     description?: string;
+    examplePrompts?: string[];
+    trustReasons?: string[];
   };
   permissions: AgentPermission[];
   connections: Array<{ connectionStatus: string; tokenExpiresAt?: string }>;
@@ -133,4 +135,5 @@ export type AgentRunResult = {
   conversation?: AgentConversation;
   provider?: "openai" | "local";
   model?: string;
+  providerFallbackReason?: string;
 };

@@ -180,7 +180,7 @@ model UserAgentInstall {
 
 model Agent {
   id                 String            @id @default(cuid())
-  name               String            @unique
+  name               String
   category           AgentCategory
   apiProtocol        ApiProtocol        @map("api_protocol")
   trustScore         Int               @default(70) @map("trust_score")
@@ -192,6 +192,7 @@ model Agent {
   hitlRequests       HitlRequest[]
   conversations      AgentConversation[]
 
+  @@index([name])
   @@map("agents")
 }
 
@@ -316,6 +317,7 @@ model HitlRequest {
   status         ActivityStatus @default(pending_human_approval)
   expiresAt      DateTime       @map("expires_at")
   decidedAt      DateTime?      @map("decided_at")
+  continuedAt    DateTime?      @map("continued_at")
   createdAt      DateTime       @default(now()) @map("created_at")
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   agent          Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)

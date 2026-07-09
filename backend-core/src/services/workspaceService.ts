@@ -103,22 +103,29 @@ export async function ensureUserWorkspace(input: { id: string; email: string }) 
 
 async function ensureDefaultAgentConnections(userId: string) {
   for (const agentData of defaultAgents) {
-    const agent = await prisma.agent.upsert({
-      where: { name: agentData.name },
-      update: {
+    const existingAgent = await prisma.agent.findFirst({
+      where: { name: agentData.name, connections: { some: { userId } } }
+    });
+    const agent = existingAgent
+      ? await prisma.agent.update({
+        where: { id: existingAgent.id },
+        data: {
         category: agentData.category,
         trustScore: agentData.trustScore,
         capabilityManifest: encodeJson(agentData.capabilityManifest),
         apiProtocol: agentData.capabilityManifest.protocol === "OpenAPI" ? "OpenAPI" : "MCP"
-      },
-      create: {
+        }
+      })
+      : await prisma.agent.create({
+        data: {
         name: agentData.name,
         category: agentData.category,
         trustScore: agentData.trustScore,
         capabilityManifest: encodeJson(agentData.capabilityManifest),
         apiProtocol: agentData.capabilityManifest.protocol === "OpenAPI" ? "OpenAPI" : "MCP"
+        }
       }
-    });
+      );
 
     await prisma.userConnection.upsert({
       where: { userId_agentId: { userId, agentId: agent.id } },

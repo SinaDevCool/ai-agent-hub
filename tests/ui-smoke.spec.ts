@@ -14,11 +14,11 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
 
   await page.goto("/");
   await expect(page).toHaveTitle("AI Agent Hub");
-  await expect(page.getByRole("heading", { name: "Your AI helpers are protected" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What do you want help with today?" })).toBeVisible();
   await expect(page.getByText("live")).toBeVisible();
   const nav = page.locator(".nav-rail");
 
-  await page.locator(".quick-start-panel").getByRole("button", { name: "Travel planner" }).click();
+  await page.locator(".home-category-grid").getByRole("button", { name: /Travel planner/ }).click();
   const guidedSetup = page.locator(".guided-setup-panel");
   await expect(guidedSetup).toBeVisible();
   await guidedSetup.getByRole("button", { name: "Next" }).click();
@@ -48,22 +48,30 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await addVaultForm.getByRole("button", { name: "Save info" }).click();
   await expect(page.locator("#vault").getByText(vaultTitle, { exact: true })).toBeVisible();
 
-  await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
-  await expect(nav.getByRole("button", { name: "Agent Hub", exact: true })).toHaveClass(/nav-active/);
+  await nav.getByRole("button", { name: "Find Helpers", exact: true }).click();
+  await expect(nav.getByRole("button", { name: "Find Helpers", exact: true })).toHaveClass(/nav-active/);
 
   await expect(page.getByText("My AI Helpers")).toBeVisible();
   await expect(page.getByLabel("Search my helpers")).toBeVisible();
-  await expect(page.getByText("Find an AI Helper")).toBeHidden();
-  await page.getByRole("button", { name: "Add AI Helper" }).click();
-  await expect(page.getByText("Find an AI Helper")).toBeVisible();
+  await expect(page.locator(".marketplace-panel").getByText("Find a Helper")).toBeHidden();
+  await page.getByRole("button", { name: "Find a Helper" }).first().click();
+  await expect(page.locator(".marketplace-panel").getByText("Find a Helper")).toBeVisible();
   await expect(page.getByRole("button", { name: "Back to my helpers" })).toBeVisible();
-  await page.getByLabel("Search marketplace agents").fill("Banker");
-  const bankerCard = page.locator(".marketplace-card").filter({ hasText: "The Banker" }).first();
-  await expect(bankerCard).toBeVisible();
-  await bankerCard.getByRole("button", { name: "Details" }).click();
+  const matcher = page.locator(".helper-match-panel");
+  await matcher.getByLabel("I need help with").selectOption({ label: "Money" });
+  await matcher.locator("fieldset").first().getByLabel("Yes").check();
+  await matcher.locator("fieldset").nth(1).getByLabel("Yes, with approval").check();
+  await matcher.getByRole("button", { name: "Show matches" }).click();
+  await expect(page.getByLabel("Search marketplace agents")).toHaveValue("money");
+  await expect(page.locator(".marketplace-card").first()).toContainText("Best match");
+  await page.getByLabel("Search marketplace agents").fill("Budget");
+  const budgetCard = page.locator(".marketplace-card").filter({ hasText: "Budget Guard" }).first();
+  await expect(budgetCard).toBeVisible();
+  await budgetCard.getByRole("button", { name: "Details" }).click();
   const marketplaceDetail = page.locator(".marketplace-detail");
-  await expect(marketplaceDetail).toContainText("The Banker");
-  const installButton = marketplaceDetail.getByRole("button", { name: /Add to profile|Added to profile/ });
+  await expect(marketplaceDetail).toContainText("Budget Guard");
+  await expect(marketplaceDetail).toContainText(/Best match because|Why this matches/);
+  const installButton = marketplaceDetail.getByRole("button", { name: /Add helper|Added to profile/ });
   if (await installButton.isEnabled()) {
     await installButton.click();
   }
@@ -98,7 +106,7 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await page.getByRole("button", { name: "Search Info" }).click();
   await expect(page.locator(".search-results")).toContainText("Financial Preferences");
 
-  await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
+  await nav.getByRole("button", { name: "Find Helpers", exact: true }).click();
   await expect(page.getByText("Use this helper")).toBeVisible();
   await page.getByPlaceholder("Ask it to find info or try an action that may need approval...").fill("Find my approval threshold");
   await page.getByRole("button", { name: "Send" }).click();
@@ -127,15 +135,15 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await page.getByRole("button", { name: "Delete note" }).click();
   await expect(page.locator("#vault").getByText(`${uploadTitle} Edited`, { exact: true })).toBeHidden();
 
-  await nav.getByRole("button", { name: "Activity", exact: true }).click();
-  await expect(nav.getByRole("button", { name: "Activity", exact: true })).toHaveClass(/nav-active/);
-  await expect(page.locator("#activity").getByText("Recent Activity")).toBeVisible();
+  await nav.getByRole("button", { name: "Receipts", exact: true }).click();
+  await expect(nav.getByRole("button", { name: "Receipts", exact: true })).toHaveClass(/nav-active/);
+  await expect(page.locator("#activity").getByText("Receipts")).toBeVisible();
   await expect(page.locator(".audit-panel")).toContainText("changed personal info");
 
   await nav.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settings")).toContainText("Settings");
 
-  await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
+  await nav.getByRole("button", { name: "Find Helpers", exact: true }).click();
   await page.locator(".agent-profile-tabs").getByRole("tab", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Search personal info" }).click();
   await expect(page.locator(".hitl-panel")).toContainText(/Found|Blocked/);
@@ -147,12 +155,12 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Your AI helpers are protected" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Your AI helpers", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What do you want help with today?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What do you want help with?", exact: true })).toBeVisible();
   await expect(page.locator(".mobile-home")).toBeVisible();
   const nav = page.locator(".nav-rail");
   await expect(page.locator(".mobile-home").getByRole("button", { name: /Start guided setup|Use selected helper|Add first helper/ })).toBeVisible();
-  await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
+  await nav.getByRole("button", { name: "Find Helpers", exact: true }).click();
   await expect(page.locator(".agent-list")).toBeVisible();
   await expect(page.locator("#vault")).toBeHidden();
 
@@ -166,12 +174,12 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await expect(page.locator(".hitl-panel")).toBeVisible();
   await expect(page.locator("#vault")).toBeHidden();
 
-  await nav.getByRole("button", { name: "Activity", exact: true }).click();
+  await nav.getByRole("button", { name: "Receipts", exact: true }).click();
   await expect(page.locator(".audit-panel")).toBeVisible();
   await expect(page.locator("#clearance")).toBeHidden();
 
-  await nav.getByRole("button", { name: "Agent Hub", exact: true }).click();
-  await page.getByRole("button", { name: "Add AI Helper" }).first().click();
-  await expect(page.getByText("Find an AI Helper")).toBeVisible();
+  await nav.getByRole("button", { name: "Find Helpers", exact: true }).click();
+  await page.getByRole("button", { name: "Find a Helper" }).first().click();
+  await expect(page.locator(".marketplace-panel").getByText("Find a Helper")).toBeVisible();
   await expect(page.getByRole("button", { name: "Back to my helpers" })).toBeVisible();
 });

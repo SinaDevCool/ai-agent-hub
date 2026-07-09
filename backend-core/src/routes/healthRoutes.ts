@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { env, resolvedVaultPath } from "../config/env.js";
+import { env } from "../config/env.js";
 
 export const healthRoutes = Router();
 
@@ -9,10 +9,19 @@ healthRoutes.get("/", (_req, res) => {
     service: "backend-core",
     environment: env.NODE_ENV,
     syncMode: env.SYNC_MODE,
-    vaultPath: resolvedVaultPath,
+    database: {
+      configured: Boolean(env.DATABASE_URL)
+    },
+    auth: {
+      configured: Boolean(env.SUPABASE_URL && env.SUPABASE_ANON_KEY)
+    },
     openAi: {
       configured: Boolean(env.OPENAI_API_KEY),
       model: env.OPENAI_MODEL
+    },
+    email: {
+      configured: Boolean(env.RESEND_API_KEY),
+      fromConfigured: Boolean(env.NOTIFICATION_FROM_EMAIL)
     }
   });
 });

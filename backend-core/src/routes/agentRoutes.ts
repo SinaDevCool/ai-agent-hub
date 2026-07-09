@@ -74,13 +74,12 @@ agentRoutes.post("/", async (req, res) => {
   if (!req.userId) return res.status(400).json({ error: { message: "No user context available" } });
   const userId = req.userId;
   const input = createAgentSchema.parse(req.body);
-  const existing = await prisma.agent.findUnique({ where: { name: input.name }, select: { id: true } });
-  if (existing) {
-    const existingConnection = await prisma.userConnection.findUnique({
-      where: { userId_agentId: { userId, agentId: existing.id } },
-      select: { id: true }
-    });
-    if (existingConnection) return res.status(409).json({ error: { message: "An agent with that name already exists" } });
+  const existingUserAgent = await prisma.agent.findFirst({
+    where: { name: input.name, connections: { some: { userId } } },
+    select: { id: true }
+  });
+  if (existingUserAgent) {
+    return res.status(409).json({ error: { message: "A helper with that name already exists in your profile" } });
   }
 
   const schemas = await prisma.vaultSchema.findMany({
@@ -102,9 +101,7 @@ agentRoutes.post("/", async (req, res) => {
   };
 
   const agent = await prisma.$transaction(async (tx) => {
-    const record = existing
-      ? await tx.agent.findUniqueOrThrow({ where: { id: existing.id } })
-      : await tx.agent.create({
+    const record = await tx.agent.create({
       data: {
         name: input.name,
         category: input.category,

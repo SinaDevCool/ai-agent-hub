@@ -16,13 +16,16 @@ import {
   Settings,
   ShieldCheck,
   Trash2,
-  Upload,
-  Zap
+  Upload
 } from "lucide-react";
 import { apiDelete, apiGet, apiPost, apiPut, setApiAccessToken } from "./api/client";
 import { isAuthConfigured, supabase, type AuthSession } from "./api/supabaseClient";
 import type { ActivityLog, Agent, AgentConversation, AgentRunResult, HitlRequest, MarketplaceAgent, UserAgentInstall, VaultDocument, VaultSchema } from "./api/types";
+import { AgentProfilePanel } from "./components/AgentProfilePanel";
+import { MarketplacePanel } from "./components/MarketplacePanel";
 import { StatusPill } from "./components/StatusPill";
+import { friendlyActionName, friendlyCategoryName, friendlyList, friendlyToolName } from "./lib/display";
+import { marketplaceCategoryMatches, marketplaceSearchValues, scoreMarketplaceAgent, type MatcherChoice, type MarketplaceFilters, type MarketplaceNeed } from "./lib/marketplaceMatching";
 
 type RealtimeEvent = { type: string; payload: unknown };
 type SectionId = "home" | "agents" | "vault" | "clearance" | "activity" | "settings";
@@ -55,6 +58,7 @@ type ChatTranscriptItem = {
   actionName?: string;
   provider?: AgentRunResult["provider"];
   model?: string;
+  providerFallbackReason?: AgentRunResult["providerFallbackReason"];
   runtimeState?: AgentRunResult["runtimeState"];
   nextStep?: string;
   usedSchemas?: string[];
@@ -73,11 +77,6 @@ type AgentTemplate = {
   highRiskActions: string[];
   summary: string;
 };
-type MarketplaceFilters = {
-  usesPrivateInfo: boolean;
-  canTakeActions: boolean;
-  needsApproval: boolean;
-};
 type HelperStatusFilter = "all" | "ready" | "needs_access" | "needs_approval";
 type AgentReadiness = ReturnType<typeof agentReadiness>;
 type HelperPrompt = {
@@ -89,21 +88,21 @@ type HelperPrompt = {
 
 const navItems: Array<{ id: SectionId; label: string; icon: typeof Bot }> = [
   { id: "home", label: "Home", icon: ShieldCheck },
-  { id: "agents", label: "Agent Hub", icon: Bot },
+  { id: "agents", label: "Find Helpers", icon: Bot },
   { id: "vault", label: "Private Info", icon: Database },
   { id: "clearance", label: "Permissions", icon: KeyRound },
-  { id: "activity", label: "Activity", icon: Activity },
+  { id: "activity", label: "Receipts", icon: Activity },
   { id: "settings", label: "Settings", icon: Settings }
 ];
 
 const sectionHeadings: Record<SectionId, { title: string; description: string }> = {
   home: {
-    title: "Your AI helpers are protected",
-    description: "Add helpers, share only the info they need, and approve sensitive actions before they happen."
+    title: "What do you want help with today?",
+    description: "Find a helper, ask for help, and stay in control of what it can read or do."
   },
   agents: {
-    title: "Agent Hub",
-    description: "Use your AI helpers, add new ones, and control what each helper can access."
+    title: "Find Helpers",
+    description: "Choose helpers for travel, money, daily tasks, work, and more."
   },
   vault: {
     title: "Private Info",
@@ -114,8 +113,8 @@ const sectionHeadings: Record<SectionId, { title: string; description: string }>
     description: "Choose exactly which private info each helper can access."
   },
   activity: {
-    title: "Activity",
-    description: "See what was allowed, blocked, or paused for your approval."
+    title: "Receipts",
+    description: "See what helpers read, what they asked for, and what was blocked."
   },
   settings: {
     title: "Settings",
@@ -124,13 +123,14 @@ const sectionHeadings: Record<SectionId, { title: string; description: string }>
 };
 
 const categoryOptions = ["Financial", "Executive", "Wellness", "Domestic", "Legal", "Travel", "Maintenance", "Custom"];
-const marketplaceCategoryOptions = ["All", "Money", "Travel", "Home", "Productivity", "Health"];
-const marketplaceNeedOptions = [
-  { id: "Money", title: "Money", detail: "Budget, cards, payments" },
-  { id: "Travel", title: "Travel", detail: "Trips, bookings, loyalty" },
-  { id: "Productivity", title: "Productivity", detail: "Email, reminders, planning" },
-  { id: "Home", title: "Home", detail: "Shopping, errands, household" },
-  { id: "Health", title: "Health", detail: "Private health notes" }
+const marketplaceCategoryOptions = ["All", "Travel", "Money", "Daily Tasks", "Shopping", "Health", "Work"];
+const marketplaceNeedOptions: MarketplaceNeed[] = [
+  { id: "travel", title: "Travel", detail: "Trips, bookings, loyalty", category: "Travel", query: "travel" },
+  { id: "money", title: "Money", detail: "Budget, cards, payments", category: "Money", query: "money" },
+  { id: "daily", title: "Daily Tasks", detail: "Reminders, planning, errands", category: "Daily Tasks", query: "task" },
+  { id: "shopping", title: "Shopping", detail: "Compare options, subscriptions", category: "Shopping", query: "shopping" },
+  { id: "health", title: "Health", detail: "Private health notes", category: "Health", query: "health" },
+  { id: "work", title: "Work", detail: "Email, follow-ups, scheduling", category: "Work", query: "email" }
 ];
 const toolOptions = ["vault.search", "action.execute", "calendar.read", "email.draft", "web.fetch"];
 const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:4141/ws`;
@@ -242,35 +242,10 @@ function parseHighRiskActions(value: string) {
     .filter(Boolean);
 }
 
-function friendlyToolName(tool: string) {
-  const labels: Record<string, string> = {
-    "vault.search": "Read personal info",
-    "action.execute": "Take actions",
-    "calendar.read": "Read calendar",
-    "email.draft": "Draft email",
-    "web.fetch": "Browse the web"
-  };
-  return labels[tool] ?? tool;
-}
-
-function friendlyCategoryName(category: string) {
-  const labels: Record<string, string> = {
-    Executive: "Productivity",
-    Domestic: "Home",
-    Financial: "Money",
-    Wellness: "Health"
-  };
-  return labels[category] ?? category;
-}
-
 function friendlyTrustLabel(score: number) {
   if (score >= 90) return "Very trusted";
   if (score >= 80) return "Trusted";
-  return "Standard";
-}
-
-function friendlyActionName(action: string) {
-  return action.replace(/_/g, " ");
+  return "Safety reviewed";
 }
 
 function approvalReason(action: string) {
@@ -303,13 +278,6 @@ function agentCannotDo(agent: Agent | undefined) {
 
 function isTestHelper(agent: Pick<Agent, "name" | "capabilityManifest">) {
   return testHelperPattern.test(agent.name) || testHelperPattern.test(agent.capabilityManifest.description ?? "");
-}
-
-function friendlyList(items: Array<string | undefined>, fallback: string) {
-  const cleanItems = items.filter(Boolean) as string[];
-  if (cleanItems.length === 0) return fallback;
-  if (cleanItems.length <= 2) return cleanItems.join(", ");
-  return `${cleanItems.slice(0, 2).join(", ")} +${cleanItems.length - 2} more`;
 }
 
 function agentReadiness(agent: Agent | undefined, missingCount: number, pendingApprovalCount: number) {
@@ -403,6 +371,8 @@ function promptRiskPreview(prompt: string, agent: Agent | undefined, missingPerm
 }
 
 function marketplaceExamplePrompts(agent: MarketplaceAgent | undefined) {
+  const manifest = agent?.versions[0]?.capabilityManifest ?? {};
+  if (manifest.examplePrompts?.length) return manifest.examplePrompts.slice(0, 3);
   const category = agent?.category.toLowerCase() ?? "";
   if (category.includes("travel")) return ["Plan a weekend trip", "Check my travel preferences", "Ask before booking anything"];
   if (category.includes("financial")) return ["Find my budget rules", "Compare card preferences", "Ask before moving money"];
@@ -413,6 +383,7 @@ function marketplaceExamplePrompts(agent: MarketplaceAgent | undefined) {
 
 function marketplaceTrustReasons(agent: MarketplaceAgent | undefined) {
   const manifest = agent?.versions[0]?.capabilityManifest ?? {};
+  if (manifest.trustReasons?.length) return manifest.trustReasons.slice(0, 4);
   const reasons = [
     agent?.creator?.verified ? "Verified creator profile" : "Community listing with a visible safety profile",
     "Cannot read private info until you allow it",
@@ -453,7 +424,23 @@ function runtimeSummary(result: AgentRunResult | null) {
   if (result.runtimeState === "needs_approval") return "This action is waiting for your approval.";
   if (result.status === "blocked") return result.reason ?? "This request was blocked by your safety rules.";
   if (result.provider === "openai") return `Answered with OpenAI${result.model ? ` (${result.model})` : ""}.`;
-  return "Answered with the local safe runtime.";
+  if (result.provider === "local") return `Answered with the built-in safe answer service. ${friendlyFallbackReason(result.providerFallbackReason)}`;
+  return "Answered with the built-in safe answer service.";
+}
+
+function friendlyFallbackReason(reason?: string) {
+  const labels: Record<string, string> = {
+    auth_failed: "The OpenAI key could not be authenticated.",
+    config_missing: "OpenAI is not configured yet.",
+    model_not_found: "The selected OpenAI model was not found.",
+    openai_request_failed: "The OpenAI request failed.",
+    openai_server_error: "OpenAI had a temporary server issue.",
+    project_or_model_access: "This OpenAI project does not have access to the selected model.",
+    quota_or_rate_limit: "OpenAI quota or rate limits need attention."
+  };
+  if (!reason) return "OpenAI was unavailable.";
+  if (reason.startsWith("openai_http_")) return "OpenAI returned an error.";
+  return labels[reason] ?? "OpenAI was unavailable.";
 }
 
 function stringArrayFromMetadata(value: unknown) {
@@ -480,6 +467,7 @@ function chatItemFromMessage(message: AgentConversation["messages"][number]): Ch
     actionName: typeof message.metadata.actionName === "string" ? message.metadata.actionName : undefined,
     provider: message.metadata.provider === "openai" || message.metadata.provider === "local" ? message.metadata.provider : undefined,
     model: typeof message.metadata.model === "string" ? message.metadata.model : undefined,
+    providerFallbackReason: typeof message.metadata.providerFallbackReason === "string" ? message.metadata.providerFallbackReason : undefined,
     runtimeState: ["ready", "needs_permission", "needs_approval", "blocked", "failed"].includes(String(message.metadata.runtimeState))
       ? message.metadata.runtimeState as AgentRunResult["runtimeState"]
       : undefined,
@@ -590,6 +578,9 @@ export function App() {
   const [installedAgents, setInstalledAgents] = useState<UserAgentInstall[]>([]);
   const [marketplaceSearch, setMarketplaceSearch] = useState("");
   const [marketplaceCategory, setMarketplaceCategory] = useState("All");
+  const [matcherNeedId, setMatcherNeedId] = useState("travel");
+  const [matcherPrivateInfo, setMatcherPrivateInfo] = useState<MatcherChoice>("unsure");
+  const [matcherActions, setMatcherActions] = useState<MatcherChoice>("unsure");
   const [marketplaceFilters, setMarketplaceFilters] = useState<MarketplaceFilters>({
     usesPrivateInfo: false,
     canTakeActions: false,
@@ -763,8 +754,8 @@ export function App() {
     const search = marketplaceSearch.trim().toLowerCase();
     return marketplaceAgents.filter((agent) => {
       const manifest = agent.versions[0]?.capabilityManifest ?? {};
-      const matchesCategory = marketplaceCategory === "All" || friendlyCategoryName(agent.category) === marketplaceCategory;
-      const matchesSearch = !search || [agent.name, agent.tagline, agent.description, agent.category, friendlyCategoryName(agent.category)]
+      const matchesCategory = marketplaceCategoryMatches(agent.category, marketplaceCategory);
+      const matchesSearch = !search || marketplaceSearchValues(agent)
         .some((value) => value.toLowerCase().includes(search));
       const matchesPrivateInfo = !marketplaceFilters.usesPrivateInfo || Boolean(manifest.requestedSchemas?.length);
       const matchesActions = !marketplaceFilters.canTakeActions || Boolean(manifest.tools?.includes("action.execute"));
@@ -773,13 +764,33 @@ export function App() {
     });
   }, [marketplaceAgents, marketplaceCategory, marketplaceFilters, marketplaceSearch]);
 
-  const prioritizedMarketplaceAgents = useMemo(
-    () => [...visibleMarketplaceAgents].sort((left, right) => {
-      const leftInstalled = Number(Boolean(left.installed || installedDefinitionIds.has(left.id)));
-      const rightInstalled = Number(Boolean(right.installed || installedDefinitionIds.has(right.id)));
-      return leftInstalled - rightInstalled;
+  const prioritizedMarketplaceMatches = useMemo(
+    () => visibleMarketplaceAgents.map((agent) => scoreMarketplaceAgent({
+      agent,
+      category: marketplaceCategory,
+      search: marketplaceSearch.trim().toLowerCase(),
+      filters: marketplaceFilters,
+      privateInfo: matcherPrivateInfo,
+      actions: matcherActions,
+      installed: Boolean(agent.installed || installedDefinitionIds.has(agent.id))
+    })).sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      const leftInstalled = Number(Boolean(left.agent.installed || installedDefinitionIds.has(left.agent.id)));
+      const rightInstalled = Number(Boolean(right.agent.installed || installedDefinitionIds.has(right.agent.id)));
+      if (leftInstalled !== rightInstalled) return leftInstalled - rightInstalled;
+      return left.agent.name.localeCompare(right.agent.name);
     }),
-    [installedDefinitionIds, visibleMarketplaceAgents]
+    [installedDefinitionIds, marketplaceCategory, marketplaceFilters, marketplaceSearch, matcherActions, matcherPrivateInfo, visibleMarketplaceAgents]
+  );
+
+  const prioritizedMarketplaceAgents = useMemo(
+    () => prioritizedMarketplaceMatches.map((match) => match.agent),
+    [prioritizedMarketplaceMatches]
+  );
+
+  const marketplaceMatchById = useMemo(
+    () => new Map(prioritizedMarketplaceMatches.map((match) => [match.agent.id, match])),
+    [prioritizedMarketplaceMatches]
   );
 
   const selectedMarketplaceAgent = useMemo(
@@ -962,7 +973,7 @@ export function App() {
         ? "Review access"
         : selectedAgent
           ? "Use selected helper"
-          : "Open Agent Hub";
+          : "Find Helpers";
 
   async function togglePermission(schema: VaultSchema, enabled: boolean) {
     if (!selectedAgent) return;
@@ -1092,6 +1103,7 @@ export function App() {
           actionName: result.actionName,
           provider: result.provider,
           model: result.model,
+          providerFallbackReason: result.providerFallbackReason,
           runtimeState: result.runtimeState,
           nextStep: result.nextStep,
           usedSchemas: result.usedSchemas,
@@ -1304,6 +1316,18 @@ export function App() {
     if (!confirmInstallAgent) return;
     const installed = await installMarketplaceAgent(confirmInstallAgent);
     if (installed) setConfirmInstallAgent(null);
+  }
+
+  function applyMarketplaceMatcher() {
+    const need = marketplaceNeedOptions.find((item) => item.id === matcherNeedId) ?? marketplaceNeedOptions[0];
+    setMarketplaceCategory(need.category);
+    setMarketplaceSearch(need.query);
+    setMarketplaceFilters({
+      usesPrivateInfo: matcherPrivateInfo === "yes",
+      canTakeActions: matcherActions === "yes",
+      needsApproval: matcherActions === "yes"
+    });
+    setSelectedMarketplaceAgentId("");
   }
 
   function removeAgentFromProfile(agent: Agent) {
@@ -1546,12 +1570,12 @@ export function App() {
       <main className="auth-shell">
         <section className="auth-panel">
           <div className="brand-mark"><ShieldCheck size={22} /> AI Agent Hub</div>
-          <h1>Manage your AI helpers</h1>
-          <p>Add agents, control what they can see, and approve sensitive actions before they happen.</p>
+          <h1>Find your AI helpers</h1>
+          <p>Add a travel helper, money helper, or daily-task helper. You decide what each one can see.</p>
           <div className="auth-trust-list" aria-label="Privacy promises">
             <span><ShieldCheck size={15} /> Private by default</span>
             <span><KeyRound size={15} /> You approve access</span>
-            <span><Activity size={15} /> Activity stays visible</span>
+            <span><Activity size={15} /> Receipts stay visible</span>
           </div>
           <form className="auth-form" onSubmit={(event) => void sendMagicLink(event)}>
             <label>
@@ -1584,6 +1608,7 @@ export function App() {
         <nav>
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
+              aria-current={activeSection === id ? "page" : undefined}
               className={activeSection === id ? "nav-active" : ""}
               key={id}
               onClick={() => scrollToSection(id)}
@@ -1607,37 +1632,17 @@ export function App() {
               <span className="connection-text">{connectionState === "live" ? "live" : "syncing"}</span>
             </span>
             {session ? <span className="user-chip">{session.user.email}</span> : null}
-            <button className="topbar-primary" onClick={openMarketplace} type="button"><Bot size={16} /> Add AI Helper</button>
+            <button className="topbar-primary" onClick={openMarketplace} type="button"><Bot size={16} /> Find a Helper</button>
             <button className="topbar-secondary" onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Private Info</button>
             {session ? <button className="topbar-secondary" onClick={() => void signOut()} type="button"><LogOut size={16} /> Sign out</button> : null}
           </div>
         </header>
 
-        <section className={`panel quick-start-panel desktop-section ${sectionClass("home")}`}>
-          <div>
-            <div className="panel-title">Quick Start</div>
-            <h2>Set up a useful AI helper in under a minute</h2>
-            <p>Pick what you want help with, add one private note, and choose what the helper can request.</p>
-          </div>
-          <div className="quick-start-actions">
-            {guidedTemplates.slice(0, 4).map((template) => (
-              <button key={template.id} onClick={() => openGuidedSetup(template.id)} type="button">
-                <Bot size={16} /> {template.title}
-              </button>
-            ))}
-          </div>
-        </section>
-
         <section className={`mobile-home ${activeSection === "home" ? "is-mobile-home-active" : ""}`} aria-label="Mobile overview">
           <div className="mobile-home-card">
-            <span className="mobile-label">Protected by default</span>
-            <h2>Your AI helpers</h2>
-            <p>Add agents, share only the info they need, and approve important actions before they happen.</p>
-            <div className="mobile-stat-grid">
-              <div><strong>{agents.length}</strong><span>Helpers</span></div>
-              <div><strong>{documents.length}</strong><span>Info notes</span></div>
-              <div><strong>{hitl.length}</strong><span>Approvals</span></div>
-            </div>
+            <span className="mobile-label">Your helper hub</span>
+            <h2>What do you want help with?</h2>
+            <p>Pick a helper, ask a question, and approve anything important before it continues.</p>
             <div className="setup-roadmap compact" aria-label="Setup progress">
               {setupSteps.map((step, index) => (
                 <div className={step.done ? "setup-step done" : "setup-step"} key={step.label}>
@@ -1650,7 +1655,7 @@ export function App() {
               ))}
             </div>
             <div className="mobile-quick-actions">
-              <button onClick={runPrimarySetupAction} type="button"><Bot size={16} /> {primarySetupLabel}</button>
+              <button className="primary-action" onClick={runPrimarySetupAction} type="button"><Bot size={16} /> {primarySetupLabel}</button>
               <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Private Info</button>
             </div>
           </div>
@@ -1665,13 +1670,17 @@ export function App() {
 
         <section className={`home-dashboard desktop-section ${sectionClass("home")}`} id="home">
           <div className="panel home-card home-primary-card">
-            <div className="panel-title">Your Safety Snapshot</div>
-            <h2>Everything starts private until you say yes.</h2>
-            <p>Add a helper, save a useful private note, then approve exactly what that helper can read.</p>
-            <div className="home-stat-grid">
-              <div><strong>{agents.length}</strong><span>AI helpers</span></div>
-              <div><strong>{documents.length}</strong><span>private notes</span></div>
-              <div><strong>{hitl.length}</strong><span>waiting approvals</span></div>
+            <div className="panel-title">Start Here</div>
+            <h2>Find a helper for the thing you need done.</h2>
+            <p>Choose a helper for travel, money, daily tasks, work, or shopping. Helpers start private, and you approve what they can read or do.</p>
+            <div className="home-category-grid" aria-label="Common helper categories">
+              {guidedTemplates.slice(0, 5).map((template) => (
+                <button key={template.id} onClick={() => openGuidedSetup(template.id)} type="button">
+                  <Bot size={16} />
+                  <span>{template.title}</span>
+                  <small>{template.summary}</small>
+                </button>
+              ))}
             </div>
             <div className="setup-progress-line">
               <span>{setupProgress} of {setupSteps.length} steps complete</span>
@@ -1689,13 +1698,13 @@ export function App() {
               ))}
             </div>
             <div className="button-row">
-              <button onClick={runPrimarySetupAction} type="button"><Bot size={16} /> {primarySetupLabel}</button>
+              <button className="primary-action" onClick={runPrimarySetupAction} type="button"><Bot size={16} /> {primarySetupLabel}</button>
               <button onClick={() => scrollToSection("clearance")} type="button"><KeyRound size={16} /> Review permissions</button>
             </div>
           </div>
 
           <div className="panel home-card">
-            <div className="panel-title">Recent Helpers</div>
+            <div className="panel-title">My Helpers</div>
             {visibleAgents.slice(0, 3).map((agent) => (
               <button
                 className="home-list-button"
@@ -1726,7 +1735,7 @@ export function App() {
           </div>
 
           <div className="panel home-card home-wide-card">
-            <div className="panel-title">Recent Activity</div>
+            <div className="panel-title">Recent Receipts</div>
             {homeActivity.length ? homeActivity.map((log) => (
               <div className="log-row compact-log-row" key={`home-log-${log.id}`}>
                 <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>
@@ -1734,7 +1743,7 @@ export function App() {
                 </StatusPill>
                 <span>{friendlyLogText(log)}</span>
               </div>
-            )) : <p className="empty">Your activity trail will appear here.</p>}
+            )) : <p className="empty">Receipts appear when helpers read info, ask approval, or get blocked.</p>}
           </div>
         </section>
 
@@ -2004,225 +2013,72 @@ export function App() {
         ) : null}
 
         <section className={`grid workspace-grid section-${activeSection} ${agents.length ? "has-helpers" : "has-no-helpers"} ${showMobileMarketplace ? "show-mobile-marketplace" : ""}`}>
-          <div className={`panel marketplace-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}>
-            <div className="panel-heading-row">
-              <div>
-                <div className="panel-title">Find an AI Helper</div>
-                <p className="mobile-section-intro">Choose what you need help with. Helpers start restricted, and you decide what private info they can read.</p>
-              </div>
-              <div className="marketplace-heading-actions">
-                <StatusPill tone="blue">{installedAgents.length} installed</StatusPill>
-                <button className="marketplace-mobile-exit" onClick={() => setShowMobileMarketplace(false)} type="button">Back to my helpers</button>
-              </div>
-            </div>
-            <div className="marketplace-need-row" aria-label="Common helper needs">
-              {marketplaceNeedOptions.map((need) => (
-                <button
-                  className={marketplaceCategory === need.id ? "selected" : ""}
-                  key={need.id}
-                  onClick={() => {
-                    setMarketplaceCategory(need.id);
-                    setMarketplaceSearch("");
-                  }}
-                  type="button"
-                >
-                  <strong>{need.title}</strong>
-                  <span>{need.detail}</span>
-                </button>
-              ))}
-            </div>
-            <div className="marketplace-controls">
-              <label>
-                <span>What do you need help with?</span>
-                <div className="search-input-wrap">
-                  <Search size={16} />
-                  <input
-                    aria-label="Search marketplace agents"
-                    onChange={(event) => setMarketplaceSearch(event.currentTarget.value)}
-                    placeholder="Try travel, money, email..."
-                    value={marketplaceSearch}
-                  />
-                </div>
-              </label>
-              <label>
-                <span>Browse by need</span>
-                <select
-                  aria-label="Filter marketplace category"
-                  onChange={(event) => setMarketplaceCategory(event.currentTarget.value)}
-                  value={marketplaceCategory}
-                >
-                  {marketplaceCategoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
-                </select>
-              </label>
-            </div>
-            <div className="marketplace-filter-row" aria-label="Marketplace filters">
-              {marketplaceFilterLabels.map((filter) => (
-                <label key={filter.id}>
-                  <input
-                    checked={marketplaceFilters[filter.id]}
-                    onChange={(event) => {
-                      const isChecked = event.currentTarget.checked;
-                      setMarketplaceFilters((current) => ({ ...current, [filter.id]: isChecked }));
-                    }}
-                    type="checkbox"
-                  />
-                  <span>{filter.label}</span>
-                </label>
-              ))}
-            </div>
-            {refreshError ? (
-              <div className="friendly-error" role="status" aria-live="polite">
-                <p>{refreshError}</p>
-                <button onClick={() => void refresh()} type="button">Retry</button>
-              </div>
-            ) : null}
-            {marketplaceError ? (
-              <div className="friendly-error" role="status" aria-live="polite">
-                <p>{friendlyAppError(marketplaceError)}</p>
-                <button onClick={() => {
-                  setMarketplaceError("");
-                  void refresh();
-                }} type="button">Retry</button>
-              </div>
-            ) : null}
-            {isRefreshing && marketplaceAgents.length === 0 ? <p className="empty">Loading marketplace agents…</p> : null}
-            {!isRefreshing && visibleMarketplaceAgents.length === 0 ? (
-              <div className="friendly-empty-state">
-                <strong>No matching helpers found</strong>
-                <p>Try “Travel”, “Money”, or clear the filters to see more helpers.</p>
-                <button onClick={() => {
-                  setMarketplaceSearch("");
-                  setMarketplaceCategory("All");
-                  setMarketplaceFilters({ usesPrivateInfo: false, canTakeActions: false, needsApproval: false });
-                }} type="button">Clear filters</button>
-              </div>
-            ) : null}
-            {!isRefreshing && prioritizedMarketplaceAgents.length > 0 && !hasInstallableMarketplaceAgent ? (
-              <div className="marketplace-all-added">
-                <strong>You already added these helpers</strong>
-                <span>Try another need, search for a different helper, or create a custom one.</span>
-                <button onClick={openAgentWizard} type="button"><Pencil size={16} /> Create custom helper</button>
-              </div>
-            ) : null}
-            <div className="marketplace-layout">
-              <div className="marketplace-grid">
-              {prioritizedMarketplaceAgents.slice(0, 6).map((agent) => {
-                const manifest = agent.versions[0]?.capabilityManifest ?? {};
-                const alreadyInstalled = Boolean(agent.installed || installedDefinitionIds.has(agent.id));
-                return (
-                  <article className={agent.id === selectedMarketplaceAgent?.id ? "marketplace-card selected" : "marketplace-card"} key={agent.id}>
-                    <div className="marketplace-card-top">
-                      <div>
-                        <strong>{agent.name}</strong>
-                        <small>{friendlyCategoryName(agent.category)} helper</small>
-                      </div>
-                      <StatusPill tone={alreadyInstalled ? "green" : "blue"}>
-                        {alreadyInstalled ? "installed" : "available"}
-                      </StatusPill>
-                    </div>
-                    <p>{agent.tagline || agent.description}</p>
-                    <div className="marketplace-safety-badges" aria-label={`${agent.name} safety summary`}>
-                      <span>{agent.creator?.verified ? "Verified helper" : "Community helper"}</span>
-                      <span>{manifest.requestedSchemas?.length ? "Uses private info" : "No info needed"}</span>
-                      <span>{manifest.highRiskActions?.length ? "Asks you first" : "No risky actions"}</span>
-                    </div>
-                    <div className="marketplace-meta">
-                      <span><strong>Helps with</strong>{agent.tagline || agent.description}</span>
-                      <span><strong>May ask to read</strong>{friendlyList(manifest.requestedSchemas ?? [], "No private info")}</span>
-                      <span><strong>Asks before</strong>{friendlyList(manifest.highRiskActions?.map(friendlyActionName) ?? [], "No risky actions listed")}</span>
-                    </div>
-                    <div className="marketplace-card-actions">
-                      <small>{agent.installCount} installs / {agent.averageRating.toFixed(1)} rating</small>
-                      <button onClick={() => openMarketplaceDetails(agent)} type="button">Details</button>
-                      <button
-                        disabled={alreadyInstalled || installingAgentId === agent.id}
-                        onClick={() => setConfirmInstallAgent(agent)}
-                        type="button"
-                      >
-                        <Download size={16} /> {alreadyInstalled ? "Added" : installingAgentId === agent.id ? "Adding..." : "Add to profile"}
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-              </div>
-              {selectedMarketplaceAgent ? (
-                <aside className="marketplace-detail">
-                  {(() => {
-                    const manifest = selectedMarketplaceAgent.versions[0]?.capabilityManifest ?? {};
-                    const install = installedByDefinitionId.get(selectedMarketplaceAgent.id);
-                    const installedAgent = install?.agent ?? undefined;
-                    const alreadyInstalled = Boolean(selectedMarketplaceAgent.installed || install);
-                    const installedPermissions = permissionProgress(installedAgent, schemas);
-                    const pendingApprovals = installedAgent ? hitl.filter((request) => request.agent.id === installedAgent.id).length : 0;
-                    return (
-                      <>
-                        <div className="marketplace-card-top">
-                          <div>
-                            <strong>{selectedMarketplaceAgent.name}</strong>
-                            <small>{friendlyCategoryName(selectedMarketplaceAgent.category)} helper</small>
-                          </div>
-                          <StatusPill tone={alreadyInstalled ? "green" : "blue"}>{alreadyInstalled ? "installed" : "available"}</StatusPill>
-                        </div>
-                        <p>{selectedMarketplaceAgent.description}</p>
-                        <div className="trust-row">
-                          <span>{selectedMarketplaceAgent.creator?.verified ? "Verified creator" : "Community listing"}</span>
-                          <span>{selectedMarketplaceAgent.installCount} installs</span>
-                          <span>{selectedMarketplaceAgent.averageRating.toFixed(1)} rating</span>
-                        </div>
-                        <div className="trust-reason-list">
-                          <strong>Why you can trust this</strong>
-                          {marketplaceTrustReasons(selectedMarketplaceAgent).map((reason) => <span key={reason}>{reason}</span>)}
-                        </div>
-                        {alreadyInstalled ? (
-                          <div className="installed-marketplace-summary">
-                            <strong>Added to your profile</strong>
-                            <span>{installedPermissions.allowed} of {installedPermissions.requested} info categories allowed</span>
-                            <span>{pendingApprovals ? `${pendingApprovals} approval waiting` : "No approvals waiting"}</span>
-                            <div>
-                              {installedAgent ? (
-                                <button onClick={() => {
-                                  setSelectedAgentId(installedAgent.id);
-                                  setAgentProfileTab("chat");
-                                  setShowMobileMarketplace(false);
-                                  scrollToSection("agents");
-                                }} type="button"><MessageSquare size={15} /> Open helper</button>
-                              ) : null}
-                              {installedAgent ? (
-                                <button onClick={() => {
-                                  setSelectedAgentId(installedAgent.id);
-                                  setShowMobileMarketplace(false);
-                                  scrollToSection("clearance");
-                                }} type="button"><KeyRound size={15} /> Edit access</button>
-                              ) : null}
-                            </div>
-                          </div>
-                        ) : null}
-                        <div className="manifest-grid marketplace-detail-grid">
-                          <div><strong>Helps with</strong><span>{friendlyList(manifest.tools?.map(friendlyToolName) ?? [], "Simple tasks")}</span></div>
-                          <div><strong>May ask to read</strong><span>{friendlyList(manifest.requestedSchemas ?? [], "No private info")}</span></div>
-                          <div><strong>Asks before</strong><span>{friendlyList(manifest.highRiskActions?.map(friendlyActionName) ?? [], "Nothing risky listed")}</span></div>
-                        </div>
-                        <div className="example-prompt-list">
-                          <strong>Try after installing</strong>
-                          {marketplaceExamplePrompts(selectedMarketplaceAgent).map((prompt) => <span key={prompt}>{prompt}</span>)}
-                        </div>
-                        <button
-                          disabled={alreadyInstalled || installingAgentId === selectedMarketplaceAgent.id}
-                          onClick={() => setConfirmInstallAgent(selectedMarketplaceAgent)}
-                          type="button"
-                        >
-                          <Download size={16} /> {alreadyInstalled ? "Added to profile" : installingAgentId === selectedMarketplaceAgent.id ? "Adding..." : "Add to profile"}
-                        </button>
-                        <p className="marketplace-confidence">You can review and revoke access after adding this helper.</p>
-                      </>
-                    );
-                  })()}
-                </aside>
-              ) : null}
-            </div>
-          </div>
-
+          <MarketplacePanel
+            className={`panel marketplace-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}
+            formatError={friendlyAppError}
+            getPermissionProgress={permissionProgress}
+            hasInstallableMarketplaceAgent={hasInstallableMarketplaceAgent}
+            hitl={hitl}
+            installedByDefinitionId={installedByDefinitionId}
+            installedCount={installedAgents.length}
+            installedDefinitionIds={installedDefinitionIds}
+            installingAgentId={installingAgentId}
+            isRefreshing={isRefreshing}
+            marketplaceAgentCount={marketplaceAgents.length}
+            marketplaceCategory={marketplaceCategory}
+            marketplaceCategoryOptions={marketplaceCategoryOptions}
+            marketplaceError={marketplaceError}
+            marketplaceExamplePrompts={marketplaceExamplePrompts}
+            marketplaceFilterLabels={marketplaceFilterLabels}
+            marketplaceFilters={marketplaceFilters}
+            marketplaceMatchById={marketplaceMatchById}
+            marketplaceNeedOptions={marketplaceNeedOptions}
+            marketplaceSearch={marketplaceSearch}
+            marketplaceTrustReasons={marketplaceTrustReasons}
+            matcherActions={matcherActions}
+            matcherNeedId={matcherNeedId}
+            matcherPrivateInfo={matcherPrivateInfo}
+            onApplyMatcher={applyMarketplaceMatcher}
+            onBackToHelpers={() => setShowMobileMarketplace(false)}
+            onClearFilters={() => {
+              setMarketplaceSearch("");
+              setMarketplaceCategory("All");
+              setMatcherPrivateInfo("unsure");
+              setMatcherActions("unsure");
+              setMarketplaceFilters({ usesPrivateInfo: false, canTakeActions: false, needsApproval: false });
+            }}
+            onConfirmInstall={setConfirmInstallAgent}
+            onCreateCustomHelper={openAgentWizard}
+            onEditInstalledAgentAccess={(agentId) => {
+              setSelectedAgentId(agentId);
+              setShowMobileMarketplace(false);
+              scrollToSection("clearance");
+            }}
+            onMarketplaceRetry={() => {
+              setMarketplaceError("");
+              void refresh();
+            }}
+            onOpenDetails={openMarketplaceDetails}
+            onOpenInstalledAgent={(agentId) => {
+              setSelectedAgentId(agentId);
+              setAgentProfileTab("chat");
+              setShowMobileMarketplace(false);
+              scrollToSection("agents");
+            }}
+            onRefresh={() => void refresh()}
+            prioritizedMarketplaceAgents={prioritizedMarketplaceAgents}
+            prioritizedMarketplaceMatches={prioritizedMarketplaceMatches}
+            refreshError={refreshError}
+            schemas={schemas}
+            selectedMarketplaceAgent={selectedMarketplaceAgent}
+            setMarketplaceCategory={setMarketplaceCategory}
+            setMarketplaceFilters={setMarketplaceFilters}
+            setMarketplaceSearch={setMarketplaceSearch}
+            setMatcherActions={setMatcherActions}
+            setMatcherNeedId={setMatcherNeedId}
+            setMatcherPrivateInfo={setMatcherPrivateInfo}
+            visibleMarketplaceCount={visibleMarketplaceAgents.length}
+          />
           <div className={`panel agent-list mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`} id="agents">
             <div className="panel-heading-row">
               <div>
@@ -2269,7 +2125,7 @@ export function App() {
               ) : null}
             </div>
             <div className="mobile-panel-actions">
-              <button onClick={openMarketplace} type="button"><Bot size={16} /> Add AI Helper</button>
+              <button className="primary-action" onClick={openMarketplace} type="button"><Bot size={16} /> Find a Helper</button>
               <button onClick={openAgentWizard} type="button"><Pencil size={16} /> Create custom</button>
             </div>
             <div className="mobile-helper-list" aria-label="My AI helpers for mobile">
@@ -2375,324 +2231,59 @@ export function App() {
           </div>
 
           {selectedAgent ? (
-          <div className={`panel detail-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}>
-              <div className="agent-use-shell">
-                <div className="agent-use-header">
-                  <div>
-                    <div className="panel-title">Use This Helper</div>
-                    <h2>{selectedAgent.name}</h2>
-                    <p>{selectedAgent.capabilityManifest.description}</p>
-                  </div>
-                  <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
-                </div>
-                <div className="agent-simple-summary" aria-label={`${selectedAgent.name} safety summary`}>
-                  <div>
-                    <strong>Can help with</strong>
-                    <span>{selectedHelperToolsLabel}</span>
-                  </div>
-                  <div>
-                    <strong>Can read</strong>
-                    <span>{selectedReadableInfoLabel}</span>
-                  </div>
-                  <div>
-                    <strong>Must ask before</strong>
-                    <span>{selectedRiskyActionsLabel}</span>
-                  </div>
-                  <div>
-                    <strong>Blocked until you allow</strong>
-                    <span>{selectedCannotDoLabel}</span>
-                  </div>
-                </div>
-
-                <div className="agent-profile-tabs" role="tablist" aria-label={`${selectedAgent.name} workspace`}>
-                  {([
-                    ["chat", "Chat"],
-                    ["permissions", "Permissions"],
-                    ["activity", "Activity"],
-                    ["settings", "Settings"]
-                  ] as Array<[AgentProfileTab, string]>).map(([tab, label]) => (
-                    <button
-                      aria-selected={agentProfileTab === tab}
-                      className={agentProfileTab === tab ? "active" : ""}
-                      key={tab}
-                      onClick={() => setAgentProfileTab(tab)}
-                      role="tab"
-                      type="button"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className={agentProfileTab === "chat" ? "agent-use-grid" : "agent-use-grid is-tab-hidden"}>
-                  <section className="chat-panel agent-chat-panel" aria-label="Agent chat">
-                    <div className="chat-heading">
-                      <div>
-                        <strong>Talk to {selectedAgent.name}</strong>
-                        <p>{readiness.detail}</p>
-                      </div>
-                      <StatusPill tone="blue">{isConversationLoading ? "loading" : "saved"}</StatusPill>
-                    </div>
-                    {agentConversation ? <p className="conversation-note">Conversation: {agentConversation.title}</p> : null}
-
-                    {selectedAgentApprovals.length ? (
-                      <div className="chat-approval-banner" role="status" aria-live="polite">
-                        <StatusPill tone="amber">{selectedAgentApprovals.length} waiting</StatusPill>
-                        <div>
-                          <strong>Approval needed before this helper continues</strong>
-                          <span>{selectedAgentApprovals[0] ? approvalPlainSentence(selectedAgentApprovals[0].actionName) : "A sensitive action is paused."} {selectedAgentApprovals[0] ? approvalReason(selectedAgentApprovals[0].actionName) : "You decide what happens next."}</span>
-                        </div>
-                        {selectedAgentApprovals[0] ? (
-                          <div className="approval-banner-actions">
-                            <button disabled={decidingApprovalId === selectedAgentApprovals[0].id} onClick={() => void decideHitl(selectedAgentApprovals[0].id, true)} type="button">Approve</button>
-                            <button className="danger" disabled={decidingApprovalId === selectedAgentApprovals[0].id} onClick={() => void decideHitl(selectedAgentApprovals[0].id, false)} type="button">Deny</button>
-                          </div>
-                        ) : (
-                          <button onClick={() => scrollToSection("clearance")} type="button">Review</button>
-                        )}
-                      </div>
-                    ) : null}
-
-                    <div className="chat-command-center">
-                      <div className="composer-heading">
-                        <div>
-                          <strong>What do you want help with?</strong>
-                          <span>{helperNextStep}</span>
-                        </div>
-                        <StatusPill tone={promptPreview.tone}>{promptPreview.label}</StatusPill>
-                      </div>
-                      <div className="suggestion-grid" aria-label="Suggested helper requests">
-                        {suggestedPrompts.map((prompt) => (
-                          <button
-                            className={`suggestion-card ${prompt.tone}`}
-                            key={prompt.prompt}
-                            onClick={() => setChatInput(prompt.prompt)}
-                            type="button"
-                          >
-                            <strong>{prompt.label}</strong>
-                            <span>{prompt.prompt}</span>
-                            <small>{prompt.detail}</small>
-                          </button>
-                        ))}
-                      </div>
-                      <div className="send-preview">
-                        <div>
-                          <strong>Before it answers</strong>
-                          <span>{promptPreview.detail}</span>
-                        </div>
-                        <div>
-                          <strong>Can read now</strong>
-                          <span>{selectedReadableInfo.length ? selectedReadableInfo.join(", ") : "No private info yet"}</span>
-                        </div>
-                        <div>
-                          <strong>Must ask before</strong>
-                          <span>{selectedRiskyActions.length ? selectedRiskyActions.map(friendlyActionName).join(", ") : "No risky actions listed"}</span>
-                        </div>
-                      </div>
-                      <form className="chat-form command-form" onSubmit={(event) => void runAgentChat(event)}>
-                        <input
-                          aria-label="Message helper"
-                          name="helper-message"
-                          onChange={(event) => setChatInput(event.currentTarget.value)}
-                          placeholder="Ask it to find info or try an action that may need approval..."
-                          value={chatInput}
-                        />
-                        <button disabled={isAgentRunning || !chatInput.trim()} type="submit"><MessageSquare size={16} /> {isAgentRunning ? "Thinking..." : "Send"}</button>
-                      </form>
-                    </div>
-
-                    {chatTranscript.length === 0 && !isConversationLoading ? (
-                      <div className="chat-empty-state">
-                        <strong>Start with a safe request</strong>
-                        <span>Try one of the cards above. This helper will show a receipt when it reads private info and pause before sensitive actions.</span>
-                      </div>
-                    ) : null}
-
-                    {isConversationLoading ? (
-                      <div className="chat-loading">
-                        <span />
-                        <span />
-                        <span />
-                      </div>
-                    ) : null}
-
-                    {chatTranscript.length ? (
-                      <div className="chat-transcript">
-                        {chatTranscript.slice(-8).map((message, index) => {
-                          const pendingRequest = message.requestId ? selectedAgentApprovals.find((request) => request.id === message.requestId) : undefined;
-                          return (
-                            <div className={message.role === "user" ? "chat-bubble chat-user" : "chat-bubble chat-agent"} key={`${message.role}-${message.requestId ?? index}-${message.content.slice(0, 20)}`}>
-                              <span>{message.role === "user" ? "You" : selectedAgent.name}</span>
-                              <p>{message.content}</p>
-                              {message.provider ? <small>{message.provider === "openai" ? `OpenAI response${message.model ? ` (${message.model})` : ""}` : "Local safe runtime"}</small> : null}
-                              {message.role === "agent" && message.usedSchemas?.length ? (
-                                <div className="info-receipt">
-                                  <strong>Private info used</strong>
-                                  <span>{message.usedSchemas.join(", ")}</span>
-                                  {message.documents?.length ? <small>Sources: {message.documents.map((document) => document.title).join(", ")}</small> : null}
-                                </div>
-                              ) : null}
-                              {message.role === "agent" && !message.usedSchemas?.length && message.status === "success" ? (
-                                <small>No private info was used for this answer.</small>
-                              ) : null}
-                              {message.nextStep ? <small>Next: {message.nextStep}</small> : null}
-                              {message.status === "error" ? (
-                                <button disabled={!lastFailedPrompt || isAgentRunning} onClick={() => void submitAgentPrompt(lastFailedPrompt)} type="button">Retry</button>
-                              ) : null}
-                              {approvedContinuation?.requestId === message.requestId && message.actionName ? (
-                                <button disabled={isAgentRunning} onClick={() => void continueApprovedAction(message.actionName!)} type="button">
-                                  <Zap size={15} /> Continue approved action
-                                </button>
-                              ) : null}
-                              {pendingRequest ? (
-                                <div className="approval-card">
-                                  <StatusPill tone="amber">approval needed</StatusPill>
-                                  <strong>{approvalPlainSentence(pendingRequest.actionName)}</strong>
-                                  <small>{approvalReason(pendingRequest.actionName)}</small>
-                                  <small>You are still in control. Deny it if anything feels wrong.</small>
-                                  <div className="button-row compact-row">
-                                    <button disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, true)} type="button">Approve</button>
-                                    <button className="danger" disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, false)} type="button">Deny</button>
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                        {isAgentRunning ? (
-                          <div className="chat-bubble chat-agent thinking-bubble">
-                            <span>{selectedAgent.name}</span>
-                            <p>Thinking safely...</p>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    {agentRunResult ? (
-                      <div className="agent-run-summary">
-                        <StatusPill tone={agentRunResult.status === "ok" ? "green" : agentRunResult.status === "awaiting_human_approval" ? "amber" : "red"}>
-                          {agentRunResult.status === "awaiting_human_approval" ? "needs approval" : agentRunResult.status}
-                        </StatusPill>
-                        <span>{runSummary}</span>
-                        {agentRunResult.nextStep ? <small>{agentRunResult.nextStep}</small> : null}
-                        {agentRunResult.usedSchemas?.length ? <small>Used: {agentRunResult.usedSchemas.join(", ")}</small> : null}
-                      </div>
-                    ) : null}
-
-                  </section>
-
-                  <aside className="agent-side-panel">
-                    <div className="agent-status-card">
-                      <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
-                      <strong>{readiness.detail}</strong>
-                      <small>{helperNextStep}</small>
-                    </div>
-                    <div className="side-permission-summary">
-                      <div>
-                        <strong>Private info access</strong>
-                        <span>{allowedPermissionCount} of {permissionReview.length} allowed</span>
-                      </div>
-                      <button onClick={() => setAgentProfileTab("permissions")} type="button">
-                        <KeyRound size={15} /> Edit access
-                      </button>
-                    </div>
-                    <div className="agent-activity-card">
-                      <strong>Recent activity</strong>
-                      {selectedAgentLogs.length ? selectedAgentLogs.slice(0, 3).map((log) => (
-                        <div className="mini-log-row" key={log.id}>
-                          <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>{log.status.replace(/_/g, " ")}</StatusPill>
-                          <span>{friendlyLogText(log)}</span>
-                          <small>{friendlyDate(log.createdAt)}</small>
-                        </div>
-                      )) : <small>No activity for this helper yet.</small>}
-                    </div>
-                  </aside>
-                </div>
-
-                {agentProfileTab === "permissions" ? (
-                  <section className="agent-tab-panel" aria-label="Agent permissions">
-                    <div className="permission-review-header">
-                      <div>
-                        <strong>Private info this helper can use</strong>
-                        <span>{allowedPermissionCount} of {permissionReview.length} requested categories allowed</span>
-                      </div>
-                      <button
-                        disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"}
-                        onClick={() => void grantAllRequestedSchemas()}
-                        type="button"
-                      >
-                        <KeyRound size={16} /> Allow requested info
-                      </button>
-                    </div>
-                    {permissionReview.length === 0 ? (
-                      <p className="empty">This helper has not requested private info.</p>
-                    ) : permissionReview.map((item) => (
-                      <div className="permission-review-row" key={item.schemaName}>
-                        <div>
-                          <strong>{item.schemaName}</strong>
-                          <small>{item.schema?.description ?? "Unknown info category"}</small>
-                        </div>
-                        <StatusPill tone={item.granted ? "green" : item.schema ? "amber" : "red"}>
-                          {item.granted ? "allowed" : item.schema ? "needed" : "missing"}
-                        </StatusPill>
-                        {item.schema && item.granted ? (
-                          <button onClick={() => void togglePermission(item.schema!, false)} type="button">Revoke</button>
-                        ) : (
-                          <button
-                            disabled={!item.schema || grantingSchemaName === item.schemaName || grantingSchemaName === "all"}
-                            onClick={() => item.schema ? void grantRequestedSchema(item.schema) : undefined}
-                            type="button"
-                          >
-                            Allow
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </section>
-                ) : null}
-
-                {agentProfileTab === "activity" ? (
-                  <section className="agent-tab-panel" aria-label="Agent activity">
-                    <div className="panel-heading-row">
-                      <div>
-                        <strong>What this helper did</strong>
-                        <p className="mobile-section-intro">Every read, approval, and action is logged here.</p>
-                      </div>
-                      <StatusPill tone="blue">{selectedAgentLogs.length} events</StatusPill>
-                    </div>
-                    <div className="agent-activity-list">
-                      {selectedAgentLogs.length ? selectedAgentLogs.map((log) => (
-                        <div className="log-row" key={log.id}>
-                          <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>{log.status.replace(/_/g, " ")}</StatusPill>
-                          <strong>{friendlyLogText(log)}</strong>
-                          <small>{friendlyLogDetail(log)}</small>
-                          <small>{friendlyDate(log.createdAt)}</small>
-                        </div>
-                      )) : <p className="empty">No activity for this helper yet.</p>}
-                    </div>
-                  </section>
-                ) : null}
-
-                {agentProfileTab === "settings" ? (
-                  <section className="agent-tab-panel" aria-label="Agent settings">
-                    <div className="manifest-grid">
-                      <div><strong>Category</strong><span>{friendlyCategoryName(selectedAgent.category)}</span></div>
-                      <div><strong>Trust</strong><span>{friendlyTrustLabel(selectedAgent.trustScore)} / {selectedAgent.trustScore}</span></div>
-                      <div><strong>Protocol</strong><span>{selectedAgent.apiProtocol}</span></div>
-                    </div>
-                    <div className="button-row">
-                      <button onClick={() => setAgentProfileTab("chat")} type="button"><MessageSquare size={16} /> Open chat</button>
-                      <button onClick={runVaultSearch} type="button"><Database size={16} /> Search personal info</button>
-                      <button onClick={triggerHighRiskAction} type="button"><Zap size={16} /> Try approval flow</button>
-                      <button onClick={revokeSelectedAgentAccess} type="button"><KeyRound size={16} /> Revoke all access</button>
-                      <button className="danger" onClick={() => removeAgentFromProfile(selectedAgent)} type="button"><Trash2 size={16} /> Remove helper</button>
-                    </div>
-                  </section>
-                ) : null}
-              </div>
-          </div>
+            <AgentProfilePanel
+              agentConversation={agentConversation}
+              agentProfileTab={agentProfileTab}
+              agentRunResult={agentRunResult}
+              allowedPermissionCount={allowedPermissionCount}
+              approvalPlainSentence={approvalPlainSentence}
+              approvalReason={approvalReason}
+              approvedContinuation={approvedContinuation}
+              chatInput={chatInput}
+              chatTranscript={chatTranscript}
+              className={`panel detail-panel mobile-section desktop-section ${activeMobileClass("agents")} ${sectionClass("agents")}`}
+              continueApprovedAction={continueApprovedAction}
+              decideHitl={decideHitl}
+              decidingApprovalId={decidingApprovalId}
+              friendlyDate={friendlyDate}
+              friendlyFallbackReason={friendlyFallbackReason}
+              friendlyLogDetail={friendlyLogDetail}
+              friendlyLogText={friendlyLogText}
+              friendlyTrustLabel={friendlyTrustLabel}
+              grantAllRequestedSchemas={grantAllRequestedSchemas}
+              grantingSchemaName={grantingSchemaName}
+              grantRequestedSchema={grantRequestedSchema}
+              helperNextStep={helperNextStep}
+              isAgentRunning={isAgentRunning}
+              isConversationLoading={isConversationLoading}
+              lastFailedPrompt={lastFailedPrompt}
+              permissionReview={permissionReview}
+              promptPreview={promptPreview}
+              readiness={readiness}
+              removeAgentFromProfile={removeAgentFromProfile}
+              revokeSelectedAgentAccess={revokeSelectedAgentAccess}
+              runAgentChat={runAgentChat}
+              runSummary={runSummary}
+              runVaultSearch={runVaultSearch}
+              scrollToClearance={() => scrollToSection("clearance")}
+              selectedAgent={selectedAgent}
+              selectedAgentApprovals={selectedAgentApprovals}
+              selectedAgentLogs={selectedAgentLogs}
+              selectedCannotDoLabel={selectedCannotDoLabel}
+              selectedHelperToolsLabel={selectedHelperToolsLabel}
+              selectedReadableInfo={selectedReadableInfo}
+              selectedReadableInfoLabel={selectedReadableInfoLabel}
+              selectedRiskyActions={selectedRiskyActions}
+              selectedRiskyActionsLabel={selectedRiskyActionsLabel}
+              setAgentProfileTab={setAgentProfileTab}
+              setChatInput={setChatInput}
+              submitAgentPrompt={submitAgentPrompt}
+              suggestedPrompts={suggestedPrompts}
+              togglePermission={togglePermission}
+              triggerHighRiskAction={triggerHighRiskAction}
+              ungrantedRequestedSchemas={ungrantedRequestedSchemas}
+            />
           ) : null}
-
           <div className={`panel clearance-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`} id="clearance">
             <div className="panel-heading-row">
               <div>
@@ -2803,7 +2394,7 @@ export function App() {
           <div className={`panel audit-panel mobile-section desktop-section ${activeMobileClass("activity")} ${sectionClass("activity")}`} id="activity">
             <div className="panel-heading-row">
               <div>
-                <div className="panel-title">Recent Activity</div>
+                <div className="panel-title">Receipts</div>
                 <p className="mobile-section-intro">Every helper access, approval, and block appears here.</p>
               </div>
               <StatusPill tone="blue">{logs.length} events</StatusPill>
@@ -2857,7 +2448,7 @@ export function App() {
               <div><strong>Account</strong><span>{session?.user.email ?? "Local development user"}</span></div>
               <div><strong>Helpers</strong><span>{agents.length}</span></div>
               <div><strong>Private Info</strong><span>{documents.length}</span></div>
-              <div><strong>Activity</strong><span>{logs.length}</span></div>
+              <div><strong>Receipts</strong><span>{logs.length}</span></div>
             </div>
             <div className="privacy-actions">
               <button onClick={exportMyData} type="button"><Download size={16} /> Export my data</button>
@@ -2963,9 +2554,10 @@ export function App() {
                       </div>
                     ) : null}
                     <div className="manifest-grid marketplace-detail-grid">
-                      <div><strong>Helps with</strong><span>{friendlyList(manifest.tools?.map(friendlyToolName) ?? [], "Simple tasks")}</span></div>
+                      <div><strong>Can help with</strong><span>{marketplaceDetailAgent.tagline || marketplaceDetailAgent.description}</span></div>
+                      <div><strong>Can do</strong><span>{friendlyList(manifest.tools?.map(friendlyToolName) ?? [], "Simple tasks")}</span></div>
                       <div><strong>May ask to read</strong><span>{friendlyList(manifest.requestedSchemas ?? [], "No private info")}</span></div>
-                      <div><strong>Asks before</strong><span>{friendlyList(manifest.highRiskActions?.map(friendlyActionName) ?? [], "Nothing risky listed")}</span></div>
+                      <div><strong>Will ask before</strong><span>{friendlyList(manifest.highRiskActions?.map(friendlyActionName) ?? [], "Nothing risky listed")}</span></div>
                     </div>
                     <div className="example-prompt-list">
                       <strong>Try after installing</strong>
@@ -2980,7 +2572,7 @@ export function App() {
                         }}
                         type="button"
                       >
-                        <Download size={16} /> {alreadyInstalled ? "Added to profile" : installingAgentId === marketplaceDetailAgent.id ? "Adding..." : "Add to profile"}
+                        <Download size={16} /> {alreadyInstalled ? "Added to profile" : installingAgentId === marketplaceDetailAgent.id ? "Adding..." : "Add helper"}
                       </button>
                       <button onClick={() => setMarketplaceDetailAgent(null)} type="button">Done</button>
                     </div>
