@@ -14,11 +14,83 @@ AI Agent Hub is scaffolded as a local-first, privacy-centric Personal AI Operati
 npm install
 copy backend-core\.env.example backend-core\.env
 npm run db:push
-npm run db:seed
+npm run db:seed:sample
 npm run dev
 ```
 
 Backend defaults to `http://localhost:4141`; frontend defaults to `http://localhost:5173`.
+
+The default seed command creates shared vault schemas and the curated marketplace catalog. `db:seed:sample` also creates the local demo user, installed demo agents, and sample permissions.
+
+PowerShell:
+
+```powershell
+$env:SEED_INCLUDE_SAMPLE_USER = "true"
+npm run db:seed
+Remove-Item Env:\SEED_INCLUDE_SAMPLE_USER
+```
+
+## Database Workflow
+
+Local development uses SQLite by default:
+
+```bash
+npm run db:push
+npm run db:seed:sample
+```
+
+Production uses the dedicated PostgreSQL Prisma schema and migration history in `backend-core/prisma/postgres/`:
+
+```bash
+npm --workspace backend-core run prisma:generate:postgres
+npm --workspace backend-core run db:migrate:postgres
+```
+
+Do not use `db:push:postgres` for normal production deploys. It bypasses migration history and is only kept for deliberate development/staging experiments.
+
+To create a new committed PostgreSQL migration after changing the production schema:
+
+```bash
+npm --workspace backend-core run db:migration:create:postgres
+```
+
+Marketplace seed data should be run manually and deliberately:
+
+```bash
+npm --workspace backend-core run db:seed:postgres
+```
+
+The seed is catalog-first by default. It does not create the sample user unless `SEED_INCLUDE_SAMPLE_USER=true` or `--sample-user` is passed, and it does not reset marketplace install counts or average ratings for existing catalog entries.
+
+## Render Deployment
+
+`render.yaml` builds the backend with this production-safe sequence:
+
+```bash
+npm install --include=dev
+npm --workspace backend-core run prisma:generate:postgres
+npm --workspace backend-core run db:migrate:postgres
+npm --workspace backend-core run build
+```
+
+Normal deploys apply committed migrations only. They do not run `prisma db push` and they do not reseed marketplace data.
+
+Required production environment variables:
+
+- `DATABASE_URL`
+- `DIRECT_URL`
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `FRONTEND_ORIGIN`
+- `VAULT_ENCRYPTION_KEY`
+
+Optional production environment variables:
+
+- `APP_PUBLIC_URL`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `RESEND_API_KEY`
+- `NOTIFICATION_FROM_EMAIL`
 
 ## Security Model
 

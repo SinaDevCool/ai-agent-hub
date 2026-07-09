@@ -25,7 +25,7 @@ Create a Render Web Service from this repository.
 
 Use the root directory of the repo and these settings:
 
-- Build command: `npm install --include=dev && npm --workspace backend-core run prisma:generate:postgres && npm --workspace backend-core run db:push:postgres && npm --workspace backend-core run db:seed:postgres && npm --workspace backend-core run build`
+- Build command: `npm install --include=dev && npm --workspace backend-core run prisma:generate:postgres && npm --workspace backend-core run db:migrate:postgres && npm --workspace backend-core run build`
 - Start command: `npm --workspace backend-core run start`
 - Health check path: `/health`
 - Plan: Free
@@ -50,6 +50,14 @@ Render will publish a backend URL similar to:
 ```text
 https://ai-agent-hub-api.onrender.com
 ```
+
+Run the marketplace seed manually when you intentionally want to bootstrap or update the curated catalog:
+
+```bash
+npm --workspace backend-core run db:seed:postgres
+```
+
+Do not run `db:push:postgres` or `db:seed:postgres` as part of normal Render deploys. Deploys should apply committed PostgreSQL migrations only.
 
 ## 3. Cloudflare Pages Frontend
 

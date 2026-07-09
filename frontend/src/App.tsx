@@ -16,17 +16,19 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { apiDelete, apiGet, apiPost, apiPut, setApiAccessToken } from "./api/client";
+import { ApiError, apiDelete, apiGet, apiPost, apiPut, setApiAccessToken } from "./api/client";
 import { isAuthConfigured, supabase, type AuthSession } from "./api/supabaseClient";
-import type { ActivityLog, Agent, AgentConversation, AgentRunResult, HitlRequest, MarketplaceAgent, UserAgentInstall, VaultDocument, VaultSchema } from "./api/types";
+import type { ActivityLog, Agent, AgentConversation, AgentRunResult, HitlRequest, MarketplaceAgent, VaultDocument, VaultSchema } from "./api/types";
 import { AgentProfilePanel } from "./components/AgentProfilePanel";
 import { MarketplacePanel } from "./components/MarketplacePanel";
 import { PermissionsPanel } from "./components/PermissionsPanel";
 import { ReceiptsPanel } from "./components/ReceiptsPanel";
 import { StatusPill } from "./components/StatusPill";
 import { VaultPanel } from "./components/VaultPanel";
+import { useMarketplace } from "./hooks/useMarketplace";
+import { useWorkspaceData } from "./hooks/useWorkspaceData";
 import { friendlyActionName, friendlyCategoryName, friendlyList, friendlyToolName } from "./lib/display";
-import { marketplaceCategoryMatches, marketplaceSearchValues, scoreMarketplaceAgent, type MatcherChoice, type MarketplaceFilters, type MarketplaceNeed } from "./lib/marketplaceMatching";
+import type { MarketplaceFilters, MarketplaceNeed } from "./lib/marketplaceMatching";
 
 type RealtimeEvent = { type: string; payload: unknown };
 type SectionId = "home" | "agents" | "vault" | "clearance" | "activity" | "settings";
@@ -559,11 +561,20 @@ function friendlyResult(result: Record<string, unknown>) {
 }
 
 function friendlyAppError(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.message && !/^request failed/i.test(error.message)) return error.message;
+    if (error.status === 401) return "Your session expired. Please sign in again.";
+    if (error.status === 403) return "You do not have permission to do that.";
+    if (error.status === 404) return "We could not find that item.";
+    if (error.status === 409) return "That change conflicts with something already saved.";
+    if (error.status === 422 || error.status === 400) return "Check the details and try again.";
+    if (error.status >= 500) return "Something went wrong on our side. Please try again.";
+    return "Something went wrong. Please try again.";
+  }
   const message = error instanceof Error ? error.message : String(error || "");
   if (/openai|api key|quota|billing|model/i.test(message)) return "The AI answer service needs attention. Check the OpenAI key or account limits, then try again.";
   if (/supabase|auth|jwt|session/i.test(message)) return "Your sign-in session needs a refresh. Sign in again if this keeps happening.";
-  if (/failed:\s*5\d\d|render|timeout|sleep|waking/i.test(message)) return "Your helper service may be waking up. Wait a few seconds and try again.";
-  if (/failed:\s*4\d\d/i.test(message)) return "This action needs a valid signed-in session. Please sign in again if it keeps happening.";
+  if (/render|timeout|sleep|waking/i.test(message)) return "Your helper service may be waking up. Wait a few seconds and try again.";
   if (/failed to fetch|network|connection/i.test(message)) return "Could not reach your helper service. Check the connection, wait a few seconds, and try again.";
   return message || "Something went wrong. Please try again.";
 }
@@ -574,31 +585,24 @@ export function App() {
   const [email, setEmail] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [isSendingMagicLink, setIsSendingMagicLink] = useState(false);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [marketplaceAgents, setMarketplaceAgents] = useState<MarketplaceAgent[]>([]);
-  const [installedAgents, setInstalledAgents] = useState<UserAgentInstall[]>([]);
-  const [marketplaceSearch, setMarketplaceSearch] = useState("");
-  const [marketplaceCategory, setMarketplaceCategory] = useState("All");
-  const [matcherNeedId, setMatcherNeedId] = useState("travel");
-  const [matcherPrivateInfo, setMatcherPrivateInfo] = useState<MatcherChoice>("unsure");
-  const [matcherActions, setMatcherActions] = useState<MatcherChoice>("unsure");
-  const [marketplaceFilters, setMarketplaceFilters] = useState<MarketplaceFilters>({
-    usesPrivateInfo: false,
-    canTakeActions: false,
-    needsApproval: false
-  });
-  const [selectedMarketplaceAgentId, setSelectedMarketplaceAgentId] = useState("");
+  const workspaceData = useWorkspaceData({ formatError: friendlyAppError });
+  const {
+    agents,
+    marketplaceAgents,
+    installedAgents,
+    schemas,
+    documents,
+    logs,
+    hitl,
+    isRefreshing,
+    refreshError,
+    refresh
+  } = workspaceData;
   const [showMobileMarketplace, setShowMobileMarketplace] = useState(false);
-  const [confirmInstallAgent, setConfirmInstallAgent] = useState<MarketplaceAgent | null>(null);
-  const [marketplaceDetailAgent, setMarketplaceDetailAgent] = useState<MarketplaceAgent | null>(null);
   const [helperSearch, setHelperSearch] = useState("");
   const [helperStatusFilter, setHelperStatusFilter] = useState<HelperStatusFilter>("all");
   const [pinnedAgentIds, setPinnedAgentIds] = useState<string[]>([]);
   const [hideTestHelpers, setHideTestHelpers] = useState(true);
-  const [schemas, setSchemas] = useState<VaultSchema[]>([]);
-  const [documents, setDocuments] = useState<VaultDocument[]>([]);
-  const [logs, setLogs] = useState<ActivityLog[]>([]);
-  const [hitl, setHitl] = useState<HitlRequest[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [connectionState, setConnectionState] = useState("connecting");
   const [toolResult, setToolResult] = useState<string>("No agent action yet.");
@@ -609,10 +613,6 @@ export function App() {
   const [agentDraft, setAgentDraft] = useState<AgentDraft>(initialAgentDraft);
   const [createAgentError, setCreateAgentError] = useState("");
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
-  const [installingAgentId, setInstallingAgentId] = useState("");
-  const [marketplaceError, setMarketplaceError] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(true);
-  const [refreshError, setRefreshError] = useState("");
   const [grantingSchemaName, setGrantingSchemaName] = useState("");
   const [isAddingVaultItem, setIsAddingVaultItem] = useState(false);
   const [vaultItemDraft, setVaultItemDraft] = useState<VaultItemDraft>(initialVaultItemDraft);
@@ -643,6 +643,54 @@ export function App() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [decidingApprovalId, setDecidingApprovalId] = useState("");
 
+  const marketplace = useMarketplace({
+    marketplaceAgents,
+    installedAgents,
+    marketplaceNeedOptions,
+    refresh,
+    formatError: friendlyAppError,
+    onInstalled: (install) => {
+      const installedAgentId = install.agent?.id;
+      if (installedAgentId) setSelectedAgentId(installedAgentId);
+      setToolResult(`${install.displayName} was added to your profile. Review its permissions before giving access.`);
+      setActiveSection("agents");
+      setShowMobileMarketplace(false);
+    }
+  });
+  const {
+    marketplaceSearch,
+    setMarketplaceSearch,
+    marketplaceCategory,
+    setMarketplaceCategory,
+    matcherNeedId,
+    setMatcherNeedId,
+    matcherPrivateInfo,
+    setMatcherPrivateInfo,
+    matcherActions,
+    setMatcherActions,
+    marketplaceFilters,
+    setMarketplaceFilters,
+    confirmInstallAgent,
+    setConfirmInstallAgent,
+    marketplaceDetailAgent,
+    setMarketplaceDetailAgent,
+    installingAgentId,
+    marketplaceError,
+    setMarketplaceError,
+    installedDefinitionIds,
+    installedByDefinitionId,
+    visibleMarketplaceAgents,
+    prioritizedMarketplaceMatches,
+    prioritizedMarketplaceAgents,
+    marketplaceMatchById,
+    selectedMarketplaceAgent,
+    hasInstallableMarketplaceAgent,
+    confirmMarketplaceInstall,
+    applyMarketplaceMatcher,
+    clearMarketplaceFilters,
+    openMarketplaceDetails
+  } = marketplace;
+
   useEffect(() => {
     if (!supabase) return;
 
@@ -660,35 +708,6 @@ export function App() {
 
     return () => data.subscription.unsubscribe();
   }, []);
-
-  async function refresh() {
-    setIsRefreshing(true);
-    setRefreshError("");
-    try {
-      const [agentData, marketplaceData, installedData, schemaData, documentData, logData, hitlData] = await Promise.all([
-        apiGet<{ agents: Agent[] }>("/api/agents"),
-        apiGet<{ agents: MarketplaceAgent[] }>("/api/marketplace/agents"),
-        apiGet<{ installs: UserAgentInstall[] }>("/api/me/agents"),
-        apiGet<{ schemas: VaultSchema[] }>("/api/vault/schemas"),
-        apiGet<{ documents: VaultDocument[] }>("/api/vault/documents"),
-        apiGet<{ logs: ActivityLog[] }>("/api/activity"),
-        apiGet<{ requests: HitlRequest[] }>("/api/hitl")
-      ]);
-      setAgents(agentData.agents);
-      setMarketplaceAgents(marketplaceData.agents);
-      setInstalledAgents(installedData.installs);
-      setSchemas(schemaData.schemas);
-      setDocuments(documentData.documents);
-      setLogs(logData.logs);
-      setHitl(hitlData.requests);
-      setSelectedAgentId((current) => current || agentData.agents[0]?.id || "");
-      setSelectedMarketplaceAgentId((current) => current || marketplaceData.agents[0]?.id || "");
-    } catch (error) {
-      setRefreshError(friendlyAppError(error));
-    } finally {
-      setIsRefreshing(false);
-    }
-  }
 
   useEffect(() => {
     if (isAuthConfigured && !session) return;
@@ -708,6 +727,14 @@ export function App() {
     () => agents.find((agent) => agent.id === selectedAgentId) ?? agents[0],
     [agents, selectedAgentId]
   );
+
+  useEffect(() => {
+    if (!agents.length) {
+      setSelectedAgentId("");
+      return;
+    }
+    setSelectedAgentId((current) => agents.some((agent) => agent.id === current) ? current : agents[0].id);
+  }, [agents]);
 
   useEffect(() => {
     if (!selectedAgent?.id) {
@@ -740,69 +767,6 @@ export function App() {
       cancelled = true;
     };
   }, [selectedAgent?.id]);
-
-  const installedDefinitionIds = useMemo(
-    () => new Set(installedAgents.map((install) => install.agentDefinition.id)),
-    [installedAgents]
-  );
-
-  const installedByDefinitionId = useMemo(
-    () => new Map(installedAgents.map((install) => [install.agentDefinition.id, install])),
-    [installedAgents]
-  );
-
-  const visibleMarketplaceAgents = useMemo(() => {
-    const search = marketplaceSearch.trim().toLowerCase();
-    return marketplaceAgents.filter((agent) => {
-      const manifest = agent.versions[0]?.capabilityManifest ?? {};
-      const matchesCategory = marketplaceCategoryMatches(agent.category, marketplaceCategory);
-      const matchesSearch = !search || marketplaceSearchValues(agent)
-        .some((value) => value.toLowerCase().includes(search));
-      const matchesPrivateInfo = !marketplaceFilters.usesPrivateInfo || Boolean(manifest.requestedSchemas?.length);
-      const matchesActions = !marketplaceFilters.canTakeActions || Boolean(manifest.tools?.includes("action.execute"));
-      const matchesApproval = !marketplaceFilters.needsApproval || Boolean(manifest.highRiskActions?.length);
-      return matchesCategory && matchesSearch && matchesPrivateInfo && matchesActions && matchesApproval;
-    });
-  }, [marketplaceAgents, marketplaceCategory, marketplaceFilters, marketplaceSearch]);
-
-  const prioritizedMarketplaceMatches = useMemo(
-    () => visibleMarketplaceAgents.map((agent) => scoreMarketplaceAgent({
-      agent,
-      category: marketplaceCategory,
-      search: marketplaceSearch.trim().toLowerCase(),
-      filters: marketplaceFilters,
-      privateInfo: matcherPrivateInfo,
-      actions: matcherActions,
-      installed: Boolean(agent.installed || installedDefinitionIds.has(agent.id))
-    })).sort((left, right) => {
-      if (right.score !== left.score) return right.score - left.score;
-      const leftInstalled = Number(Boolean(left.agent.installed || installedDefinitionIds.has(left.agent.id)));
-      const rightInstalled = Number(Boolean(right.agent.installed || installedDefinitionIds.has(right.agent.id)));
-      if (leftInstalled !== rightInstalled) return leftInstalled - rightInstalled;
-      return left.agent.name.localeCompare(right.agent.name);
-    }),
-    [installedDefinitionIds, marketplaceCategory, marketplaceFilters, marketplaceSearch, matcherActions, matcherPrivateInfo, visibleMarketplaceAgents]
-  );
-
-  const prioritizedMarketplaceAgents = useMemo(
-    () => prioritizedMarketplaceMatches.map((match) => match.agent),
-    [prioritizedMarketplaceMatches]
-  );
-
-  const marketplaceMatchById = useMemo(
-    () => new Map(prioritizedMarketplaceMatches.map((match) => [match.agent.id, match])),
-    [prioritizedMarketplaceMatches]
-  );
-
-  const selectedMarketplaceAgent = useMemo(
-    () => prioritizedMarketplaceAgents.find((agent) => agent.id === selectedMarketplaceAgentId) ?? prioritizedMarketplaceAgents[0],
-    [prioritizedMarketplaceAgents, selectedMarketplaceAgentId]
-  );
-
-  const hasInstallableMarketplaceAgent = useMemo(
-    () => prioritizedMarketplaceAgents.some((agent) => !agent.installed && !installedDefinitionIds.has(agent.id)),
-    [installedDefinitionIds, prioritizedMarketplaceAgents]
-  );
 
   const permissionReview = useMemo(() => {
     if (!selectedAgent) return [];
@@ -1291,46 +1255,6 @@ export function App() {
     }
   }
 
-  async function installMarketplaceAgent(agent: MarketplaceAgent) {
-    setMarketplaceError("");
-    setInstallingAgentId(agent.id);
-    try {
-      const result = await apiPost<{ install: UserAgentInstall }>(`/api/marketplace/agents/${agent.id}/install`, {
-        displayName: agent.name
-      });
-      await refresh();
-      const installedAgentId = result.install.agent?.id;
-      if (installedAgentId) setSelectedAgentId(installedAgentId);
-      setToolResult(`${result.install.displayName} was added to your profile. Review its permissions before giving access.`);
-      setActiveSection("agents");
-      setShowMobileMarketplace(false);
-      return true;
-    } catch (error) {
-      setMarketplaceError(friendlyAppError(error));
-      return false;
-    } finally {
-      setInstallingAgentId("");
-    }
-  }
-
-  async function confirmMarketplaceInstall() {
-    if (!confirmInstallAgent) return;
-    const installed = await installMarketplaceAgent(confirmInstallAgent);
-    if (installed) setConfirmInstallAgent(null);
-  }
-
-  function applyMarketplaceMatcher() {
-    const need = marketplaceNeedOptions.find((item) => item.id === matcherNeedId) ?? marketplaceNeedOptions[0];
-    setMarketplaceCategory(need.category);
-    setMarketplaceSearch(need.query);
-    setMarketplaceFilters({
-      usesPrivateInfo: matcherPrivateInfo === "yes",
-      canTakeActions: matcherActions === "yes",
-      needsApproval: matcherActions === "yes"
-    });
-    setSelectedMarketplaceAgentId("");
-  }
-
   function removeAgentFromProfile(agent: Agent) {
     setConfirmation({
       title: "Remove this helper?",
@@ -1382,13 +1306,6 @@ export function App() {
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
-  }
-
-  function openMarketplaceDetails(agent: MarketplaceAgent) {
-    setSelectedMarketplaceAgentId(agent.id);
-    if (window.matchMedia("(max-width: 760px)").matches) {
-      setMarketplaceDetailAgent(agent);
-    }
   }
 
   function togglePinnedAgent(agentId: string) {
@@ -2041,13 +1958,7 @@ export function App() {
             matcherPrivateInfo={matcherPrivateInfo}
             onApplyMatcher={applyMarketplaceMatcher}
             onBackToHelpers={() => setShowMobileMarketplace(false)}
-            onClearFilters={() => {
-              setMarketplaceSearch("");
-              setMarketplaceCategory("All");
-              setMatcherPrivateInfo("unsure");
-              setMatcherActions("unsure");
-              setMarketplaceFilters({ usesPrivateInfo: false, canTakeActions: false, needsApproval: false });
-            }}
+            onClearFilters={clearMarketplaceFilters}
             onConfirmInstall={setConfirmInstallAgent}
             onCreateCustomHelper={openAgentWizard}
             onEditInstalledAgentAccess={(agentId) => {

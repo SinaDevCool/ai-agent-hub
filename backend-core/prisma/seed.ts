@@ -6,6 +6,7 @@ import { encodeJson } from "../src/services/jsonService.js";
 const prisma = new PrismaClient();
 
 const vaultPath = path.resolve(process.cwd(), "vault-samples/personal-vault");
+const includeSampleUser = process.env.SEED_INCLUDE_SAMPLE_USER === "true" || process.argv.includes("--sample-user");
 
 const schemas = [
   {
@@ -237,15 +238,17 @@ function slugify(value: string) {
 }
 
 async function main() {
-  const user = await prisma.user.upsert({
-    where: { email: "sample.user@local.ai" },
-    update: { vaultLocalPath: vaultPath },
-    create: {
-      email: "sample.user@local.ai",
-      vaultLocalPath: vaultPath,
-      vaultEncryptionSalt: createVaultSalt()
-    }
-  });
+  const sampleUser = includeSampleUser
+    ? await prisma.user.upsert({
+      where: { email: "sample.user@local.ai" },
+      update: { vaultLocalPath: vaultPath },
+      create: {
+        email: "sample.user@local.ai",
+        vaultLocalPath: vaultPath,
+        vaultEncryptionSalt: createVaultSalt()
+      }
+    })
+    : null;
 
   const schemaRecords = new Map<string, string>();
   for (const schema of schemas) {
@@ -266,8 +269,6 @@ async function main() {
         description: agentData.description,
         category: agentData.category,
         trustScore: agentData.trustScore,
-        installCount: agentData.installCount,
-        averageRating: agentData.averageRating,
         status: "published"
       },
       create: {
@@ -299,8 +300,10 @@ async function main() {
       }
     });
 
+    if (!sampleUser) continue;
+
     const existingAgent = await prisma.agent.findFirst({
-      where: { name: agentData.name, connections: { some: { userId: user.id } } }
+      where: { name: agentData.name, connections: { some: { userId: sampleUser.id } } }
     });
     const agent = existingAgent
       ? await prisma.agent.update({
@@ -322,19 +325,19 @@ async function main() {
           apiProtocol: agentData.capabilityManifest.protocol === "OpenAPI" ? "OpenAPI" : "MCP"
         }
       }
-      );
+    );
     await prisma.userConnection.upsert({
-      where: { userId_agentId: { userId: user.id, agentId: agent.id } },
+      where: { userId_agentId: { userId: sampleUser.id, agentId: agent.id } },
       update: { connectionStatus: agent.name === "The Curator" ? "restricted" : "active" },
       create: {
-        userId: user.id,
+        userId: sampleUser.id,
         agentId: agent.id,
         connectionStatus: agent.name === "The Curator" ? "restricted" : "active",
         tokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
       }
     });
     await prisma.userAgentInstall.upsert({
-      where: { userId_agentDefinitionId: { userId: user.id, agentDefinitionId: marketplaceAgent.id } },
+      where: { userId_agentDefinitionId: { userId: sampleUser.id, agentDefinitionId: marketplaceAgent.id } },
       update: {
         agentVersionId: marketplaceVersion.id,
         agentId: agent.id,
@@ -342,7 +345,7 @@ async function main() {
         connectionStatus: agent.name === "The Curator" ? "restricted" : "active"
       },
       create: {
-        userId: user.id,
+        userId: sampleUser.id,
         agentDefinitionId: marketplaceAgent.id,
         agentVersionId: marketplaceVersion.id,
         agentId: agent.id,
@@ -353,7 +356,7 @@ async function main() {
     const requestedSchemas = agentData.capabilityManifest.requestedSchemas as string[];
     for (const schemaName of requestedSchemas) {
       await ensurePermission({
-        userId: user.id,
+        userId: sampleUser.id,
         agentId: agent.id,
         vaultSchemaId: schemaRecords.get(schemaName) ?? null,
         permissionType: "read",
@@ -362,7 +365,7 @@ async function main() {
       });
     }
     await ensurePermission({
-      userId: user.id,
+      userId: sampleUser.id,
       agentId: agent.id,
       vaultSchemaId: null,
       permissionType: "execute_action",

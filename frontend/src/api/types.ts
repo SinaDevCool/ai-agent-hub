@@ -43,6 +43,8 @@ export type MarketplaceAgent = {
   installCount: number;
   averageRating: number;
   installed?: boolean;
+  matchScore?: number;
+  matchReasons?: string[];
   creator?: {
     displayName: string;
     verified: boolean;
