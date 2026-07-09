@@ -5,7 +5,6 @@ import {
   Database,
   Download,
   FilePlus,
-  FileSearch,
   KeyRound,
   LogOut,
   Mail,
@@ -16,14 +15,16 @@ import {
   Settings,
   ShieldCheck,
   Trash2,
-  Upload
 } from "lucide-react";
 import { apiDelete, apiGet, apiPost, apiPut, setApiAccessToken } from "./api/client";
 import { isAuthConfigured, supabase, type AuthSession } from "./api/supabaseClient";
 import type { ActivityLog, Agent, AgentConversation, AgentRunResult, HitlRequest, MarketplaceAgent, UserAgentInstall, VaultDocument, VaultSchema } from "./api/types";
 import { AgentProfilePanel } from "./components/AgentProfilePanel";
 import { MarketplacePanel } from "./components/MarketplacePanel";
+import { PermissionsPanel } from "./components/PermissionsPanel";
+import { ReceiptsPanel } from "./components/ReceiptsPanel";
 import { StatusPill } from "./components/StatusPill";
+import { VaultPanel } from "./components/VaultPanel";
 import { friendlyActionName, friendlyCategoryName, friendlyList, friendlyToolName } from "./lib/display";
 import { marketplaceCategoryMatches, marketplaceSearchValues, scoreMarketplaceAgent, type MatcherChoice, type MarketplaceFilters, type MarketplaceNeed } from "./lib/marketplaceMatching";
 
@@ -2284,140 +2285,47 @@ export function App() {
               ungrantedRequestedSchemas={ungrantedRequestedSchemas}
             />
           ) : null}
-          <div className={`panel clearance-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`} id="clearance">
-            <div className="panel-heading-row">
-              <div>
-                <div className="panel-title">Permissions</div>
-                <p className="mobile-section-intro">Choose what {selectedAgent?.name ?? "this helper"} can read. You can change this anytime.</p>
-              </div>
-              <StatusPill tone={ungrantedRequestedSchemas.length ? "amber" : "green"}>
-                {ungrantedRequestedSchemas.length ? `${ungrantedRequestedSchemas.length} needs review` : "all clear"}
-              </StatusPill>
-            </div>
-            <div className="permission-center-summary">
-              <div><strong>{selectedAgent?.name ?? "Selected helper"}</strong><span>Selected helper</span></div>
-              <div><strong>{allowedPermissionCount}</strong><span>Allowed categories</span></div>
-              <div><strong>{hitl.length}</strong><span>Approvals waiting</span></div>
-            </div>
-            {permissionCenterRows.length === 0 ? (
-              <div className="friendly-empty-state">
-                <strong>No private info categories yet</strong>
-                <p>Add your first private note and this page will show exactly which helpers can use it.</p>
-                <button onClick={() => setIsAddingVaultItem(true)} type="button"><FilePlus size={16} /> Add Private Info</button>
-              </div>
-            ) : null}
-            {permissionCenterRows.map(({ schema, allowedAgents, requestingAgents }) => {
-              const granted = Boolean(selectedAgent?.permissions.some((permission) => permission.vaultSchemaId === schema.id && permission.permissionType === "read"));
-              const selectedRequestsThis = Boolean(selectedAgent?.capabilityManifest.requestedSchemas?.includes(schema.name));
-              const allowedSummary = allowedAgents.length
-                ? `${allowedAgents.length} helper${allowedAgents.length === 1 ? "" : "s"} can read this category.`
-                : "No helper can read this category yet.";
-              const requestSummary = requestingAgents.length
-                ? `${requestingAgents.length} helper${requestingAgents.length === 1 ? "" : "s"} may ask for this category.`
-                : "";
-              return (
-                <div className="clearance-row permission-category-row" key={schema.id}>
-                  <label>
-                    <input type="checkbox" checked={granted} onChange={(event) => void togglePermission(schema, event.currentTarget.checked)} />
-                    <span>{granted ? "Allowed" : selectedRequestsThis ? "Requested" : "Not allowed"}</span>
-                  </label>
-                  <div>
-                    <strong>{schema.name}</strong>
-                    <small>{schema.description}</small>
-                    <small>{selectedRequestsThis ? `${selectedAgent?.name ?? "This helper"} requested this.` : `${selectedAgent?.name ?? "This helper"} has not requested this.`}</small>
-                    <small>{allowedSummary}</small>
-                    {requestSummary ? <small>{requestSummary}</small> : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <PermissionsPanel
+            allowedPermissionCount={allowedPermissionCount}
+            approvalCount={hitl.length}
+            className={`panel clearance-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`}
+            onAddPrivateInfo={() => setIsAddingVaultItem(true)}
+            onTogglePermission={togglePermission}
+            permissionCenterRows={permissionCenterRows}
+            selectedAgent={selectedAgent}
+            ungrantedRequestedCount={ungrantedRequestedSchemas.length}
+          />
 
-          <div className={`panel vault-panel mobile-section desktop-section ${activeMobileClass("vault")} ${sectionClass("vault")}`} id="vault">
-            <div className="panel-title">Private Info</div>
-            <div className="mobile-panel-actions">
-              <button onClick={() => setIsAddingVaultItem((current) => !current)} type="button"><FilePlus size={16} /> Add Private Info</button>
-              <label className="upload-button">
-                <Upload size={16} /> Upload
-                <input accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void uploadVaultFile(event)} type="file" />
-              </label>
-              <button onClick={reindexVault} type="button"><FileSearch size={16} /> Refresh Info</button>
-            </div>
-            <form className="vault-search" onSubmit={(event) => void searchVault(event)}>
-              <input
-                aria-label="Search private info"
-                name="private-info-search"
-                onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                placeholder="Search personal info through the selected helper..."
-                required
-                value={searchQuery}
-              />
-              <select aria-label="Filter private info category" onChange={(event) => setSearchSchemaId(event.currentTarget.value)} value={searchSchemaId}>
-                <option value="">All allowed categories</option>
-                {schemas.map((schema) => <option key={schema.id} value={schema.id}>{schema.name}</option>)}
-              </select>
-              <button disabled={isSearchingVault} type="submit"><Search size={16} /> {isSearchingVault ? "Searching..." : "Search Info"}</button>
-            </form>
-            {searchResults.length ? (
-              <div className="search-results">
-                <strong>Search results</strong>
-                {searchResults.map((document) => (
-                  <article className="doc-row" key={`result-${document.id}`}>
-                    <strong>{document.title}</strong>
-                    <span>{document.vaultSchema?.name ?? "Uncategorized"}</span>
-                    <p>{document.excerpt}</p>
-                  </article>
-                ))}
-              </div>
-            ) : null}
-            {documents.length === 0 ? (
-              <div className="friendly-empty-state">
-                <strong>No private info yet</strong>
-                <p>Save a note like travel preferences, payment rules, or household details. Helpers can only read it after you allow access.</p>
-                <button onClick={() => setIsAddingVaultItem(true)} type="button"><FilePlus size={16} /> Save your first note</button>
-              </div>
-            ) : null}
-            {visibleDocuments.map((document) => (
-              <article className="doc-row" key={document.id}>
-                <strong>{document.title}</strong>
-                <span>{document.vaultSchema?.name ?? "Uncategorized"}</span>
-                <p>{document.excerpt}</p>
-                <div className="button-row compact-row">
-                  <button onClick={() => beginEditVaultItem(document)} type="button"><Pencil size={15} /> Edit</button>
-                  <button className="danger" onClick={() => deleteVaultItem(document)} type="button"><Trash2 size={15} /> Delete</button>
-                </div>
-              </article>
-            ))}
-            {documents.length > visibleDocuments.length ? <p className="empty">Showing {visibleDocuments.length} of {documents.length} notes. Use search to find older notes.</p> : null}
-          </div>
+          <VaultPanel
+            className={`panel vault-panel mobile-section desktop-section ${activeMobileClass("vault")} ${sectionClass("vault")}`}
+            documents={documents}
+            isSearchingVault={isSearchingVault}
+            onAddFirstVaultItem={() => setIsAddingVaultItem(true)}
+            onDeleteDocument={deleteVaultItem}
+            onEditDocument={beginEditVaultItem}
+            onReindexVault={reindexVault}
+            onSearchVault={searchVault}
+            onToggleAddVaultItem={() => setIsAddingVaultItem((current) => !current)}
+            onUploadVaultFile={uploadVaultFile}
+            schemas={schemas}
+            searchQuery={searchQuery}
+            searchResults={searchResults}
+            searchSchemaId={searchSchemaId}
+            setSearchQuery={setSearchQuery}
+            setSearchSchemaId={setSearchSchemaId}
+            visibleDocuments={visibleDocuments}
+          />
 
-          <div className={`panel audit-panel mobile-section desktop-section ${activeMobileClass("activity")} ${sectionClass("activity")}`} id="activity">
-            <div className="panel-heading-row">
-              <div>
-                <div className="panel-title">Receipts</div>
-                <p className="mobile-section-intro">Every helper access, approval, and block appears here.</p>
-              </div>
-              <StatusPill tone="blue">{logs.length} events</StatusPill>
-            </div>
-            {recentLogs.map((log) => (
-              <div className="log-row" key={log.id}>
-                <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>
-                  {log.status === "success" ? "done" : log.status === "pending_human_approval" ? "needs approval" : "blocked"}
-                </StatusPill>
-                <span>{friendlyLogText(log)}</span>
-                {friendlyNotificationText(log) ? <small>{friendlyNotificationText(log)}</small> : null}
-                <small>{friendlyLogDetail(log)}</small>
-                <small>{friendlyDate(log.createdAt)}</small>
-              </div>
-            ))}
-            {recentLogs.length === 0 ? (
-              <div className="friendly-empty-state">
-                <strong>Your safety log will appear here</strong>
-                <p>When a helper reads private info, asks for approval, or gets blocked, you will see the receipt here.</p>
-                <button onClick={() => scrollToSection("agents")} type="button"><MessageSquare size={16} /> Use a helper</button>
-              </div>
-            ) : null}
-          </div>
+          <ReceiptsPanel
+            className={`panel audit-panel mobile-section desktop-section ${activeMobileClass("activity")} ${sectionClass("activity")}`}
+            friendlyDate={friendlyDate}
+            friendlyLogDetail={friendlyLogDetail}
+            friendlyLogText={friendlyLogText}
+            friendlyNotificationText={friendlyNotificationText}
+            logsCount={logs.length}
+            onUseHelper={() => scrollToSection("agents")}
+            recentLogs={recentLogs}
+          />
 
           <div className={`panel hitl-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`}>
             <div className="panel-title">Needs Your Approval</div>
