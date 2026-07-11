@@ -1,4 +1,5 @@
 import { Database, KeyRound, MessageSquare, Trash2, Zap } from "lucide-react";
+import { useState } from "react";
 import type { Agent } from "../../api/types";
 import { friendlyCategoryName } from "../../lib/display";
 import { StatusPill } from "../StatusPill";
@@ -32,6 +33,18 @@ export function AgentSettingsTab(props: AgentSettingsTabProps) {
     triggerHighRiskAction,
     verificationLabel
   } = props;
+  const [pendingAction, setPendingAction] = useState<"search" | "approval" | "revoke" | "">("");
+
+  async function runSettingAction(action: "search" | "approval" | "revoke", task: () => void | Promise<void>) {
+    if (pendingAction) return;
+    setPendingAction(action);
+    try {
+      await task();
+      if (action === "approval") setAgentProfileTab("chat");
+    } finally {
+      setPendingAction("");
+    }
+  }
 
   return (
     <section className="agent-tab-panel" aria-label="Agent settings">
@@ -56,10 +69,16 @@ export function AgentSettingsTab(props: AgentSettingsTabProps) {
         <div><strong>Control</strong><span>Can only use what you allow</span></div>
       </div>
       <div className="button-row">
-        <button onClick={() => setAgentProfileTab("chat")} type="button"><MessageSquare size={16} /> Open chat</button>
-        <button onClick={() => void runVaultSearch()} type="button"><Database size={16} /> Search personal info</button>
-        <button onClick={() => void triggerHighRiskAction()} type="button"><Zap size={16} /> Try approval flow</button>
-        <button onClick={() => void revokeSelectedAgentAccess()} type="button"><KeyRound size={16} /> Remove saved info access</button>
+        <button disabled={Boolean(pendingAction)} onClick={() => setAgentProfileTab("chat")} type="button"><MessageSquare size={16} /> Open chat</button>
+        <button disabled={Boolean(pendingAction)} onClick={() => void runSettingAction("search", runVaultSearch)} type="button">
+          <Database size={16} /> {pendingAction === "search" ? "Searching…" : "Search personal info"}
+        </button>
+        <button disabled={Boolean(pendingAction)} onClick={() => void runSettingAction("approval", triggerHighRiskAction)} type="button">
+          <Zap size={16} /> {pendingAction === "approval" ? "Starting…" : "Try approval flow"}
+        </button>
+        <button disabled={Boolean(pendingAction)} onClick={() => void runSettingAction("revoke", revokeSelectedAgentAccess)} type="button">
+          <KeyRound size={16} /> {pendingAction === "revoke" ? "Removing…" : "Remove saved info access"}
+        </button>
         <button className="danger" onClick={() => removeAgentFromProfile(selectedAgent)} type="button"><Trash2 size={16} /> Remove agent</button>
       </div>
     </section>

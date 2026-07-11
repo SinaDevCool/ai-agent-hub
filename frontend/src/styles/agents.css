@@ -749,6 +749,11 @@
   padding: 12px;
 }
 
+.external-trust-card > div,
+.external-trust-card .status-pill {
+  min-width: 0;
+}
+
 .external-trust-card strong,
 .external-trust-card span,
 .external-trust-card small {

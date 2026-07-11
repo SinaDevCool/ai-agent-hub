@@ -620,8 +620,9 @@
 }
 
 .status-pill {
+  max-width: 100%;
   width: fit-content;
-  min-height: 28px;
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -631,9 +632,10 @@
   font-size: 12px;
   font-weight: 850;
   border: 1px solid transparent;
-  line-height: 1;
+  line-height: 1.15;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .status-pill.blue {

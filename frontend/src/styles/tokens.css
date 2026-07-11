@@ -31,6 +31,16 @@ button {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  line-height: 1.2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
+  touch-action: manipulation;
+  white-space: normal;
+}
+
+button svg {
+  flex: 0 0 auto;
 }
 
 button:hover {

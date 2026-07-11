@@ -1042,15 +1042,11 @@ textarea:focus-visible {
 
   .mobile-agent-status-chips {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin: -2px -2px 0;
-    overflow-x: auto;
+    overflow: visible;
     padding: 2px 2px 4px;
-    scrollbar-width: none;
-  }
-
-  .mobile-agent-status-chips::-webkit-scrollbar {
-    display: none;
   }
 
   .mobile-agent-status-chips button {
@@ -1061,7 +1057,7 @@ textarea:focus-visible {
     line-height: 1;
     min-height: 36px;
     padding: 0 12px;
-    white-space: nowrap;
+    white-space: normal;
   }
 
   .mobile-agent-status-chips button.selected {
@@ -1089,6 +1085,15 @@ textarea:focus-visible {
 
   .mobile-agent-main .status-pill {
     justify-self: end;
+  }
+
+  .external-trust-card {
+    grid-template-columns: 1fr;
+  }
+
+  .external-trust-card .status-pill {
+    justify-self: start;
+    width: auto;
   }
 
   .mobile-agent-card p {

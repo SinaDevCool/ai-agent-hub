@@ -104,10 +104,10 @@ export function AgentChatTab(props: AgentChatTabProps) {
             {selectedAgentApprovals[0] ? (
               <div className="approval-banner-actions">
                 <button disabled={decidingApprovalId === selectedAgentApprovals[0].id} onClick={() => void decideHitl(selectedAgentApprovals[0].id, true)} type="button">
-                  {decidingApprovalId === selectedAgentApprovals[0].id ? "Allowing..." : "Allow once"}
+                  {decidingApprovalId === selectedAgentApprovals[0].id ? "Allowing…" : "Allow once"}
                 </button>
                 <button className="danger" disabled={decidingApprovalId === selectedAgentApprovals[0].id} onClick={() => void decideHitl(selectedAgentApprovals[0].id, false)} type="button">
-                  {decidingApprovalId === selectedAgentApprovals[0].id ? "Saving..." : "Deny"}
+                  {decidingApprovalId === selectedAgentApprovals[0].id ? "Saving…" : "Deny"}
                 </button>
               </div>
             ) : (
@@ -211,10 +211,10 @@ export function AgentChatTab(props: AgentChatTabProps) {
                       <small>Nothing continues unless you allow it.</small>
                       <div className="button-row compact-row">
                         <button disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, true)} type="button">
-                          {decidingApprovalId === pendingRequest.id ? "Allowing..." : "Allow once"}
+                          {decidingApprovalId === pendingRequest.id ? "Allowing…" : "Allow once"}
                         </button>
                         <button className="danger" disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, false)} type="button">
-                          {decidingApprovalId === pendingRequest.id ? "Saving..." : "Deny"}
+                          {decidingApprovalId === pendingRequest.id ? "Saving…" : "Deny"}
                         </button>
                       </div>
                     </div>
