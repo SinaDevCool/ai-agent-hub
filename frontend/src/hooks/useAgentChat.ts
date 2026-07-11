@@ -66,6 +66,36 @@ export function useAgentChat(input: {
   const [approvedContinuation, setApprovedContinuation] = useState<{ requestId: string; actionName: string } | null>(null);
   const [decidingApprovalId, setDecidingApprovalId] = useState("");
 
+  function applyAgentRunResult(result: AgentRunResult) {
+    setAgentRunResult(result);
+    if (result.conversation) {
+      setAgentConversation(result.conversation);
+      setChatTranscript(
+        result.conversation.messages
+          .filter((message) => message.role === "user" || message.role === "agent")
+          .map(chatItemFromMessage)
+      );
+    } else {
+      setChatTranscript((current) => [...current, {
+        role: "agent",
+        content: result.reply,
+        status: result.status,
+        requestId: result.requestId,
+        actionName: result.actionName,
+        provider: result.provider,
+        model: result.model,
+        providerFallbackReason: result.providerFallbackReason,
+        runtimeState: result.runtimeState,
+        nextStep: result.nextStep,
+        usedSchemas: result.usedSchemas,
+        documents: result.documents,
+        externalRuntime: result.externalRuntime
+      }]);
+    }
+    input.setToolResult(result.reply);
+    if (result.documents?.length) input.setSearchResults(result.documents);
+  }
+
   useEffect(() => {
     if (!input.selectedAgent?.id) {
       setAgentConversation(null);
@@ -108,33 +138,7 @@ export function useAgentChat(input: {
     setLastFailedPrompt("");
     try {
       const result = await apiPost<AgentRunResult>(`/api/me/agents/${input.selectedAgent.id}/run`, { message: cleanPrompt });
-      setAgentRunResult(result);
-      if (result.conversation) {
-        setAgentConversation(result.conversation);
-        setChatTranscript(
-          result.conversation.messages
-            .filter((message) => message.role === "user" || message.role === "agent")
-            .map(chatItemFromMessage)
-        );
-      } else {
-        setChatTranscript((current) => [...current, {
-          role: "agent",
-          content: result.reply,
-          status: result.status,
-          requestId: result.requestId,
-          actionName: result.actionName,
-          provider: result.provider,
-          model: result.model,
-          providerFallbackReason: result.providerFallbackReason,
-          runtimeState: result.runtimeState,
-          nextStep: result.nextStep,
-          usedSchemas: result.usedSchemas,
-          documents: result.documents,
-          externalRuntime: result.externalRuntime
-        }]);
-      }
-      input.setToolResult(result.reply);
-      if (result.documents?.length) input.setSearchResults(result.documents);
+      applyAgentRunResult(result);
       await input.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Agent run failed.";
@@ -154,9 +158,9 @@ export function useAgentChat(input: {
   async function decideHitl(id: string, approved: boolean) {
     setDecidingApprovalId(id);
     try {
-      await apiPost(`/api/hitl/${id}/decision`, { approved });
+      const { request } = await apiPost<{ request: HitlRequest }>(`/api/hitl/${id}/decision`, { approved });
       const approvedRequest = input.selectedAgentApprovals.find((request) => request.id === id);
-      const message = approved ? "Allowed once. Nothing continues until you choose Continue action." : "Denied. Nothing will continue.";
+      const message = approved ? "Allowed once. Continuing the approved action now." : "Denied. Nothing will continue.";
       if (approved && approvedRequest) {
         setApprovedContinuation({ requestId: id, actionName: approvedRequest.actionName });
       } else if (!approved) {
@@ -181,7 +185,31 @@ export function useAgentChat(input: {
           actionName: item.actionName ?? approvedRequest?.actionName
         }
         : item));
+      if (approved) {
+        const agentId = request.agent?.id ?? approvedRequest?.agent.id ?? input.selectedAgent?.id;
+        if (!agentId) throw new Error("Approved, but the agent could not be found for continuation.");
+        const continuation = await apiPost<AgentRunResult>(`/api/me/agents/${agentId}/run`, {
+          message: `Continue the approved action: ${request.actionName}`
+        });
+        setApprovedContinuation((current) => current?.requestId === id ? null : current);
+        if (input.selectedAgent?.id === agentId) {
+          applyAgentRunResult(continuation);
+        } else {
+          input.setToolResult(continuation.reply);
+        }
+      }
       await input.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Approval failed.";
+      input.setToolResult(message);
+      setChatTranscript((current) => current.map((item) => item.requestId === id
+        ? {
+          ...item,
+          status: "error",
+          content: `Something went wrong. ${message}`,
+          nextStep: "Try again. If this keeps happening, refresh and check whether the approval expired."
+        }
+        : item));
     } finally {
       setDecidingApprovalId("");
     }

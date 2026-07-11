@@ -63,7 +63,8 @@ export async function decideHitlRequest(id: string, userId: string, approved: bo
     throw invalidApprovalError("This approval request is no longer pending or has expired.");
   }
   const request = await prisma.hitlRequest.findFirstOrThrow({
-    where: { id, userId }
+    where: { id, userId },
+    include: { agent: true }
   });
   await writeActivityLog({
     userId: request.userId,

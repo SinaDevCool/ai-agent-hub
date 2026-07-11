@@ -103,8 +103,12 @@ export function AgentChatTab(props: AgentChatTabProps) {
             </div>
             {selectedAgentApprovals[0] ? (
               <div className="approval-banner-actions">
-                <button disabled={decidingApprovalId === selectedAgentApprovals[0].id} onClick={() => void decideHitl(selectedAgentApprovals[0].id, true)} type="button">Allow once</button>
-                <button className="danger" disabled={decidingApprovalId === selectedAgentApprovals[0].id} onClick={() => void decideHitl(selectedAgentApprovals[0].id, false)} type="button">Deny</button>
+                <button disabled={decidingApprovalId === selectedAgentApprovals[0].id} onClick={() => void decideHitl(selectedAgentApprovals[0].id, true)} type="button">
+                  {decidingApprovalId === selectedAgentApprovals[0].id ? "Allowing..." : "Allow once"}
+                </button>
+                <button className="danger" disabled={decidingApprovalId === selectedAgentApprovals[0].id} onClick={() => void decideHitl(selectedAgentApprovals[0].id, false)} type="button">
+                  {decidingApprovalId === selectedAgentApprovals[0].id ? "Saving..." : "Deny"}
+                </button>
               </div>
             ) : (
               <button onClick={scrollToClearance} type="button">Review</button>
@@ -206,8 +210,12 @@ export function AgentChatTab(props: AgentChatTabProps) {
                       <small>{approvalReason(pendingRequest.actionName)}</small>
                       <small>Nothing continues unless you allow it.</small>
                       <div className="button-row compact-row">
-                        <button disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, true)} type="button">Allow once</button>
-                        <button className="danger" disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, false)} type="button">Deny</button>
+                        <button disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, true)} type="button">
+                          {decidingApprovalId === pendingRequest.id ? "Allowing..." : "Allow once"}
+                        </button>
+                        <button className="danger" disabled={decidingApprovalId === pendingRequest.id} onClick={() => void decideHitl(pendingRequest.id, false)} type="button">
+                          {decidingApprovalId === pendingRequest.id ? "Saving..." : "Deny"}
+                        </button>
                       </div>
                     </div>
                   ) : null}

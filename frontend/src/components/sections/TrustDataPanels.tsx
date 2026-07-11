@@ -114,8 +114,12 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
             <span>{approvalPlainSentence(request.actionName)}</span>
             <small>{approvalReason(request.actionName)} Nothing continues unless you allow it.</small>
             <div className="button-row">
-              <button disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, true)} type="button">Allow once</button>
-              <button className="danger" disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, false)} type="button">Deny</button>
+              <button disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, true)} type="button">
+                {decidingApprovalId === request.id ? "Allowing..." : "Allow once"}
+              </button>
+              <button className="danger" disabled={decidingApprovalId === request.id} onClick={() => void decideHitl(request.id, false)} type="button">
+                {decidingApprovalId === request.id ? "Saving..." : "Deny"}
+              </button>
             </div>
           </div>
         ))}
