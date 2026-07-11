@@ -3,8 +3,8 @@ services:
     name: ai-agent-hub-api
     runtime: node
     plan: free
-    buildCommand: npm install --include=dev && npm --workspace backend-core run prisma:generate:postgres && npm --workspace backend-core run db:migrate:postgres && npm --workspace backend-core run build
-    startCommand: npm --workspace backend-core run start
+    buildCommand: npm install --include=dev && npm --workspace backend-core run prisma:generate:postgres && npm --workspace backend-core run build
+    startCommand: npm --workspace backend-core run db:migrate:postgres && npm --workspace backend-core run start
     healthCheckPath: /health/ready
     envVars:
       - key: NODE_ENV
