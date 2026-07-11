@@ -232,6 +232,14 @@ textarea:focus-visible {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
+  .nav-item-group {
+    display: block;
+  }
+
+  .nav-sublist {
+    display: none;
+  }
+
   .nav-rail button {
     display: flex;
     flex-direction: column;

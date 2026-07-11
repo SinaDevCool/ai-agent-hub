@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { Bot, KeyRound, MessageSquare, Pencil, Pin, Plus, Search } from "lucide-react";
 import type { Agent } from "../../api/types";
 import type { AgentProfileTab } from "../../hooks/useAgentChat";
@@ -54,7 +54,6 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
     isAgentAddOpen,
     isAgentFiltersOpen,
     isMobileAgentDetailOpen,
-    mobileInstalledAgentCards,
     openAgentWizard,
     openMarketplace,
     pinnedAgentIds,
@@ -72,6 +71,16 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
     togglePinnedAgent,
     visibleInstalledAgentCards
   } = props;
+  const [isAgentListExpanded, setIsAgentListExpanded] = useState(false);
+  const displayedInstalledAgentCards = useMemo(
+    () => isAgentListExpanded ? visibleInstalledAgentCards : visibleInstalledAgentCards.slice(0, 5),
+    [isAgentListExpanded, visibleInstalledAgentCards]
+  );
+  const hiddenVisibleAgentCount = Math.max(visibleInstalledAgentCards.length - displayedInstalledAgentCards.length, 0);
+
+  useEffect(() => {
+    setIsAgentListExpanded(false);
+  }, [agentSearch, agentStatusFilter, hideTestAgents]);
 
   return (
     <div className={`panel agent-list mobile-section desktop-section ${activeMobileClass("helpers")} ${sectionClass("helpers")} ${isMobileAgentDetailOpen ? "mobile-agent-detail-is-open" : ""}`} id="helpers">
@@ -166,7 +175,7 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
         </div>
       ) : null}
       <div className="mobile-agent-list" aria-label="My AI agents for mobile">
-        {mobileInstalledAgentCards.map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
+        {displayedInstalledAgentCards.map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
           const mobileStatusLabel = pendingApprovals ? "Waiting for you" : permissions.missing ? "Needs access" : "Ready";
           const accessActionLabel = pendingApprovals ? "Review" : permissions.missing ? "Access" : "Access";
           return (
@@ -199,7 +208,7 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
         })}
       </div>
       <div className="installed-agent-list desktop-agent-list">
-        {visibleInstalledAgentCards.slice(0, 5).map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
+        {displayedInstalledAgentCards.map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
           const cardActionLabel = pendingApprovals ? "Review" : permissions.missing ? "Review access" : "Open chat";
           const isPinned = pinnedAgentIds.includes(agent.id);
           return (
@@ -241,6 +250,22 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
           );
         })}
       </div>
+      {agents.length > 0 && visibleInstalledAgentCards.length > 0 ? (
+        <div className="agent-list-footer">
+          <span>
+            Showing {displayedInstalledAgentCards.length} of {visibleInstalledAgentCards.length} visible agents
+            {hiddenTestAgentCount && hideTestAgents ? `, ${hiddenTestAgentCount} hidden test/demo.` : "."}
+          </span>
+          <div>
+            {hiddenTestAgentCount && hideTestAgents ? <button onClick={() => setHideTestAgents(false)} type="button">Show hidden</button> : null}
+            {hiddenVisibleAgentCount ? (
+              <button onClick={() => setIsAgentListExpanded(true)} type="button">Show all</button>
+            ) : isAgentListExpanded && visibleInstalledAgentCards.length > 5 ? (
+              <button onClick={() => setIsAgentListExpanded(false)} type="button">Show fewer</button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {agents.length > 0 && visibleInstalledAgentCards.length === 0 ? (
         <div className="friendly-empty-state">
           <strong>No agents match this view</strong>
@@ -259,7 +284,6 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
           <button onClick={() => openMarketplace()} type="button"><Bot size={16} /> Find an Agent</button>
         </div>
       ) : null}
-      {visibleInstalledAgentCards.length > 5 ? <p className="empty">Showing 5 of {visibleInstalledAgentCards.length} matching agents. Use search or filters to narrow the list.</p> : null}
     </div>
   );
 }

@@ -196,6 +196,30 @@
   min-height: 38px;
 }
 
+.agent-list-footer {
+  align-items: center;
+  border-top: 1px solid rgba(137, 163, 196, 0.1);
+  color: #91a4ba;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px;
+  justify-content: space-between;
+  line-height: 1.4;
+  padding-top: 10px;
+}
+
+.agent-list-footer > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.agent-list-footer button {
+  min-height: 32px;
+  padding-inline: 10px;
+}
+
 .mobile-agent-card {
   background: rgba(11, 27, 46, 0.68);
   border: 1px solid rgba(137, 163, 196, 0.14);
@@ -417,6 +441,7 @@
 .chat-command-center,
 .chat-approval-banner,
 .chat-empty-state,
+.chat-current-state-note,
 .approval-card,
 .side-approval-list,
 .side-permission-summary,
@@ -453,6 +478,7 @@
 .chat-command-center small,
 .chat-approval-banner span,
 .chat-empty-state span,
+.chat-current-state-note span,
 .approval-card small,
 .side-permission-summary span,
 .agent-activity-card small {
@@ -477,6 +503,13 @@
 
 .approval-card {
   border-color: rgba(255, 190, 86, 0.18);
+}
+
+.chat-current-state-note {
+  align-items: center;
+  background: rgba(71, 210, 142, 0.06);
+  border-color: rgba(71, 210, 142, 0.18);
+  grid-template-columns: auto minmax(0, 1fr);
 }
 
 .approval-card .button-row {

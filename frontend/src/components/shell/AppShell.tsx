@@ -2,14 +2,24 @@ import { Bot, FilePlus, LogOut, Settings, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { consumerNavIds, navItems, type SectionHeading, type SectionId } from "../../lib/appNavigation";
 
+type NavShortcut = {
+  id: string;
+  label: string;
+  meta?: string;
+};
+
 export function AppShell(props: {
   activeSection: SectionId;
+  agentPoolShortcuts?: NavShortcut[];
+  agentShortcuts?: NavShortcut[];
   canUseCreatorTools: boolean;
   canModerateMarketplace: boolean;
   children: ReactNode;
   connectionState: string;
   heading: SectionHeading;
   onAddPrivateInfo: () => void;
+  onOpenAgentPoolNeed?: (needId: string) => void;
+  onOpenAgentShortcut?: (agentId: string) => void;
   onOpenAgentPool: () => void;
   onNavigate: (section: SectionId) => void;
   onSignOut?: () => void;
@@ -21,18 +31,38 @@ export function AppShell(props: {
         <div className="brand-mark"><ShieldCheck size={22} /> AI Agent Hub</div>
         <nav>
           {navItems.filter((item) => consumerNavIds.has(item.id) || (item.id === "creator" && props.canUseCreatorTools) || (item.id === "moderation" && props.canModerateMarketplace)).map(({ id, label, mobileLabel, icon: Icon, mobileVisible }) => (
-            <button
-              aria-current={props.activeSection === id ? "page" : undefined}
-              aria-label={label}
-              className={`${props.activeSection === id ? "nav-active" : ""} ${mobileVisible === false ? "nav-mobile-hidden" : ""}`}
-              data-mobile-label={mobileLabel}
-              key={id}
-              onClick={() => props.onNavigate(id)}
-              type="button"
-            >
-              <Icon size={18} />
-              <span aria-hidden="true" className="nav-label-full">{label}</span>
-            </button>
+            <div className="nav-item-group" key={id}>
+              <button
+                aria-current={props.activeSection === id ? "page" : undefined}
+                aria-label={label}
+                className={`${props.activeSection === id ? "nav-active" : ""} ${mobileVisible === false ? "nav-mobile-hidden" : ""}`}
+                data-mobile-label={mobileLabel}
+                onClick={() => props.onNavigate(id)}
+                type="button"
+              >
+                <Icon size={18} />
+                <span aria-hidden="true" className="nav-label-full">{label}</span>
+              </button>
+              {id === "marketplace" && props.agentPoolShortcuts?.length ? (
+                <div className="nav-sublist" aria-label="Agent Pool categories">
+                  {props.agentPoolShortcuts.slice(0, 5).map((item) => (
+                    <button key={item.id} onClick={() => props.onOpenAgentPoolNeed?.(item.id)} type="button">
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {id === "helpers" && props.agentShortcuts?.length ? (
+                <div className="nav-sublist" aria-label="My Agents shortcuts">
+                  {props.agentShortcuts.slice(0, 5).map((item) => (
+                    <button key={item.id} onClick={() => props.onOpenAgentShortcut?.(item.id)} type="button">
+                      <span>{item.label}</span>
+                      {item.meta ? <small>{item.meta}</small> : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           ))}
         </nav>
       </aside>

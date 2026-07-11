@@ -207,11 +207,57 @@ button.danger {
   gap: 8px;
 }
 
+.nav-item-group {
+  display: grid;
+  gap: 6px;
+}
+
 .nav-rail button {
   justify-content: flex-start;
   background: transparent;
   border-color: transparent;
   color: #a9b8ca;
+}
+
+.nav-sublist {
+  display: grid;
+  gap: 4px;
+  padding-left: 26px;
+}
+
+.nav-sublist button {
+  border-radius: 6px;
+  color: #8fa3ba;
+  display: grid;
+  gap: 2px;
+  height: auto;
+  justify-items: start;
+  min-height: 30px;
+  padding: 5px 8px;
+}
+
+.nav-sublist button:hover {
+  background: rgba(64, 156, 255, 0.08);
+}
+
+.nav-sublist span,
+.nav-sublist small {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-sublist span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.nav-sublist small {
+  color: #71869e;
+  font-size: 11px;
+  font-weight: 750;
 }
 
 .nav-label-mobile {

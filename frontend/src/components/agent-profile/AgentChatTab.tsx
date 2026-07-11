@@ -81,6 +81,17 @@ export function AgentChatTab(props: AgentChatTabProps) {
     submitAgentPrompt,
     suggestedPrompts
   } = props;
+  const missingPermissionCount = permissionReview.filter((item) => item.schema && !item.granted).length;
+  const hasCurrentAllowedInfo = allowedPermissionCount > 0;
+  const hasStalePermissionBlock = missingPermissionCount === 0 && chatTranscript.some((message) => (
+    message.status === "blocked_by_policy"
+    && /permission|private info|access/i.test(`${message.content} ${message.nextStep ?? ""}`)
+  ));
+  const shouldShowRunSummary = Boolean(agentRunResult) && !(
+    agentRunResult?.status === "blocked"
+    && missingPermissionCount === 0
+    && /permission|private info|access/i.test(`${agentRunResult.reply} ${agentRunResult.nextStep ?? ""}`)
+  );
 
   return (
     <div className={agentProfileTab === "chat" ? "agent-use-grid" : "agent-use-grid is-tab-hidden"}>
@@ -153,7 +164,20 @@ export function AgentChatTab(props: AgentChatTabProps) {
         {chatTranscript.length === 0 && !isConversationLoading ? (
           <div className="chat-empty-state">
             <strong>Ready when you are</strong>
-            <span>This agent cannot use saved info or sensitive actions unless you allow it.</span>
+            <span>
+              {hasCurrentAllowedInfo
+                ? "This agent can use only the saved info you approved. It will still ask before sensitive actions."
+                : permissionReview.length
+                  ? "Allow the requested saved info when you want richer answers."
+                  : "This agent does not need saved info for its starter tasks."}
+            </span>
+          </div>
+        ) : null}
+
+        {hasStalePermissionBlock ? (
+          <div className="chat-current-state-note" role="status" aria-live="polite">
+            <StatusPill tone="green">Access ready</StatusPill>
+            <span>Access is now allowed. Send the request again so this agent can answer with the approved info.</span>
           </div>
         ) : null}
 
@@ -231,7 +255,7 @@ export function AgentChatTab(props: AgentChatTabProps) {
           </div>
         ) : null}
 
-        {agentRunResult ? (
+        {shouldShowRunSummary && agentRunResult ? (
           <div className="agent-run-summary">
             <StatusPill tone={agentRunResult.status === "ok" ? "green" : agentRunResult.status === "awaiting_human_approval" ? "amber" : "red"}>
               {agentRunResult.status === "awaiting_human_approval" ? "Waiting for you" : agentRunResult.status}

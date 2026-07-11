@@ -579,11 +579,29 @@ export function App() {
   return (
     <AppShell
       activeSection={activeSection}
+      agentPoolShortcuts={marketplaceNeedOptions.slice(0, 5).map((need) => ({ id: need.id, label: need.title }))}
+      agentShortcuts={visibleInstalledAgentCards.slice(0, 5).map(({ agent, readiness: agentReadinessState }) => ({
+        id: agent.id,
+        label: agent.name,
+        meta: agentReadinessState.label
+      }))}
       canModerateMarketplace={canModerateMarketplace}
       canUseCreatorTools={canUseCreatorTools}
       connectionState={connectionState}
       heading={heading}
       onAddPrivateInfo={() => setIsAddingVaultItem((current) => !current)}
+      onOpenAgentPoolNeed={(needId) => {
+        const need = marketplaceNeedOptions.find((item) => item.id === needId);
+        clearMarketplaceNeedContext();
+        setMarketplaceCategory(need?.category ?? "All");
+        setMarketplaceSearch(need?.query ?? "");
+        scrollToSection("marketplace");
+      }}
+      onOpenAgentShortcut={(agentId) => {
+        setSelectedAgentId(agentId);
+        setAgentProfileTab("chat");
+        scrollToSection("helpers");
+      }}
       onOpenAgentPool={() => openMarketplace()}
       onNavigate={scrollToSection}
       onSignOut={auth.session ? () => void auth.signOut() : undefined}
