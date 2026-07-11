@@ -11,7 +11,7 @@
     "dev": "npm-run-all --parallel dev:backend dev:frontend",
     "dev:backend": "npm --workspace backend-core run dev",
     "dev:frontend": "npm --workspace frontend run dev",
-    "build": "npm --workspaces run build",
+    "build": "npm --workspace backend-core run prisma:generate --silent && npm --workspaces run build",
     "lint": "npm --workspaces run lint",
     "typecheck": "npm --workspaces run typecheck",
     "smoke:ui": "playwright test",
