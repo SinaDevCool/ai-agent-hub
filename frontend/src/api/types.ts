@@ -20,6 +20,11 @@ export type Agent = {
   apiProtocol: string;
   trustScore: number;
   capabilityManifest: {
+    protocol?: "MCP" | "OpenAPI";
+    sourceType?: "native" | "mcp_server" | "openapi_endpoint";
+    externalEndpointUrl?: string;
+    verificationStatus?: "declared" | "verified" | "blocked";
+    verificationSummary?: string[];
     tools?: string[];
     requestedSchemas?: string[];
     highRiskActions?: string[];
@@ -29,6 +34,43 @@ export type Agent = {
   };
   permissions: AgentPermission[];
   connections: Array<{ connectionStatus: string; tokenExpiresAt?: string }>;
+};
+
+export type CreatorProfile = {
+  id: string;
+  userId: string;
+  displayName: string;
+  bio: string;
+  verified: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CurrentUserCapabilities = {
+  canCreateMarketplaceAgents: boolean;
+  canModerateMarketplace: boolean;
+};
+
+export type CurrentUser = {
+  id: string;
+  email: string;
+  role: "user" | "creator" | "moderator" | "admin";
+};
+
+export type CreatorAccessStatus = "pending" | "approved" | "denied";
+
+export type CreatorAccessRequest = {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  status: CreatorAccessStatus;
+  reason: string;
+  reviewNote: string;
+  reviewedAt: string | null;
+  reviewedByUserId?: string | null;
+  reviewedByEmail?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type MarketplaceAgent = {
@@ -42,6 +84,10 @@ export type MarketplaceAgent = {
   trustScore: number;
   installCount: number;
   averageRating: number;
+  moderationNote?: string;
+  submittedForReviewAt?: string | null;
+  reviewedAt?: string | null;
+  reviewedByUserId?: string | null;
   installed?: boolean;
   matchScore?: number;
   matchReasons?: string[];
@@ -57,6 +103,47 @@ export type MarketplaceAgent = {
   }>;
 };
 
+export type CreatorAgent = MarketplaceAgent & {
+  status: "draft" | "needs_review" | "published" | "archived";
+};
+
+export type CreatorReadinessItem = {
+  key: string;
+  label: string;
+  passed: boolean;
+  required: boolean;
+  severity: "required" | "review" | "info";
+  guidance: string;
+};
+
+export type CreatorPublishReadiness = {
+  outcome: "publish" | "needs_review" | "block";
+  message: string;
+  code: string;
+  items: CreatorReadinessItem[];
+};
+
+export type CreatorPublishResult = {
+  agent: CreatorAgent;
+  readiness: CreatorPublishReadiness;
+};
+
+export type CreatorAgentDraftInput = {
+  name: string;
+  tagline: string;
+  description: string;
+  category: string;
+  apiProtocol: "MCP" | "OpenAPI";
+  capabilityManifest: Required<Pick<Agent["capabilityManifest"], "tools" | "requestedSchemas" | "highRiskActions" | "description" | "examplePrompts" | "trustReasons">> & {
+    protocol: "MCP" | "OpenAPI";
+    sourceType?: "native" | "mcp_server" | "openapi_endpoint";
+    externalEndpointUrl?: string;
+    verificationStatus?: "declared" | "verified" | "blocked";
+    verificationSummary?: string[];
+  };
+  releaseNotes?: string;
+};
+
 export type UserAgentInstall = {
   id: string;
   displayName: string;
@@ -70,6 +157,38 @@ export type UserAgentInstall = {
     capabilityManifest: Agent["capabilityManifest"];
   };
   agent?: Agent | null;
+};
+
+export type ExternalAgentImportInput = {
+  sourceType: "mcp_server" | "openapi_endpoint";
+  endpointUrl: string;
+  displayName?: string;
+  category?: string;
+};
+
+export type ExternalAgentImportPreview = {
+  sourceType: "mcp_server" | "openapi_endpoint";
+  sourceLabel: string;
+  endpointHost: string;
+  displayName: string;
+  category: string;
+  protocol: "MCP" | "OpenAPI";
+  verificationStatus: "verified" | "blocked";
+  canInstall: boolean;
+  blockers: string[];
+  warnings: string[];
+  capabilityManifest: Agent["capabilityManifest"] & {
+    protocol: "MCP" | "OpenAPI";
+    sourceType: "mcp_server" | "openapi_endpoint";
+    verificationStatus: "verified" | "blocked";
+    verificationSummary: string[];
+    tools: string[];
+    requestedSchemas: string[];
+    highRiskActions: string[];
+    description: string;
+    examplePrompts: string[];
+    trustReasons: string[];
+  };
 };
 
 export type VaultDocument = {
@@ -138,4 +257,12 @@ export type AgentRunResult = {
   provider?: "openai" | "local";
   model?: string;
   providerFallbackReason?: string;
+  externalRuntime?: {
+    source: "external_agent_runtime";
+    sourceType: "mcp_server" | "openapi_endpoint";
+    endpointHost?: string;
+    proxyStatus?: "executed" | "blocked" | "timed_out" | "failed" | "pending_human_approval" | "prepared";
+    durationMs?: number;
+    blockedReason?: string;
+  };
 };

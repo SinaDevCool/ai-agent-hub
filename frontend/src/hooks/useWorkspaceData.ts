@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { apiGet } from "../api/client";
 import type { ActivityLog, Agent, HitlRequest, MarketplaceAgent, UserAgentInstall, VaultDocument, VaultSchema } from "../api/types";
+import { runWithRetry, type RetryOptions } from "../lib/retry";
 
 export function useWorkspaceData(input: { formatError: (error: unknown) => string }) {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -12,20 +13,24 @@ export function useWorkspaceData(input: { formatError: (error: unknown) => strin
   const [hitl, setHitl] = useState<HitlRequest[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(true);
   const [refreshError, setRefreshError] = useState("");
+  const refreshRequestId = useRef(0);
 
-  async function refresh() {
+  const refresh = useCallback(async (options?: RetryOptions) => {
+    const requestId = refreshRequestId.current + 1;
+    refreshRequestId.current = requestId;
     setIsRefreshing(true);
     setRefreshError("");
     try {
-      const [agentData, marketplaceData, installedData, schemaData, documentData, logData, hitlData] = await Promise.all([
-        apiGet<{ agents: Agent[] }>("/api/agents"),
-        apiGet<{ agents: MarketplaceAgent[] }>("/api/marketplace/agents"),
-        apiGet<{ installs: UserAgentInstall[] }>("/api/me/agents"),
-        apiGet<{ schemas: VaultSchema[] }>("/api/vault/schemas"),
-        apiGet<{ documents: VaultDocument[] }>("/api/vault/documents"),
-        apiGet<{ logs: ActivityLog[] }>("/api/activity"),
-        apiGet<{ requests: HitlRequest[] }>("/api/hitl")
-      ]);
+      const [agentData, marketplaceData, installedData, schemaData, documentData, logData, hitlData] = await runWithRetry(() => Promise.all([
+          apiGet<{ agents: Agent[] }>("/api/agents"),
+          apiGet<{ agents: MarketplaceAgent[] }>("/api/marketplace/agents"),
+          apiGet<{ installs: UserAgentInstall[] }>("/api/me/agents"),
+          apiGet<{ schemas: VaultSchema[] }>("/api/vault/schemas"),
+          apiGet<{ documents: VaultDocument[] }>("/api/vault/documents"),
+          apiGet<{ logs: ActivityLog[] }>("/api/activity"),
+          apiGet<{ requests: HitlRequest[] }>("/api/hitl")
+        ]), options);
+      if (refreshRequestId.current !== requestId) return false;
       setAgents(agentData.agents);
       setMarketplaceAgents(marketplaceData.agents);
       setInstalledAgents(installedData.installs);
@@ -33,12 +38,15 @@ export function useWorkspaceData(input: { formatError: (error: unknown) => strin
       setDocuments(documentData.documents);
       setLogs(logData.logs);
       setHitl(hitlData.requests);
+      return true;
     } catch (error) {
+      if (refreshRequestId.current !== requestId) return false;
       setRefreshError(input.formatError(error));
+      return false;
     } finally {
-      setIsRefreshing(false);
+      if (refreshRequestId.current === requestId) setIsRefreshing(false);
     }
-  }
+  }, [input]);
 
   return {
     agents,

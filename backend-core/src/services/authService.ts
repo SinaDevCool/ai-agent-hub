@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "../config/env.js";
-import { prisma } from "../db/prisma.js";
 import { ensureUserWorkspace } from "./workspaceService.js";
 
 const supabaseAuth = env.SUPABASE_URL && env.SUPABASE_ANON_KEY
@@ -24,11 +23,8 @@ export async function resolveUserFromBearerToken(token: string) {
 }
 
 export async function resolveDevelopmentUser() {
-  const firstUser = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
-  if (firstUser) return firstUser;
-
   return ensureUserWorkspace({
-    id: "dev-user",
-    email: "sample.user@local.ai"
+    id: "local-clean-user",
+    email: "local.user@local.ai"
   });
 }

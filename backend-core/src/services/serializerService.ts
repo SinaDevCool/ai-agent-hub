@@ -1,6 +1,62 @@
 import { decodeJson } from "./jsonService.js";
 
-export function serializeAgent<T extends { capabilityManifest: string; permissions?: Array<{ restrictionRules: string; vaultSchema?: any }> }>(
+type WithExtraFields<T> = T & Record<string, unknown>;
+
+type SerializableVaultSchema = WithExtraFields<{
+  structuralTemplate: string;
+}>;
+
+type SerializableAgentPermission = WithExtraFields<{
+  restrictionRules: string;
+  vaultSchema?: SerializableVaultSchema | null;
+}>;
+
+type SerializableAgent = WithExtraFields<{
+  capabilityManifest: string;
+  permissions?: SerializableAgentPermission[];
+}>;
+
+type SerializableAgentVersion = WithExtraFields<{
+  capabilityManifest: string;
+}>;
+
+type SerializableAgentDefinition = WithExtraFields<{
+  versions?: SerializableAgentVersion[];
+  installs?: unknown[];
+}>;
+
+type SerializableUserAgentInstall = WithExtraFields<{
+  agentDefinition?: SerializableAgentDefinition | null;
+  agentVersion?: SerializableAgentVersion | null;
+  agent?: SerializableAgent | null;
+}>;
+
+type SerializableVaultDocument = WithExtraFields<{
+  frontmatter: string;
+  embedding: string;
+  vaultSchema?: SerializableVaultSchema | null;
+}>;
+
+type SerializableActivityLog = WithExtraFields<{
+  dynamicMetadata: string;
+  agent?: SerializableAgent | null;
+}>;
+
+type SerializableHitlRequest = WithExtraFields<{
+  payload: string;
+  agent?: SerializableAgent | null;
+}>;
+
+type SerializableAgentMessage = WithExtraFields<{
+  metadata: string;
+}>;
+
+type SerializableAgentConversation = WithExtraFields<{
+  messages?: SerializableAgentMessage[];
+  agent?: SerializableAgent | null;
+}>;
+
+export function serializeAgent<T extends SerializableAgent>(
   agent: T
 ) {
   return {
@@ -14,14 +70,14 @@ export function serializeAgent<T extends { capabilityManifest: string; permissio
   };
 }
 
-export function serializeAgentVersion<T extends { capabilityManifest: string }>(version: T) {
+export function serializeAgentVersion<T extends SerializableAgentVersion>(version: T) {
   return {
     ...version,
     capabilityManifest: decodeJson(version.capabilityManifest, {})
   };
 }
 
-export function serializeAgentDefinition(definition: any) {
+export function serializeAgentDefinition<T extends SerializableAgentDefinition>(definition: T) {
   return {
     ...definition,
     versions: definition.versions?.map(serializeAgentVersion),
@@ -29,7 +85,7 @@ export function serializeAgentDefinition(definition: any) {
   };
 }
 
-export function serializeUserAgentInstall(install: any) {
+export function serializeUserAgentInstall<T extends SerializableUserAgentInstall>(install: T) {
   return {
     ...install,
     agentDefinition: install.agentDefinition ? serializeAgentDefinition(install.agentDefinition) : install.agentDefinition,
@@ -38,11 +94,11 @@ export function serializeUserAgentInstall(install: any) {
   };
 }
 
-export function serializeVaultSchema<T extends { structuralTemplate: string }>(schema: T) {
+export function serializeVaultSchema<T extends SerializableVaultSchema>(schema: T) {
   return { ...schema, structuralTemplate: decodeJson(schema.structuralTemplate, {}) };
 }
 
-export function serializeVaultDocument<T extends { frontmatter: string; embedding: string; vaultSchema?: any }>(document: T) {
+export function serializeVaultDocument<T extends SerializableVaultDocument>(document: T) {
   return {
     ...document,
     frontmatter: decodeJson(document.frontmatter, {}),
@@ -51,7 +107,7 @@ export function serializeVaultDocument<T extends { frontmatter: string; embeddin
   };
 }
 
-export function serializeActivityLog<T extends { dynamicMetadata: string; agent?: any }>(log: T) {
+export function serializeActivityLog<T extends SerializableActivityLog>(log: T) {
   return {
     ...log,
     dynamicMetadata: decodeJson(log.dynamicMetadata, {}),
@@ -59,7 +115,7 @@ export function serializeActivityLog<T extends { dynamicMetadata: string; agent?
   };
 }
 
-export function serializeHitlRequest<T extends { payload: string; agent?: any }>(request: T) {
+export function serializeHitlRequest<T extends SerializableHitlRequest>(request: T) {
   return {
     ...request,
     payload: decodeJson(request.payload, {}),
@@ -67,14 +123,14 @@ export function serializeHitlRequest<T extends { payload: string; agent?: any }>
   };
 }
 
-export function serializeAgentMessage<T extends { metadata: string }>(message: T) {
+export function serializeAgentMessage<T extends SerializableAgentMessage>(message: T) {
   return {
     ...message,
     metadata: decodeJson(message.metadata, {})
   };
 }
 
-export function serializeAgentConversation<T extends { messages?: Array<{ metadata: string }>; agent?: any }>(conversation: T) {
+export function serializeAgentConversation<T extends SerializableAgentConversation>(conversation: T) {
   return {
     ...conversation,
     messages: conversation.messages?.map(serializeAgentMessage) ?? [],

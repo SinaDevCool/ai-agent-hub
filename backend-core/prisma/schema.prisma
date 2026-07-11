@@ -75,6 +75,7 @@ enum NotificationStatus {
 
 enum MarketplaceStatus {
   draft
+  needs_review
   published
   archived
 }
@@ -85,9 +86,23 @@ enum AgentMessageRole {
   system
 }
 
+enum UserRole {
+  user
+  creator
+  moderator
+  admin
+}
+
+enum CreatorAccessRequestStatus {
+  pending
+  approved
+  denied
+}
+
 model User {
   id                  String           @id @default(cuid())
   email               String           @unique
+  role                UserRole         @default(user)
   vaultLocalPath      String           @map("vault_local_path")
   vaultEncryptionSalt String           @map("vault_encryption_salt")
   createdAt           DateTime         @default(now()) @map("created_at")
@@ -100,8 +115,28 @@ model User {
   hitlRequests        HitlRequest[]
   notifications       Notification[]
   conversations       AgentConversation[]
+  creatorAccessRequests CreatorAccessRequest[] @relation("CreatorAccessRequestUser")
+  reviewedCreatorAccessRequests CreatorAccessRequest[] @relation("CreatorAccessRequestReviewer")
 
   @@map("users")
+}
+
+model CreatorAccessRequest {
+  id               String                     @id @default(cuid())
+  userId           String                     @map("user_id")
+  status           CreatorAccessRequestStatus @default(pending)
+  reason           String
+  reviewNote       String                     @default("") @map("review_note")
+  reviewedAt       DateTime?                  @map("reviewed_at")
+  reviewedByUserId String?                    @map("reviewed_by_user_id")
+  createdAt        DateTime                   @default(now()) @map("created_at")
+  updatedAt        DateTime                   @updatedAt @map("updated_at")
+  user             User                       @relation("CreatorAccessRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy       User?                      @relation("CreatorAccessRequestReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("creator_access_requests")
 }
 
 model CreatorProfile {
@@ -130,6 +165,10 @@ model AgentDefinition {
   trustScore     Int                @default(70) @map("trust_score")
   installCount   Int                @default(0) @map("install_count")
   averageRating  Float              @default(0) @map("average_rating")
+  moderationNote String             @default("") @map("moderation_note")
+  submittedForReviewAt DateTime?    @map("submitted_for_review_at")
+  reviewedAt     DateTime?          @map("reviewed_at")
+  reviewedByUserId String?          @map("reviewed_by_user_id")
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
   creator        CreatorProfile?    @relation(fields: [creatorId], references: [id], onDelete: SetNull)

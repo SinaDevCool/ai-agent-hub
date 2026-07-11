@@ -53,6 +53,15 @@ class OpenAiRuntimeError extends Error {
   }
 }
 
+class RuntimeProviderUnavailableError extends Error {
+  public readonly statusCode = 503;
+  public readonly code = "runtime_provider_unavailable";
+
+  constructor(message = "The AI runtime provider is unavailable.") {
+    super(message);
+  }
+}
+
 function classifyOpenAiFallback(error: unknown) {
   if (error instanceof OpenAiRuntimeError) {
     if (error.status === 401) return "auth_failed";
@@ -109,6 +118,9 @@ function buildPrompt(input: OpenAiRuntimeInput) {
 
 export async function generateRuntimeReply(input: OpenAiRuntimeInput): Promise<OpenAiRuntimeResult> {
   if (!env.OPENAI_API_KEY) {
+    if (env.NODE_ENV === "production") {
+      throw new RuntimeProviderUnavailableError("OpenAI runtime is not configured for production.");
+    }
     logger.warn("OpenAI runtime API key is not configured; using local fallback");
     return {
       provider: "local",
@@ -152,17 +164,29 @@ export async function generateRuntimeReply(input: OpenAiRuntimeInput): Promise<O
       reply
     };
   } catch (error) {
+    const fallbackReason = classifyOpenAiFallback(error);
+    if (env.NODE_ENV === "production") {
+      logger.error(
+        {
+          err: error,
+          fallbackReason,
+          openAiModel: env.OPENAI_MODEL
+        },
+        "OpenAI runtime reply failed in production"
+      );
+      throw new RuntimeProviderUnavailableError("OpenAI runtime could not complete this request.");
+    }
     logger.warn(
       {
         err: error,
-        fallbackReason: classifyOpenAiFallback(error),
+        fallbackReason,
         openAiModel: env.OPENAI_MODEL
       },
       "OpenAI runtime reply failed; using local fallback"
     );
     return {
       provider: "local",
-      fallbackReason: classifyOpenAiFallback(error),
+      fallbackReason,
       reply: input.fallbackReply
     };
   }

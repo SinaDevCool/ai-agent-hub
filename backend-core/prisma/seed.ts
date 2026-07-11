@@ -2,6 +2,7 @@ import { PrismaClient, type AgentCategory } from "@prisma/client";
 import path from "node:path";
 import { createVaultSalt } from "../src/services/cryptoService.js";
 import { encodeJson } from "../src/services/jsonService.js";
+import { reindexVault } from "../src/services/vaultIndexService.js";
 
 const prisma = new PrismaClient();
 
@@ -372,6 +373,10 @@ async function main() {
       restrictionRules: encodeJson({ requiresHitlForHighRisk: true, maxSpendingUsd: 250 }),
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
     });
+  }
+
+  if (sampleUser) {
+    await reindexVault(sampleUser.id);
   }
 }
 

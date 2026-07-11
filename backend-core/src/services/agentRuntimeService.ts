@@ -6,71 +6,11 @@ import { evaluateVaultPermission, isHighRiskAction, logDecision } from "./permis
 import { generateRuntimeReply } from "./openAiRuntimeService.js";
 import { serializeAgentConversation, serializeVaultDocument } from "./serializerService.js";
 import { searchVaultDocuments } from "./vaultIndexService.js";
-
-type RuntimeIntent = "search" | "action" | "blocked";
-
-type RuntimeAgent = {
-  id: string;
-  name: string;
-  capabilityManifest: string;
-};
-
-type RuntimeResult = {
-  status: "ok" | "blocked" | "awaiting_human_approval";
-  intent: RuntimeIntent;
-  reply: string;
-  reason?: string;
-  runtimeState?: "ready" | "needs_permission" | "needs_approval" | "blocked" | "failed";
-  nextStep?: string;
-  missingPermissions?: string[];
-  actionName?: string;
-  requestId?: string;
-  usedSchemas?: string[];
-  documents?: unknown[];
-  provider?: "openai" | "local";
-  providerFallbackReason?: string;
-  model?: string;
-};
-
-function getRuntimeIntent(message: string): RuntimeIntent {
-  if (!message.trim()) return "blocked";
-  if (/\b(book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open)\b/i.test(message)) return "action";
-  return "search";
-}
-
-function getRequestedAction(message: string, highRiskActions: string[]) {
-  const normalized = message.toLowerCase();
-  const explicitAction = highRiskActions.find((action) => normalized.includes(action.replace(/_/g, " ")));
-  if (explicitAction) return explicitAction;
-  if (/\btransfer|pay\b/i.test(message)) return "transfer_funds";
-  if (/\bbook|reserve|flight|hotel|travel\b/i.test(message)) return "book_non_refundable_travel";
-  if (/\bcredit|card|apply|open\b/i.test(message)) return "open_credit_card";
-  if (/\bmedical|health|doctor|record\b/i.test(message)) return "share_medical_record";
-  if (/\bsign|contract\b/i.test(message)) return "sign_contract";
-  return highRiskActions[0] ?? "action_requested";
-}
-
-function friendlyActionName(action: string) {
-  return action.replace(/_/g, " ");
-}
-
-async function getAllowedSchemaIds(userId: string, agentId: string, requestedSchemas: string[]) {
-  const schemas = await prisma.vaultSchema.findMany({
-    where: requestedSchemas.length ? { name: { in: requestedSchemas } } : undefined,
-    select: { id: true, name: true }
-  });
-  const allowed = [];
-  for (const schema of schemas) {
-    const decision = await evaluateVaultPermission({
-      userId,
-      agentId,
-      permissionType: "read",
-      vaultSchemaId: schema.id
-    });
-    if (decision.allowed) allowed.push(schema);
-  }
-  return allowed;
-}
+import { runExternalAgentRuntime } from "./externalAgentRuntimeService.js";
+import type { AgentCapabilityManifest, RuntimeAgent, RuntimeResult } from "./agentRuntimeTypes.js";
+import { consumeApprovedHitlRequest, isContinueApprovedActionMessage } from "./runtimeApprovalService.js";
+import { friendlyActionName, getRequestedAction, getRuntimeIntent } from "./runtimeIntentService.js";
+import { getAllowedVaultSchemas } from "./runtimePermissionService.js";
 
 function buildSearchReply(agent: RuntimeAgent, count: number, schemaNames: string[]) {
   if (count === 0) {
@@ -156,7 +96,8 @@ async function appendRuntimeMessages(input: {
           documents: input.result.documents,
           provider: input.result.provider,
           model: input.result.model,
-          providerFallbackReason: input.result.providerFallbackReason
+          providerFallbackReason: input.result.providerFallbackReason,
+          externalRuntime: input.result.externalRuntime
         })
       }
     }),
@@ -187,7 +128,7 @@ async function withPersistedConversation(input: {
   return { ...input.result, conversation };
 }
 
-export async function runAgentForUser(input: { userId: string; agentId: string; message: string }) {
+export async function runAgentForUser(input: { userId: string; agentId: string; message: string }): Promise<RuntimeResult & { conversation?: unknown }> {
   const message = input.message.trim();
   const agent = await prisma.agent.findFirst({
     where: {
@@ -206,61 +147,39 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
     };
   }
 
-  const manifest = decodeJson<{ tools?: string[]; requestedSchemas?: string[]; highRiskActions?: string[]; description?: string }>(agent.capabilityManifest, {});
+  const manifest = decodeJson<AgentCapabilityManifest>(agent.capabilityManifest, {});
   const tools = new Set(manifest.tools ?? []);
   const intent = getRuntimeIntent(message);
 
-  if (/^continue the approved action:/i.test(message) || /^continue approved action:/i.test(message)) {
-    const approvedRequest = await prisma.hitlRequest.findFirst({
-      where: {
-        userId: input.userId,
-        agentId: agent.id,
-        status: "success",
-        expiresAt: { gt: new Date() },
-        continuedAt: null
-      },
-      orderBy: { decidedAt: "desc" }
+  const externalResult = await runExternalAgentRuntime({
+    userId: input.userId,
+    agent,
+    manifest,
+    tools,
+    intent,
+    message
+  });
+  if (externalResult) {
+    return withPersistedConversation({ userId: input.userId, agent, message, result: externalResult });
+  }
+
+  if (isContinueApprovedActionMessage(message)) {
+    const continuation = await consumeApprovedHitlRequest({
+      userId: input.userId,
+      agentId: agent.id,
+      missingReply: `${agent.name} could not find an approved action to continue.`,
+      missingReason: "No unused, unexpired approval request was found for this agent.",
+      usedReply: `${agent.name} could not continue that approval because it was already used or expired.`
     });
-    if (!approvedRequest) {
+    if (continuation.status === "blocked") {
       return withPersistedConversation({
         userId: input.userId,
         agent,
         message,
-        result: {
-          status: "blocked" as const,
-          intent: "action" as const,
-          reply: `${agent.name} could not find an approved action to continue.`,
-          reason: "No unused, unexpired approval request was found for this agent.",
-          runtimeState: "blocked" as const,
-          nextStep: "Approve the paused action first, then continue it before the approval expires."
-        }
+        result: continuation.result
       });
     }
-    const consumed = await prisma.hitlRequest.updateMany({
-      where: {
-        id: approvedRequest.id,
-        userId: input.userId,
-        status: "success",
-        expiresAt: { gt: new Date() },
-        continuedAt: null
-      },
-      data: { continuedAt: new Date() }
-    });
-    if (consumed.count === 0) {
-      return withPersistedConversation({
-        userId: input.userId,
-        agent,
-        message,
-        result: {
-          status: "blocked" as const,
-          intent: "action" as const,
-          reply: `${agent.name} could not continue that approval because it was already used or expired.`,
-          reason: "The approved action was already continued or expired.",
-          runtimeState: "blocked" as const,
-          nextStep: "Create a fresh approval request if you still want this action."
-        }
-      });
-    }
+    const approvedRequest = continuation.request;
     await writeActivityLog({
       userId: input.userId,
       agentId: agent.id,
@@ -305,7 +224,11 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
       });
     }
 
-    const allowedSchemas = await getAllowedSchemaIds(input.userId, agent.id, manifest.requestedSchemas ?? []);
+    const allowedSchemas = await getAllowedVaultSchemas({
+      userId: input.userId,
+      agentId: agent.id,
+      requestedSchemas: manifest.requestedSchemas ?? []
+    });
     if (!allowedSchemas.length) {
       const decision = await evaluateVaultPermission({
         userId: input.userId,

@@ -1,0 +1,196 @@
+.vault-form-grid {
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 0.8fr);
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1fr) minmax(260px, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.wizard-steps {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.wizard-steps button {
+  width: 34px;
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 0;
+}
+
+.wizard-steps .step-active {
+  border-color: rgba(64, 156, 255, 0.8);
+  background: #163556;
+}
+
+.wizard-page {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.wizard-page h2 {
+  font-size: 18px;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.template-card {
+  min-height: 118px;
+  height: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  text-align: left;
+  padding: 13px;
+}
+
+.template-card strong,
+.template-card span {
+  display: block;
+}
+
+.template-card span {
+  color: #91a4ba;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.template-card.selected {
+  border-color: rgba(64, 156, 255, 0.8);
+  background: #163556;
+}
+
+.consumer-form-grid {
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px);
+}
+
+.consumer-choice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+fieldset {
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  margin: 0;
+  padding: 10px;
+}
+
+legend {
+  padding: 0 4px;
+}
+
+.choice-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  color: #d9e7f7;
+  font-size: 13px;
+  padding: 6px 0;
+}
+
+.choice-row input {
+  accent-color: #409cff;
+  margin: 0;
+}
+
+.review-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.review-strip div {
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  padding: 10px;
+}
+
+.guided-review {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.guided-review div {
+  border: 1px solid rgba(137, 163, 196, 0.14);
+  border-radius: 7px;
+  min-height: 82px;
+  padding: 10px;
+}
+
+.review-strip strong,
+.review-strip span,
+.guided-review strong,
+.guided-review span {
+  display: block;
+}
+
+.review-strip strong,
+.guided-review strong {
+  color: #b9c7d8;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.review-strip span,
+.guided-review span {
+  color: #d9e7f7;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.error-text {
+  color: #ffc6c6;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.friendly-error,
+.friendly-status,
+.friendly-empty-state {
+  border: 1px solid rgba(255, 190, 86, 0.22);
+  background: rgba(43, 33, 20, 0.56);
+  border-radius: 7px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.friendly-error button,
+.friendly-empty-state button {
+  justify-self: start;
+}
+
+.friendly-error p,
+.friendly-status p,
+.friendly-empty-state p {
+  color: #ffd89a;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.friendly-status {
+  background: rgba(10, 47, 50, 0.42);
+  border-color: rgba(92, 226, 205, 0.2);
+}
+
+.friendly-status p {
+  color: #a5f4e8;
+}
+
+.friendly-empty-state {
+  background: rgba(7, 17, 31, 0.36);
+  border-color: rgba(137, 163, 196, 0.14);
+}
+

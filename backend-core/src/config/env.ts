@@ -26,16 +26,46 @@ const schema = z.object({
   OLLAMA_EMBEDDING_MODEL: z.string().default("nomic-embed-text"),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
+  DIRECT_URL: z.string().min(1).optional(),
   APP_PUBLIC_URL: z.string().url().optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
   NOTIFICATION_FROM_EMAIL: z.string().min(3).default("AI Agent Hub <onboarding@resend.dev>"),
+  MODERATOR_USER_IDS: z.string().default(""),
   OPENAI_API_KEY: z.string().min(1).optional(),
-  OPENAI_MODEL: z.string().min(1).default("gpt-4o-mini")
+  OPENAI_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  EXTERNAL_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
+  EXTERNAL_RUNTIME_MAX_RESPONSE_BYTES: z.coerce.number().int().min(1000).max(200000).default(60000)
 }).superRefine((value, context) => {
-  if (value.NODE_ENV === "production" && (!value.SUPABASE_URL || !value.SUPABASE_ANON_KEY)) {
+  if (value.NODE_ENV !== "production") return;
+
+  if (!value.SUPABASE_URL || !value.SUPABASE_ANON_KEY) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "SUPABASE_URL and SUPABASE_ANON_KEY are required in production"
+    });
+  }
+  if (!value.DIRECT_URL) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "DIRECT_URL is required in production for PostgreSQL migrations"
+    });
+  }
+  if (!value.OPENAI_API_KEY) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "OPENAI_API_KEY is required in production for the agent runtime"
+    });
+  }
+  if (!process.env.FRONTEND_ORIGIN) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "FRONTEND_ORIGIN is required in production"
+    });
+  }
+  if (value.FRONTEND_ORIGIN.split(",").some((origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin.trim()))) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "FRONTEND_ORIGIN cannot include localhost origins in production"
     });
   }
 });
@@ -47,3 +77,8 @@ export const frontendOrigins = env.FRONTEND_ORIGIN.split(",")
   .filter(Boolean);
 
 export const resolvedVaultPath = path.resolve(process.cwd(), env.VAULT_LOCAL_PATH);
+
+export const moderatorUserIds = env.MODERATOR_USER_IDS
+  .split(",")
+  .map((userId) => userId.trim())
+  .filter(Boolean);

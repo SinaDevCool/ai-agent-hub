@@ -5,8 +5,10 @@ import { pinoHttp } from "pino-http";
 import { frontendOrigins } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { requestContext } from "./middleware/requestContext.js";
+import { requestId } from "./middleware/requestId.js";
 import { requireUser } from "./middleware/requireUser.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { agentRuntimeRateLimit, generalApiRateLimit, sensitiveActionRateLimit } from "./middleware/rateLimit.js";
 import { healthRoutes } from "./routes/healthRoutes.js";
 import { agentRoutes } from "./routes/agentRoutes.js";
 import { vaultRoutes } from "./routes/vaultRoutes.js";
@@ -15,18 +17,24 @@ import { activityRoutes } from "./routes/activityRoutes.js";
 import { mcpRoutes } from "./routes/mcpRoutes.js";
 import { hitlRoutes } from "./routes/hitlRoutes.js";
 import { marketplaceRoutes } from "./routes/marketplaceRoutes.js";
+import { creatorRoutes } from "./routes/creatorRoutes.js";
+import { creatorAccessRoutes } from "./routes/creatorAccessRoutes.js";
+import { moderationRoutes } from "./routes/moderationRoutes.js";
 import { installRoutes } from "./routes/installRoutes.js";
 import { agentRuntimeRoutes } from "./routes/agentRuntimeRoutes.js";
+import { externalAgentImportRoutes } from "./routes/externalAgentImportRoutes.js";
 
 export function createApp() {
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: frontendOrigins, credentials: true }));
   app.use(express.json({ limit: "1mb" }));
+  app.use(requestId);
   app.use(pinoHttp({ logger }));
 
   app.use("/health", healthRoutes);
   app.use(requestContext);
+  app.use("/api", generalApiRateLimit);
   app.use("/api", requireUser);
   app.use("/api/agents", agentRoutes);
   app.use("/api/vault", vaultRoutes);
@@ -35,7 +43,11 @@ export function createApp() {
   app.use("/api/mcp", mcpRoutes);
   app.use("/api/hitl", hitlRoutes);
   app.use("/api/marketplace", marketplaceRoutes);
-  app.use("/api/me/agents", agentRuntimeRoutes);
+  app.use("/api/creator", sensitiveActionRateLimit, creatorRoutes);
+  app.use("/api/creator-access", sensitiveActionRateLimit, creatorAccessRoutes);
+  app.use("/api/moderation", moderationRoutes);
+  app.use("/api/external-agents", sensitiveActionRateLimit, externalAgentImportRoutes);
+  app.use("/api/me/agents", agentRuntimeRateLimit, agentRuntimeRoutes);
   app.use("/api/me", installRoutes);
 
   app.use(errorHandler);

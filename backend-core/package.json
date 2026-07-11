@@ -5,10 +5,12 @@
   "type": "module",
   "main": "dist/src/server.js",
   "scripts": {
-    "dev": "npm run prisma:generate --silent && tsx watch src/server.ts",
+    "dev": "tsx watch src/server.ts",
+    "dev:with-generate": "npm run prisma:generate --silent && tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/server.js",
     "lint": "eslint \"src/**/*.ts\"",
+    "smoke:production": "node scripts/smoke_production_backend.mjs",
     "test": "npm run prisma:generate --silent && tsx --test src/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:push": "prisma db push",
@@ -19,6 +21,7 @@
     "db:seed": "npm run prisma:generate --silent && tsx prisma/seed.ts",
     "db:seed:sample": "npm run prisma:generate --silent && tsx prisma/seed.ts --sample-user",
     "db:seed:postgres": "npm run prisma:generate:postgres --silent && tsx prisma/seed.ts",
+    "db:cleanup:demo": "npm run prisma:generate --silent && tsx prisma/cleanup_demo_data.ts",
     "prisma:generate": "prisma generate",
     "prisma:generate:postgres": "prisma generate --schema prisma/postgres/schema.prisma"
   },

@@ -1,5 +1,7 @@
 import type { RequestHandler } from "express";
+import { env } from "../config/env.js";
 import { isBackendAuthConfigured, resolveDevelopmentUser, resolveUserFromBearerToken } from "../services/authService.js";
+import { ensureUserWorkspace } from "../services/workspaceService.js";
 
 declare global {
   namespace Express {
@@ -14,8 +16,13 @@ export const requestContext: RequestHandler = async (req, _res, next) => {
   if (req.path === "/health") return next();
 
   const explicitUserId = req.header("x-user-id");
-  if (!isBackendAuthConfigured && explicitUserId) {
-    req.userId = explicitUserId;
+  if (env.NODE_ENV !== "production" && !isBackendAuthConfigured && explicitUserId) {
+    const user = await ensureUserWorkspace({
+      id: explicitUserId,
+      email: req.header("x-user-email") || `${explicitUserId}@local.test`
+    });
+    req.userId = user.id;
+    req.userEmail = user.email;
     return next();
   }
 
@@ -30,6 +37,7 @@ export const requestContext: RequestHandler = async (req, _res, next) => {
   }
 
   if (isBackendAuthConfigured) return next();
+  if (env.NODE_ENV === "production") return next();
 
   const developmentUser = await resolveDevelopmentUser();
   req.userId = developmentUser.id;

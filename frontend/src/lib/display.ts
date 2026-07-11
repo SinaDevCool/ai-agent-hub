@@ -20,7 +20,8 @@ export function friendlyCategoryName(category: string) {
 }
 
 export function friendlyActionName(action: string) {
-  return action.replace(/_/g, " ");
+  const label = action.replace(/_/g, " ");
+  return `${label.charAt(0).toUpperCase()}${label.slice(1)}`;
 }
 
 export function friendlyList(items: Array<string | undefined>, fallback: string) {

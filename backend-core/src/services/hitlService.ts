@@ -3,9 +3,10 @@ import { realtimeHub } from "./realtimeHub.js";
 import { writeActivityLog } from "./activityLogService.js";
 import { encodeJson } from "./jsonService.js";
 import { sendApprovalNotification } from "./notificationService.js";
+import { httpError } from "../errors/httpError.js";
 
 function invalidApprovalError(message: string) {
-  return Object.assign(new Error(message), { statusCode: 409, code: "invalid_approval_state" });
+  return httpError(409, message, "invalid_approval_state");
 }
 
 export async function createHitlRequest(input: {

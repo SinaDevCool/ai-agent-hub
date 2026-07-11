@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { apiPost } from "../api/client";
 import type { MarketplaceAgent, UserAgentInstall } from "../api/types";
 import {
+  isInternalMarketplaceAgent,
   marketplaceCategoryMatches,
+  parseMarketplaceSearch,
   marketplaceSearchValues,
   scoreMarketplaceAgent,
   type MatcherChoice,
@@ -20,7 +22,7 @@ export function useMarketplace(input: {
   marketplaceAgents: MarketplaceAgent[];
   installedAgents: UserAgentInstall[];
   marketplaceNeedOptions: MarketplaceNeed[];
-  refresh: () => Promise<void>;
+  refresh: () => Promise<unknown>;
   formatError: (error: unknown) => string;
   onInstalled: (install: UserAgentInstall) => void;
 }) {
@@ -48,11 +50,16 @@ export function useMarketplace(input: {
 
   const visibleMarketplaceAgents = useMemo(() => {
     const search = marketplaceSearch.trim().toLowerCase();
+    const parsedSearch = parseMarketplaceSearch(search);
     return input.marketplaceAgents.filter((agent) => {
+      if (isInternalMarketplaceAgent(agent)) return false;
       const manifest = agent.versions[0]?.capabilityManifest ?? {};
       const matchesCategory = marketplaceCategoryMatches(agent.category, marketplaceCategory);
-      const matchesSearch = !search || marketplaceSearchValues(agent)
-        .some((value) => value.toLowerCase().includes(search));
+      const searchValues = marketplaceSearchValues(agent).map((value) => value.toLowerCase());
+      const matchesSearch = !search
+        || searchValues.some((value) => value.includes(search))
+        || parsedSearch.terms.some((term) => searchValues.some((value) => value.includes(term)))
+        || parsedSearch.categories.some((category) => marketplaceCategoryMatches(agent.category, category));
       const matchesPrivateInfo = !marketplaceFilters.usesPrivateInfo || Boolean(manifest.requestedSchemas?.length);
       const matchesActions = !marketplaceFilters.canTakeActions || Boolean(manifest.tools?.includes("action.execute"));
       const matchesApproval = !marketplaceFilters.needsApproval || Boolean(manifest.highRiskActions?.length);
@@ -98,6 +105,10 @@ export function useMarketplace(input: {
     () => prioritizedMarketplaceAgents.some((agent) => !agent.installed && !installedDefinitionIds.has(agent.id)),
     [installedDefinitionIds, prioritizedMarketplaceAgents]
   );
+
+  useEffect(() => {
+    setSelectedMarketplaceAgentId(prioritizedMarketplaceAgents[0]?.id ?? "");
+  }, [marketplaceCategory, marketplaceFilters, marketplaceSearch, matcherActions, matcherPrivateInfo, prioritizedMarketplaceAgents]);
 
   useEffect(() => {
     if (!prioritizedMarketplaceAgents.length) {
@@ -155,9 +166,7 @@ export function useMarketplace(input: {
 
   function openMarketplaceDetails(agent: MarketplaceAgent) {
     setSelectedMarketplaceAgentId(agent.id);
-    if (window.matchMedia("(max-width: 760px)").matches) {
-      setMarketplaceDetailAgent(agent);
-    }
+    setMarketplaceDetailAgent(agent);
   }
 
   return {

@@ -27,7 +27,7 @@ Use the root directory of the repo and these settings:
 
 - Build command: `npm install --include=dev && npm --workspace backend-core run prisma:generate:postgres && npm --workspace backend-core run db:migrate:postgres && npm --workspace backend-core run build`
 - Start command: `npm --workspace backend-core run start`
-- Health check path: `/health`
+- Health check path: `/health/ready`
 - Plan: Free
 
 Environment variables:
@@ -43,6 +43,9 @@ VAULT_ENCRYPTION_KEY=<32+ character random secret>
 SYNC_MODE=local
 LOG_LEVEL=info
 EMBEDDING_PROVIDER=local-hash
+SUPABASE_URL=https://<your-project-ref>.supabase.co
+SUPABASE_ANON_KEY=<your-supabase-publishable-key>
+OPENAI_API_KEY=<your-openai-api-key>
 ```
 
 Render will publish a backend URL similar to:
@@ -86,6 +89,18 @@ For local plus production CORS, use a comma-separated value:
 ```text
 FRONTEND_ORIGIN=http://localhost:5173,https://<your-cloudflare-pages-site>.pages.dev
 ```
+
+Use that mixed local/production origin only outside production. Production startup rejects localhost origins so Render cannot accidentally deploy with development CORS.
+
+## 4. Production Smoke
+
+After Render deploys and Supabase migrations finish:
+
+```bash
+BACKEND_BASE_URL=https://<your-render-service>.onrender.com npm run smoke:production
+```
+
+The smoke checks `/health`, `/health/ready`, and confirms API routes reject spoofed `x-user-id` development headers without a real bearer token.
 
 ## Free-Tier Notes
 

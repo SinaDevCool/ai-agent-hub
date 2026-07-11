@@ -15,9 +15,11 @@
     "lint": "npm --workspaces run lint",
     "typecheck": "npm --workspaces run typecheck",
     "smoke:ui": "playwright test",
+    "smoke:production": "npm --workspace backend-core run smoke:production",
     "db:push": "npm --workspace backend-core run db:push",
     "db:seed": "npm --workspace backend-core run db:seed",
-    "db:seed:sample": "npm --workspace backend-core run db:seed:sample"
+    "db:seed:sample": "npm --workspace backend-core run db:seed:sample",
+    "db:cleanup:demo": "npm --workspace backend-core run db:cleanup:demo --"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",

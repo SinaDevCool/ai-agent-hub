@@ -1,5 +1,6 @@
 import type { AgentCategory, Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
+import { httpError } from "../errors/httpError.js";
 import { writeActivityLog } from "./activityLogService.js";
 import { decodeJson } from "./jsonService.js";
 import { serializeAgentDefinition, serializeUserAgentInstall } from "./serializerService.js";
@@ -48,13 +49,6 @@ const installInclude = (userId: string) => ({
   agent: { include: { permissions: { where: { userId }, include: { vaultSchema: true } }, connections: { where: { userId } } } }
 });
 
-function httpError(statusCode: number, message: string, code: string) {
-  const error = new Error(message) as Error & { statusCode: number; code: string };
-  error.statusCode = statusCode;
-  error.code = code;
-  return error;
-}
-
 export function parseCapabilityManifest(value: string): MarketplaceManifest {
   const manifest = decodeJson<MarketplaceManifest>(value, {});
   return manifest && typeof manifest === "object" ? manifest : {};
@@ -72,6 +66,22 @@ function addReason(reasons: string[], reason: string) {
   if (!reasons.includes(reason)) reasons.push(reason);
 }
 
+const internalListingPatterns = [
+  /\bqa\b/i,
+  /\bsmoke\b/i,
+  /\btest\b/i,
+  /\bdemo\b/i,
+  /review approve qa/i,
+  /resubmit qa/i
+];
+
+const searchStopWords = new Set(["and", "for", "help", "with", "need", "the", "this", "that", "my", "me", "to", "a", "an", "i", "marketplace"]);
+
+export function isInternalMarketplaceDefinition(definition: Pick<MarketplaceDefinition, "name" | "slug" | "tagline" | "description">) {
+  const text = [definition.name, definition.slug, definition.tagline, definition.description].join(" ");
+  return internalListingPatterns.some((pattern) => pattern.test(text));
+}
+
 function fieldScore(input: { search: string; tokens: string[]; values: string[]; weight: number }) {
   const normalizedValues = input.values.map(normalize).filter(Boolean);
   if (normalizedValues.length === 0) return 0;
@@ -79,15 +89,19 @@ function fieldScore(input: { search: string; tokens: string[]; values: string[];
   const phrase = normalizedValues.some((value) => value.includes(input.search));
   const tokenMatches = input.tokens.filter((token) => normalizedValues.some((value) => value.includes(token))).length;
   if (exact) return input.weight;
-  if (phrase) return Math.round(input.weight * 0.8);
-  if (tokenMatches > 0) return Math.round(input.weight * Math.min(0.65, tokenMatches / input.tokens.length));
+  if (phrase) return Math.round(input.weight * 3);
+  if (tokenMatches > 0 && input.tokens.length > 0) return Math.round(input.weight * Math.min(0.25, tokenMatches / input.tokens.length));
   return 0;
 }
 
 export function scoreMarketplaceAgent(definition: MarketplaceDefinition, searchInput: string): MarketplaceSearchResult {
   const search = searchInput.trim().toLowerCase();
   const manifest = parseCapabilityManifest(definition.versions[0]?.capabilityManifest ?? "");
-  const tokens = search.split(/\s+/).filter(Boolean);
+  const tokens = search.split(/[^a-z0-9]+/).filter((token) =>
+    token.length > 1
+    && !/^\d+$/.test(token)
+    && !searchStopWords.has(token)
+  );
   const reasons: string[] = [];
 
   if (!search) {
@@ -138,8 +152,8 @@ export function scoreMarketplaceAgent(definition: MarketplaceDefinition, searchI
   score += trustScore;
 
   if (score > 0) {
-    score += Math.min(10, Math.round(definition.trustScore / 15));
-    score += Math.min(8, Math.round(definition.installCount / 500));
+    score += Math.min(4, Math.round(definition.trustScore / 30));
+    score += Math.min(1, Math.round(definition.installCount / 5000));
   }
 
   return {
@@ -167,7 +181,8 @@ export async function listMarketplaceAgents(input: { userId: string; category?: 
   });
 
   const search = input.search?.trim() ?? "";
-  const scored = definitions.map((definition) => scoreMarketplaceAgent(definition, search));
+  const publicDefinitions = definitions.filter((definition) => !isInternalMarketplaceDefinition(definition));
+  const scored = publicDefinitions.map((definition) => scoreMarketplaceAgent(definition, search));
   const visible = search ? scored.filter((result) => result.matchScore > 0) : scored;
   if (search) {
     visible.sort((left, right) =>
@@ -186,7 +201,8 @@ export async function getMarketplaceAgentBySlug(input: { userId: string; slug: s
     where: { slug: input.slug, status: "published" },
     include: publishedDefinitionInclude(input.userId)
   });
-  return definition ? serializeAgentDefinition(definition) : null;
+  if (!definition || isInternalMarketplaceDefinition(definition)) return null;
+  return serializeAgentDefinition(definition);
 }
 
 export async function resolveInstallAgentName(userId: string, requestedName: string) {
@@ -212,7 +228,7 @@ export async function installMarketplaceAgent(input: { userId: string; agentDefi
     where: { id: input.agentDefinitionId },
     include: { versions: { where: { isActive: true }, take: 1, orderBy: { createdAt: "desc" } } }
   });
-  if (!definition || definition.status !== "published") {
+  if (!definition || definition.status !== "published" || isInternalMarketplaceDefinition(definition)) {
     throw httpError(404, "This helper is not available right now.", "marketplace_agent_unavailable");
   }
   if (!definition.versions[0]) {

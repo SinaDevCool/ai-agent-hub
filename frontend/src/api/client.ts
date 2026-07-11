@@ -35,6 +35,13 @@ function getHeaders(includeContentType = true) {
   const headers: Record<string, string> = {};
   if (includeContentType) headers["content-type"] = "application/json";
   if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+  if (!accessToken && import.meta.env.DEV) {
+    const localUserId = window.localStorage.getItem("ai-agent-hub-user-id");
+    if (localUserId) {
+      headers["x-user-id"] = localUserId;
+      headers["x-user-email"] = `${localUserId}@local.test`;
+    }
+  }
   return headers;
 }
 
