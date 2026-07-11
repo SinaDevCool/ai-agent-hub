@@ -84,7 +84,6 @@ export type WorkspaceSectionsProps = {
   friendlyActionName: (action: string) => string;
   friendlyAppError: (error: unknown) => string;
   friendlyDate: (value: string) => string;
-  friendlyFallbackReason: (reason?: string) => string;
   friendlyLogDetail: (log: ActivityLog) => string;
   friendlyLogText: (log: ActivityLog) => string;
   friendlyNotificationText: (log: ActivityLog) => string;

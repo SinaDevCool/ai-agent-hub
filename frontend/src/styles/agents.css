@@ -529,6 +529,16 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
+.chat-approval-banner > div:not(.approval-banner-actions) {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.chat-approval-banner > div:not(.approval-banner-actions) span {
+  overflow-wrap: anywhere;
+}
+
 .approval-banner-actions {
   display: flex;
   flex-wrap: wrap;

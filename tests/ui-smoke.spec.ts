@@ -147,7 +147,8 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.locator(".chat-transcript")).toContainText("approval");
   await page.locator(".chat-approval-banner").getByRole("button", { name: "Allow once" }).click();
-  await expect(page.locator(".chat-transcript")).toContainText("completed the approved action");
+  await expect(page.locator(".chat-transcript")).toContainText("Approved action completed");
+  await expect(page.locator(".chat-transcript")).toContainText("Book non-refundable travel");
 
   const uploadTitle = `Smoke Upload ${Date.now()}`;
   await nav.getByRole("button", { name: "Private Info", exact: true }).click();

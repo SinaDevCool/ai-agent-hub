@@ -20,7 +20,19 @@ export function friendlyCategoryName(category: string) {
 }
 
 export function friendlyActionName(action: string) {
-  const label = action.replace(/_/g, " ");
+  const labels: Record<string, string> = {
+    book_non_refundable_travel: "book non-refundable travel",
+    buy_item: "buy something",
+    open_credit_card: "open a credit card",
+    send_email: "send an email",
+    share_medical_record: "share a medical record",
+    share_payment_info: "share payment info",
+    share_personal_info: "share personal info",
+    submit_application: "submit an application",
+    transfer_funds: "transfer money"
+  };
+  const normalizedAction = action.trim().toLowerCase().replace(/-/g, "_").replace(/\s+/g, "_");
+  const label = labels[action] ?? labels[normalizedAction] ?? action.replace(/_/g, " ");
   return `${label.charAt(0).toUpperCase()}${label.slice(1)}`;
 }
 

@@ -12,24 +12,24 @@ export function runtimeSummary(result: AgentRunResult | null) {
   if (result.runtimeState === "needs_permission") return "This agent needs permission before it can use that private info.";
   if (result.runtimeState === "needs_approval") return "Waiting for you. Nothing continues unless you allow it.";
   if (result.status === "blocked") return result.reason ?? "This request was blocked by your safety rules.";
-  if (result.provider === "openai") return `Answered with OpenAI${result.model ? ` (${result.model})` : ""}.`;
-  if (result.provider === "local") return `Answered with the built-in safe answer service. ${friendlyFallbackReason(result.providerFallbackReason)}`;
-  return "Answered with the built-in safe answer service.";
+  if (result.provider === "openai") return "Answered using your approved info.";
+  if (result.provider === "local") return "Answered safely with the information available.";
+  return "Answered safely.";
 }
 
 export function friendlyFallbackReason(reason?: string) {
   const labels: Record<string, string> = {
     auth_failed: "The OpenAI key could not be authenticated.",
-    config_missing: "OpenAI is not configured yet.",
+    config_missing: "The full AI answer service is not connected yet.",
     model_not_found: "The selected OpenAI model was not found.",
     openai_request_failed: "The OpenAI request failed.",
     openai_server_error: "OpenAI had a temporary server issue.",
     project_or_model_access: "This OpenAI project does not have access to the selected model.",
     quota_or_rate_limit: "OpenAI quota or rate limits need attention."
   };
-  if (!reason) return "OpenAI was unavailable.";
-  if (reason.startsWith("openai_http_")) return "OpenAI returned an error.";
-  return labels[reason] ?? "OpenAI was unavailable.";
+  if (!reason) return "The full AI answer service was unavailable.";
+  if (reason.startsWith("openai_http_")) return "The full AI answer service returned an error.";
+  return labels[reason] ?? "The full AI answer service was unavailable.";
 }
 
 export function getStarterInfoPlaceholder(templateId: string) {
@@ -114,13 +114,13 @@ export function friendlyAppError(error: unknown) {
     if (error.status === 404) return "We could not find that item.";
     if (error.status === 409) return "That change conflicts with something already saved.";
     if (error.status === 422 || error.status === 400) return "Check the details and try again.";
-    if (error.status >= 500) return "Something went wrong on our side. Please try again.";
-    return "Something went wrong. Please try again.";
+    if (error.status >= 500) return "We could not finish that request. Please try again in a moment.";
+    return "We could not finish that request. Please try again.";
   }
   const message = error instanceof Error ? error.message : String(error || "");
   if (/openai|api key|quota|billing|model/i.test(message)) return "The AI answer service needs attention. Check the OpenAI key or account limits, then try again.";
   if (/supabase|auth|jwt|session/i.test(message)) return "Your sign-in session needs a refresh. Sign in again if this keeps happening.";
   if (/render|timeout|sleep|waking/i.test(message)) return "Your agent service may be waking up. Wait a few seconds and try again.";
   if (/failed to fetch|network|connection/i.test(message)) return "Could not reach your agent service. Check the connection, wait a few seconds, and try again.";
-  return message || "Something went wrong. Please try again.";
+  return message || "We could not finish that request. Please try again.";
 }

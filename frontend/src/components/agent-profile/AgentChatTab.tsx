@@ -21,7 +21,6 @@ type AgentChatTabProps = {
   decideHitl: (requestId: string, approved: boolean) => void | Promise<void>;
   decidingApprovalId: string;
   friendlyDate: (value: string) => string;
-  friendlyFallbackReason: (reason?: string) => string;
   friendlyLogText: (log: ActivityLog) => string;
   agentNextStep: string;
   isAgentRunning: boolean;
@@ -59,7 +58,6 @@ export function AgentChatTab(props: AgentChatTabProps) {
     decideHitl,
     decidingApprovalId,
     friendlyDate,
-    friendlyFallbackReason,
     friendlyLogText,
     agentNextStep,
     isAgentRunning,
@@ -205,13 +203,7 @@ export function AgentChatTab(props: AgentChatTabProps) {
                       {externalDetail ? <small>{externalDetail}</small> : null}
                     </div>
                   ) : null}
-                  {message.provider ? (
-                    <small>
-                      {message.provider === "openai"
-                        ? `OpenAI answer${message.model ? ` (${message.model})` : ""}`
-                        : `Built-in safe answer service. ${friendlyFallbackReason(message.providerFallbackReason)}`}
-                    </small>
-                  ) : null}
+                  {message.provider ? <small>Answered safely with the information this agent can use.</small> : null}
                   {message.role === "agent" && message.usedSchemas?.length ? (
                     <div className="info-receipt">
                       <strong>Private info used</strong>

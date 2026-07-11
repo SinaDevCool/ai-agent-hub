@@ -17,7 +17,6 @@ export function SelectedAgentProfileSection({ props }: { props: WorkspaceSection
     decideHitl,
     decidingApprovalId,
     friendlyDate,
-    friendlyFallbackReason,
     friendlyLogDetail,
     friendlyLogText,
     friendlyTrustLabel,
@@ -76,7 +75,6 @@ export function SelectedAgentProfileSection({ props }: { props: WorkspaceSection
       decideHitl={decideHitl}
       decidingApprovalId={decidingApprovalId}
       friendlyDate={friendlyDate}
-      friendlyFallbackReason={friendlyFallbackReason}
       friendlyLogDetail={friendlyLogDetail}
       friendlyLogText={friendlyLogText}
       friendlyTrustLabel={friendlyTrustLabel}

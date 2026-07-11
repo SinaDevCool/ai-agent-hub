@@ -41,7 +41,6 @@ type AgentProfilePanelProps = {
   submitAgentPrompt: (prompt: string) => void | Promise<void>;
   approvedContinuation: { requestId: string; actionName: string } | null;
   continueApprovedAction: (actionName: string) => void | Promise<void>;
-  friendlyFallbackReason: (reason?: string) => string;
   agentRunResult: AgentRunResult | null;
   runSummary: string | null;
   allowedPermissionCount: number;
@@ -131,7 +130,6 @@ export function AgentProfilePanel(props: AgentProfilePanelProps) {
           decideHitl={props.decideHitl}
           decidingApprovalId={props.decidingApprovalId}
           friendlyDate={props.friendlyDate}
-          friendlyFallbackReason={props.friendlyFallbackReason}
           friendlyLogText={props.friendlyLogText}
           agentNextStep={props.agentNextStep}
           isAgentRunning={props.isAgentRunning}

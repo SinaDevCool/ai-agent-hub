@@ -43,7 +43,6 @@ import {
 import {
   friendlyAppError,
   friendlyDate,
-  friendlyFallbackReason,
   friendlyLogDetail,
   friendlyLogText,
   friendlyNotificationText,
@@ -655,7 +654,6 @@ export function App() {
             friendlyActionName,
             friendlyAppError,
             friendlyDate,
-            friendlyFallbackReason,
             friendlyLogDetail,
             friendlyLogText,
             friendlyNotificationText,
