@@ -55,14 +55,14 @@ export function ExternalAgentImportPanel(props: ExternalAgentImportPanelProps) {
   const manifest = preview?.capabilityManifest;
 
   return (
-    <section className="external-import-panel" aria-label="Import external helper">
+    <section className="external-import-panel" aria-label="Import external agent">
       <div className="external-import-copy">
-        <div className="panel-title">Import External Helper</div>
-        <p>Bring in a helper from another platform. AI Agent Hub reviews the endpoint first and keeps it restricted after import.</p>
+        <div className="panel-title">Import External Agent</div>
+        <p>Bring in an agent from another platform. AI Agent Hub reviews the endpoint first and keeps it restricted after import.</p>
       </div>
 
       <form className="external-import-form" onSubmit={(event) => void submitPreview(event)}>
-        <div className="segmented-control" aria-label="External helper source">
+        <div className="segmented-control" aria-label="External agent source">
           <button
             className={input.sourceType === "mcp_server" ? "selected" : ""}
             onClick={() => updateInput({ sourceType: "mcp_server" })}
@@ -79,12 +79,12 @@ export function ExternalAgentImportPanel(props: ExternalAgentImportPanelProps) {
           </button>
         </div>
         <label>
-          <span>Helper endpoint</span>
+          <span>Agent endpoint</span>
           <div className="search-input-wrap">
             <Link size={16} />
             <input
               autoComplete="off"
-              name="external-helper-url"
+              name="external-agent-url"
               onChange={(event) => updateInput({ endpointUrl: event.currentTarget.value })}
               placeholder="https://example.com/agent"
               required
@@ -97,7 +97,7 @@ export function ExternalAgentImportPanel(props: ExternalAgentImportPanelProps) {
           <span>Name it</span>
           <input
             autoComplete="off"
-            name="external-helper-name"
+            name="external-agent-name"
             onChange={(event) => updateInput({ displayName: event.currentTarget.value })}
             placeholder="Optional"
             value={input.displayName ?? ""}
@@ -107,7 +107,7 @@ export function ExternalAgentImportPanel(props: ExternalAgentImportPanelProps) {
           <span>Need</span>
           <select
             autoComplete="off"
-            name="external-helper-category"
+            name="external-agent-category"
             onChange={(event) => updateInput({ category: event.currentTarget.value })}
             value={input.category}
           >
@@ -117,7 +117,7 @@ export function ExternalAgentImportPanel(props: ExternalAgentImportPanelProps) {
           </select>
         </label>
         <button className="primary-action" disabled={props.isSaving} type="submit">
-          <ShieldCheck size={16} /> {props.isSaving ? "Reviewing…" : "Review helper"}
+          <ShieldCheck size={16} /> {props.isSaving ? "Reviewing…" : "Review agent"}
         </button>
       </form>
 
@@ -136,7 +136,7 @@ export function ExternalAgentImportPanel(props: ExternalAgentImportPanelProps) {
           <div className="manifest-grid compact-manifest-grid">
             <div><strong>Source</strong><span>{preview.sourceLabel}</span></div>
             <div><strong>Host</strong><span>{preview.endpointHost || "Not available"}</span></div>
-            <div><strong>Can help with</strong><span>{manifest?.description ?? "External helper tasks"}</span></div>
+            <div><strong>Can help with</strong><span>{manifest?.description ?? "External agent tasks"}</span></div>
             <div><strong>Can do</strong><span>{friendlyList(manifest?.tools?.map(friendlyToolName) ?? [], "Simple tasks")}</span></div>
             <div><strong>May ask to read</strong><span>{friendlyList(manifest?.requestedSchemas ?? [], "No private info declared")}</span></div>
             <div><strong>Must ask before</strong><span>{friendlyList(manifest?.highRiskActions?.map(friendlyActionName) ?? [], "No risky actions declared")}</span></div>
@@ -157,7 +157,7 @@ export function ExternalAgentImportPanel(props: ExternalAgentImportPanelProps) {
 
           <div className="external-import-actions">
             <button className="primary-action" disabled={!preview.canInstall || props.isSaving} onClick={() => void importPreview()} type="button">
-              <Download size={16} /> {props.isSaving ? "Adding…" : "Add helper"}
+              <Download size={16} /> {props.isSaving ? "Adding…" : "Add agent"}
             </button>
             <button onClick={() => void props.onPreview(input)} type="button"><RotateCcw size={16} /> Review again</button>
           </div>

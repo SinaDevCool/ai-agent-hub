@@ -61,7 +61,7 @@ export function VaultPanel(props: VaultPanelProps) {
       <div className="panel-heading-row">
         <div>
           <div className="panel-title">Private Info</div>
-          <p className="mobile-section-intro">Save useful details like preferences, rules, and notes. Helpers can only use them when you allow it.</p>
+          <p className="mobile-section-intro">Save useful details like preferences, rules, and notes. Agents can only use them when you allow it.</p>
         </div>
         <span className="status-pill blue">{documents.length} saved</span>
       </div>
@@ -120,7 +120,7 @@ export function VaultPanel(props: VaultPanelProps) {
       {documents.length === 0 ? (
         <div className="friendly-empty-state">
           <strong>No saved info yet</strong>
-          <p>Add things a helper may need later: travel preferences, budget rules, application details, or family notes.</p>
+          <p>Add things an agent may need later: travel preferences, budget rules, application details, or family notes.</p>
           <div className="private-info-example-list" aria-label="Examples of saved info">
             <span>Travel preferences</span>
             <span>Budget rules</span>

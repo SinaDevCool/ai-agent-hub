@@ -17,7 +17,7 @@ export function marketplaceTrustReasons(agent: MarketplaceAgent | undefined) {
   const reasons = [
     agent?.creator?.verified ? "Verified creator profile" : "Community listing with a visible safety profile",
     "Cannot read private info until you allow it",
-    "You can remove this helper or revoke access anytime"
+    "You can remove this agent or revoke access anytime"
   ];
   if (manifest.highRiskActions?.length) {
     reasons.splice(2, 0, "Must ask before sensitive actions");

@@ -39,7 +39,7 @@ export function CreatorProfileEditor(props: CreatorProfileEditorProps) {
           maxLength={500}
           name="creator-bio"
           onChange={(event) => props.onBioChange(event.currentTarget.value)}
-          placeholder="What kind of helpers do you build?"
+          placeholder="What kind of agents do you build?"
           value={props.bio}
         />
       </label>

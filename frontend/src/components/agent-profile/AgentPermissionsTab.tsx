@@ -27,10 +27,10 @@ export function AgentPermissionsTab(props: AgentPermissionsTabProps) {
   } = props;
 
   return (
-    <section className="agent-tab-panel" aria-label="Helper permissions">
+    <section className="agent-tab-panel" aria-label="Agent permissions">
       {permissionReview.length ? (
         <div className="mobile-permission-summary">
-          <strong>This helper wants {permissionReview.length} saved info categor{permissionReview.length === 1 ? "y" : "ies"}.</strong>
+          <strong>This agent wants {permissionReview.length} saved info categor{permissionReview.length === 1 ? "y" : "ies"}.</strong>
           <span>{ungrantedRequestedSchemas.length ? `${ungrantedRequestedSchemas.length} still need access.` : "All requested saved info is allowed."}</span>
           <button disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"} onClick={() => void grantAllRequestedSchemas()} type="button">
             <KeyRound aria-hidden="true" size={16} /> Allow requested info
@@ -39,7 +39,7 @@ export function AgentPermissionsTab(props: AgentPermissionsTabProps) {
       ) : null}
       <div className="permission-review-header">
         <div>
-          <strong>Saved info this helper can use</strong>
+          <strong>Saved info this agent can use</strong>
           <span>{selectedIsExternal ? "Only approved snippets can be shared through AI Agent Hub safety." : `${allowedPermissionCount} of ${permissionReview.length} requested categories allowed`}</span>
         </div>
         <button disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"} onClick={() => void grantAllRequestedSchemas()} type="button">
@@ -47,7 +47,7 @@ export function AgentPermissionsTab(props: AgentPermissionsTabProps) {
         </button>
       </div>
       {permissionReview.length === 0 ? (
-        <p className="empty">This helper is not asking to use saved info.</p>
+        <p className="empty">This agent is not asking to use saved info.</p>
       ) : permissionReview.map((item) => (
         <div className="permission-review-row" key={item.schemaName}>
           <div>

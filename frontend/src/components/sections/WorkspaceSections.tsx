@@ -10,7 +10,7 @@ export function WorkspaceSections(input: { props: WorkspaceSectionsProps }) {
   return (
     <>
       <ConsumerSetupSections props={props} />
-      <section className={`grid workspace-grid section-${props.activeSection} ${props.agents.length ? "has-helpers" : "has-no-helpers"}`}>
+      <section className={`grid workspace-grid section-${props.activeSection} ${props.agents.length ? "has-agents" : "has-no-agents"}`}>
         <ConsumerMainPanels props={props} />
         <CreatorAdminPanels props={props} />
         <TrustDataPanels props={props} />

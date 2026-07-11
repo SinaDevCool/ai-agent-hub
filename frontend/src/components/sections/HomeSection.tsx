@@ -58,9 +58,9 @@ export function HomeSection(props: HomeSectionProps) {
     <>
       <section className={`mobile-home ${activeSection === "home" && !shouldShowOnboarding ? "is-mobile-home-active" : ""}`} aria-label="Mobile overview">
         <div className="mobile-home-card">
-          <span className="mobile-label">Your helper hub</span>
+          <span className="mobile-label">Your agent hub</span>
           <h2>What do you want help with?</h2>
-          <p>Choose one helper for a real task. It starts restricted, and you approve what it can read or do.</p>
+          <p>Choose one agent for a real task. It starts restricted, and you approve what it can read or do.</p>
           <div className="setup-roadmap compact" aria-label="Setup progress">
             {setupSteps.map((step, index) => (
               <div className={step.done ? "setup-step done" : "setup-step"} key={step.label}>
@@ -97,10 +97,10 @@ export function HomeSection(props: HomeSectionProps) {
       {!shouldShowOnboarding ? (
         <section className={`home-dashboard desktop-section ${sectionClass("home")}`} id="home">
           <div className="panel home-card home-primary-card">
-            <div className="panel-title">{agents.length ? "Choose Your Next Helper" : "Pick Your First Helper"}</div>
+            <div className="panel-title">{agents.length ? "Choose Your Next Agent" : "Pick Your First Agent"}</div>
             <h2>What do you want help with?</h2>
-            <p>Pick a real-life need first. The marketplace will show helpers that match the task and explain what each one may read or do.</p>
-            <div className="home-category-grid starter-goal-grid" aria-label="Choose a helper need">
+            <p>Pick a real-life need first. The agent pool will show agents that match the task and explain what each one may read or do.</p>
+            <div className="home-category-grid starter-goal-grid" aria-label="Choose an agent need">
               {primaryOnboardingNeeds.map((need) => {
                 const Icon = need.icon;
                 return (
@@ -134,16 +134,22 @@ export function HomeSection(props: HomeSectionProps) {
             ) : null}
             <div className="button-row">
               <button className="primary-action" onClick={runPrimarySetupAction} type="button"><Bot size={16} /> {primarySetupLabel}</button>
-              <button onClick={() => openMarketplace()} type="button"><Search size={16} /> Browse helpers</button>
-              {canUseCreatorTools ? <button onClick={() => onOpenGuidedSetup()} type="button"><Bot size={16} /> Create custom helper</button> : null}
+              <button onClick={() => openMarketplace()} type="button"><Search size={16} /> Browse Agents</button>
+              {canUseCreatorTools ? <button onClick={() => onOpenGuidedSetup()} type="button"><Bot size={16} /> Create custom agent</button> : null}
             </div>
           </div>
 
-          <div className="panel home-card">
-            <div className="panel-title">My Helpers</div>
+          <div className="panel home-card home-agents-card">
+            <div className="panel-heading-row">
+              <div>
+                <div className="panel-title">My Agents</div>
+                <p className="home-card-intro">Open an agent you already use, or browse the pool for a better match.</p>
+              </div>
+              {agents.length ? <span className="home-agent-count">{agents.length}</span> : null}
+            </div>
             {visibleAgents.slice(0, 3).map((agent) => (
               <button
-                className="home-list-button"
+                className="home-agent-card"
                 key={`home-${agent.id}`}
                 onClick={() => {
                   setSelectedAgentId(agent.id);
@@ -151,11 +157,14 @@ export function HomeSection(props: HomeSectionProps) {
                 }}
                 type="button"
               >
-                <span>{agent.name}</span>
-                <small>{agent.category} / {friendlyTrustLabel(agent.trustScore)}</small>
+                <span className="home-agent-main">
+                  <strong>{agent.name}</strong>
+                  <small>{agent.category}</small>
+                </span>
+                <span className="home-agent-meta">{friendlyTrustLabel(agent.trustScore)}</span>
               </button>
             ))}
-            {agents.length === 0 ? <p className="empty">Find your first helper to get started.</p> : null}
+            {agents.length === 0 ? <p className="empty">Find your first agent to get started.</p> : null}
           </div>
 
           {pendingApproval ? (

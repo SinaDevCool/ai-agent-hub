@@ -197,7 +197,7 @@ describe("scoreMarketplaceAgent", () => {
     });
 
     expect(score(actionAgent, { actions: "yes" }).reasons).toContain("Can take actions with approval");
-    expect(score(readOnlyAgent, { actions: "no" }).reasons).toContain("Read-only helper");
+    expect(score(readOnlyAgent, { actions: "no" }).reasons).toContain("Read-only agent");
     expect(score(actionAgent, { filters: { ...defaultFilters, needsApproval: true } }).score)
       .toBeGreaterThan(score(actionAgent).score);
   });
@@ -392,6 +392,82 @@ describe("B2C discovery scenarios", () => {
 
     expect(score(application, { category: "All", search: "I need help applying for jobs" }).score)
       .toBeGreaterThan(score(generic, { category: "All", search: "I need help applying for jobs" }).score);
+  });
+
+  it("prefers safer comparable agents when the user is unsure about access and actions", () => {
+    const safeReadOnly = makeMarketplaceAgent({
+      id: "safe-read-only",
+      name: "Travel Idea Finder",
+      category: "Travel",
+      description: "Finds travel ideas and compares itinerary options without reading private info.",
+      versions: [{
+        id: "safe-read-only-v1",
+        version: "1.0.0",
+        apiProtocol: "MCP",
+        capabilityManifest: {
+          tools: ["web.fetch"],
+          requestedSchemas: [],
+          highRiskActions: [],
+          examplePrompts: ["Compare weekend trip ideas"],
+          trustReasons: ["Does not request private info"]
+        }
+      }]
+    });
+    const actionHeavy = makeMarketplaceAgent({
+      id: "action-heavy",
+      name: "Travel Booking Agent",
+      category: "Travel",
+      description: "Plans travel and can book trips after approval.",
+      versions: [{
+        id: "action-heavy-v1",
+        version: "1.0.0",
+        apiProtocol: "MCP",
+        capabilityManifest: {
+          tools: ["vault.search", "action.execute"],
+          requestedSchemas: ["Frequent Flyer Ledger", "Payment Preferences"],
+          highRiskActions: ["book_non_refundable_travel"],
+          examplePrompts: ["Book a weekend trip"],
+          trustReasons: ["Asks before booking"]
+        }
+      }]
+    });
+
+    expect(score(safeReadOnly, { category: "Travel", search: "compare weekend trip ideas" }).score)
+      .toBeGreaterThan(score(actionHeavy, { category: "Travel", search: "compare weekend trip ideas" }).score);
+  });
+
+  it("penalizes vague broad listings for concrete B2C needs", () => {
+    const specific = makeMarketplaceAgent({
+      id: "specific-email",
+      name: "Email Follow-Up Agent",
+      category: "Executive",
+      description: "Drafts email replies, follow-ups, and meeting notes.",
+      versions: [{
+        id: "specific-email-v1",
+        version: "1.0.0",
+        apiProtocol: "MCP",
+        capabilityManifest: {
+          tools: ["email.draft"],
+          requestedSchemas: [],
+          highRiskActions: ["send_email"],
+          examplePrompts: ["Draft a follow-up email"],
+          trustReasons: ["Drafts before sending"]
+        }
+      }]
+    });
+    const vague = makeMarketplaceAgent({
+      id: "vague",
+      name: "General AI Assistant",
+      category: "Custom",
+      trustScore: 100,
+      installCount: 5000,
+      averageRating: 5,
+      tagline: "Helps with anything and everyday requests",
+      description: "A broad all-purpose assistant."
+    });
+
+    expect(score(specific, { category: "All", search: "handle emails" }).score)
+      .toBeGreaterThan(score(vague, { category: "All", search: "handle emails" }).score);
   });
 
   it("ranks health helpers above generic productivity helpers for health note searches", () => {

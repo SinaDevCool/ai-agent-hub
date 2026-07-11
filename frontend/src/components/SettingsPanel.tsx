@@ -9,7 +9,7 @@ export function SettingsPanel(props: {
   creatorAccessError: string;
   creatorAccessReason: string;
   creatorAccessRequest: CreatorAccessRequest | null;
-  helperCount: number;
+  agentCount: number;
   isCreatorAccessSaving: boolean;
   onExportData: () => void;
   onManageAccess: () => void;
@@ -39,10 +39,10 @@ export function SettingsPanel(props: {
       <div className="settings-primary-actions" aria-label="Main settings actions">
         <button className="primary-action" onClick={props.onManageAccess} type="button"><KeyRound size={16} /> Manage access</button>
         <button onClick={props.onExportData} type="button"><Download size={16} /> Export my data</button>
-        <button onClick={props.onRevokeAllAccess} type="button"><ShieldOff size={16} /> Remove all helper access</button>
+        <button onClick={props.onRevokeAllAccess} type="button"><ShieldOff size={16} /> Remove all agent access</button>
       </div>
       <div className="settings-grid">
-        <div><strong>Helpers</strong><span>{props.helperCount}</span></div>
+        <div><strong>Agents</strong><span>{props.agentCount}</span></div>
         <div><strong>Saved info</strong><span>{props.privateInfoCount}</span></div>
         <div><strong>Activity</strong><span>{props.activityCount}</span></div>
         <div><strong>Account</strong><span>{props.userEmail}</span></div>
@@ -50,11 +50,11 @@ export function SettingsPanel(props: {
       <div className="settings-section-grid">
         {props.canUseCreatorTools ? <section>
           <strong>Creator tools available</strong>
-          <span>Create and publish helpers when you want to supply the marketplace.</span>
+          <span>Create and publish agents when you want to supply the marketplace.</span>
           <button onClick={props.onOpenCreator} type="button"><Pencil size={16} /> Open Creator Studio</button>
         </section> : (
           <section className="creator-access-card">
-            <strong>Want to publish helpers?</strong>
+            <strong>Want to publish agents?</strong>
             {props.creatorAccessRequest?.status === "pending" ? (
               <span>Creator request pending. We will unlock publishing after marketplace review.</span>
             ) : props.creatorAccessRequest?.status === "denied" ? (
@@ -71,7 +71,7 @@ export function SettingsPanel(props: {
                     maxLength={800}
                     minLength={12}
                     onChange={(event) => props.onCreatorAccessReasonChange(event.currentTarget.value)}
-                    placeholder="Example: travel helpers that plan trips and ask before booking."
+                    placeholder="Example: travel agents that plan trips and ask before booking."
                     required
                     rows={3}
                     value={props.creatorAccessReason}
@@ -86,7 +86,7 @@ export function SettingsPanel(props: {
         )}
         <section>
           <strong>Privacy note</strong>
-          <span>Helpers start restricted. If you remove all access, they stop using saved info until you allow access again.</span>
+          <span>Agents start restricted. If you remove all access, they stop using saved info until you allow access again.</span>
         </section>
       </div>
       <div className="privacy-actions">

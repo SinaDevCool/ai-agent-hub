@@ -12,7 +12,7 @@ describe("external runtime display", () => {
       durationMs: 842
     });
 
-    expect(externalRuntimeSummary(runtime)).toBe("External helper response");
+    expect(externalRuntimeSummary(runtime)).toBe("External agent response");
   });
 
   it("hides full endpoint urls and shows host in activity rows", () => {
@@ -34,7 +34,7 @@ describe("external runtime display", () => {
     } satisfies ActivityLog;
 
     const display = externalLogDisplay(log);
-    expect(display?.title).toBe("External helper ran through AI Agent Hub");
+    expect(display?.title).toBe("External agent ran through AI Agent Hub");
     expect(display?.detail ?? "").toMatch(/external\.example\.test/);
     expect(display?.detail ?? "").not.toMatch(/secret\/path/);
     expect(display?.detail ?? "").toMatch(/Travel Preferences/);

@@ -36,7 +36,7 @@ export function CreatorAgentList(props: CreatorAgentListProps) {
             onViewMarketplace={onViewMarketplace}
           />
         ))}
-        {!agentsByStatus.drafts.length ? <p className="empty">Draft helpers appear here before they go live.</p> : null}
+        {!agentsByStatus.drafts.length ? <p className="empty">Draft agents appear here before they go live.</p> : null}
       </section>
 
       <section>
@@ -68,7 +68,7 @@ export function CreatorAgentList(props: CreatorAgentListProps) {
             onViewMarketplace={onViewMarketplace}
           />
         ))}
-        {!agentsByStatus.published.length ? <p className="empty">Published helpers become visible in the marketplace.</p> : null}
+        {!agentsByStatus.published.length ? <p className="empty">Published agents become visible in the marketplace.</p> : null}
       </section>
 
       <section>
@@ -84,7 +84,7 @@ export function CreatorAgentList(props: CreatorAgentListProps) {
             onViewMarketplace={onViewMarketplace}
           />
         ))}
-        {!agentsByStatus.archived.length ? <p className="empty">Archived helpers are kept here for records.</p> : null}
+        {!agentsByStatus.archived.length ? <p className="empty">Archived agents are kept here for records.</p> : null}
       </section>
     </div>
   );

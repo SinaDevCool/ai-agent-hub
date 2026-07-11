@@ -103,7 +103,7 @@ export function CreatorPanel(props: CreatorPanelProps) {
       setNotice({
         tone: "success",
         title: "Creator profile saved",
-        message: "This is the name people see on your helper listings."
+        message: "This is the name people see on your agent listings."
       });
     }
   }
@@ -123,7 +123,7 @@ export function CreatorPanel(props: CreatorPanelProps) {
         tone: "success",
         title: wasEditing ? "Draft updated" : "Draft saved",
         message: isEditingReturnedDraft
-          ? "Your changes are saved. The review note stays here until you publish the updated helper."
+          ? "Your changes are saved. The review note stays here until you publish the updated agent."
           : wasEditing ? "Your changes are saved." : "You can publish it when the checklist is complete."
       });
     }
@@ -138,12 +138,12 @@ export function CreatorPanel(props: CreatorPanelProps) {
         setNotice({
           tone: "info",
           title: "Sent for review",
-          message: result.readiness.message || "This helper is saved for review before it appears in marketplace search."
+          message: result.readiness.message || "This agent is saved for review before it appears in marketplace search."
         });
       } else {
         setNotice({
           tone: "success",
-          title: "Your helper is live",
+          title: "Your agent is live",
           message: "People can now find it in the marketplace. They still control what private info it can read.",
           actionLabel: "View in marketplace",
           onAction: () => props.onViewMarketplace(published)
@@ -158,7 +158,7 @@ export function CreatorPanel(props: CreatorPanelProps) {
       setArchiveCandidate(null);
       setNotice({
         tone: "info",
-        title: "Helper archived",
+        title: "Agent archived",
         message: "It is hidden from marketplace search and kept in your creator records."
       });
     }
@@ -169,10 +169,10 @@ export function CreatorPanel(props: CreatorPanelProps) {
       <div className="creator-panel-header">
         <div>
           <div className="panel-title">Creator Studio</div>
-          <h2>Publish helpers normal people can understand.</h2>
-          <p>Create a helper listing, explain what it does, disclose access, and publish it into the marketplace.</p>
+          <h2>Publish agents normal people can understand.</h2>
+          <p>Create an agent listing, explain what it does, disclose access, and publish it into the marketplace.</p>
         </div>
-        <button className="primary-action" data-testid="creator-new-helper" onClick={openNewDraft} type="button"><Plus size={16} /> New helper</button>
+        <button className="primary-action" data-testid="creator-new-agent" onClick={openNewDraft} type="button"><Plus size={16} /> New agent</button>
       </div>
 
       <div className="creator-status-summary" aria-label="Creator listing summary">
@@ -229,9 +229,9 @@ export function CreatorPanel(props: CreatorPanelProps) {
 
       {!isFormOpen && totalAgentCount === 0 && !props.isLoading ? (
         <div className="friendly-empty-state">
-          <strong>Create your first marketplace helper</strong>
-          <p>Start with one focused helper for a real need like travel, daily tasks, money, or shopping.</p>
-          <button data-testid="creator-empty-new-helper" onClick={openNewDraft} type="button"><Plus size={16} /> New helper</button>
+          <strong>Create your first marketplace agent</strong>
+          <p>Start with one focused agent for a real need like travel, daily tasks, money, or shopping.</p>
+          <button data-testid="creator-empty-new-agent" onClick={openNewDraft} type="button"><Plus size={16} /> New agent</button>
         </div>
       ) : null}
 

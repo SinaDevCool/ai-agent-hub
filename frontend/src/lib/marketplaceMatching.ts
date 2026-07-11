@@ -69,6 +69,8 @@ const intentRules: Array<{ label: string; categories: string[]; terms: string[];
   { label: "work communication", categories: ["Work", "Executive"], terms: ["email", "emails", "follow-up", "followup", "meeting", "reply", "draft", "work"], aliases: ["draft emails", "follow up emails", "follow-up emails"] }
 ];
 
+const broadListingPattern = /\b(anything|everything|general|generic|broad|all[- ]?purpose|everyday requests|ai assistant)\b/i;
+
 export function parseMarketplaceSearch(search: string): SearchIntent {
   const normalizedSearch = search.trim().toLowerCase();
   const typedTerms = normalizedSearch.split(/[^a-z0-9]+/).filter((term) => term.length > 1 && !stopWords.has(term));
@@ -142,6 +144,15 @@ function nameFieldHits(agent: MarketplaceAgent, terms: string[]) {
   return termHits([agent.name.toLowerCase()], terms);
 }
 
+function hasTrustGuidance(agent: MarketplaceAgent) {
+  const manifest = agent.versions[0]?.capabilityManifest ?? {};
+  return Boolean(agent.creator?.verified || manifest.trustReasons?.length || manifest.highRiskActions?.length);
+}
+
+function addReason(reasons: string[], reason: string) {
+  if (!reasons.includes(reason)) reasons.push(reason);
+}
+
 export function scoreMarketplaceAgent(input: {
   agent: MarketplaceAgent;
   category: string;
@@ -168,6 +179,8 @@ export function scoreMarketplaceAgent(input: {
   const directHits = directFieldHits(agent, typedSpecificTerms);
   const nameHits = nameFieldHits(agent, typedSpecificTerms);
   const totalHits = termHits(values, typedSpecificTerms);
+  const specificHitRatio = typedSpecificTerms.length ? totalHits / typedSpecificTerms.length : 1;
+  const broadListing = broadListingPattern.test([agent.name, agent.tagline, agent.description].join(" "));
   const searchMatch = Boolean(search && (
     values.some((value) => value.includes(search))
     || meaningfulTerms.some((term) => values.some((value) => value.includes(term)))
@@ -178,16 +191,16 @@ export function scoreMarketplaceAgent(input: {
 
   if (category !== "All" && categoryMatch) {
     score += 36;
-    reasons.push(`Matches ${category}`);
+    addReason(reasons, `Matches ${category}`);
   }
   if (searchMatch) {
     score += 22;
-    reasons.push(parsedSearch.intentLabel ? `Matches ${parsedSearch.intentLabel}` : "Matches your search");
+    addReason(reasons, parsedSearch.intentLabel ? `Matches ${parsedSearch.intentLabel}` : "Matches your search");
   }
   if (directHits > 0) {
     score += Math.min(34, 14 + directHits * 5);
     if (!reasons.some((reason) => reason.startsWith("Matches"))) {
-      reasons.push(parsedSearch.intentLabel ? `Matches ${parsedSearch.intentLabel}` : "Matches your words");
+      addReason(reasons, parsedSearch.intentLabel ? `Matches ${parsedSearch.intentLabel}` : "Matches your words");
     }
   }
   if (totalHits > directHits) {
@@ -198,34 +211,62 @@ export function scoreMarketplaceAgent(input: {
   }
   if (categoryIntentMatch && category === "All") {
     score += exactIntentCategoryMatch ? 24 : directHits > 0 ? 8 : 2;
-    reasons.push(`Related to ${parsedSearch.intentLabel}`);
+    addReason(reasons, `Related to ${parsedSearch.intentLabel}`);
   }
   if (search && categoryIntentMatch && directHits === 0) {
     score -= 18;
+  }
+  if (search && parsedSearch.intentLabel && !categoryIntentMatch && directHits <= 1) {
+    score -= 16;
+  }
+  if (search && broadListing && specificHitRatio < 0.7) {
+    score -= 14;
+  } else if (!search && broadListing) {
+    score -= 4;
   }
   if (search && friendlyCategoryName(agent.category) === "Productivity" && directHits === 0 && parsedSearch.intentLabel !== "daily tasks") {
     score -= 10;
   }
   if (privateInfo === "yes" && hasPrivateInfo) {
     score += 14;
-    reasons.push(`Uses ${friendlyList(manifest.requestedSchemas ?? [], "private info")}`);
+    addReason(reasons, `Uses ${friendlyList(manifest.requestedSchemas ?? [], "private info")}`);
   }
   if (privateInfo === "no" && !hasPrivateInfo) {
     score += 14;
-    reasons.push("Does not need private info");
+    addReason(reasons, "Does not need private info");
+  }
+  if (privateInfo === "unsure") {
+    if (!hasPrivateInfo) {
+      score += 5;
+      addReason(reasons, "No private info needed to start");
+    } else if (asksBeforeRisk) {
+      score += 2;
+      addReason(reasons, "Private info stays under your control");
+    }
   }
   if (actions === "yes" && canTakeActions) {
     score += 12;
-    reasons.push(asksBeforeRisk ? "Can take actions with approval" : "Can take low-risk actions");
+    addReason(reasons, asksBeforeRisk ? "Can take actions with approval" : "Can take low-risk actions");
   }
   if (actions === "no" && !canTakeActions) {
     score += 12;
-    reasons.push("Read-only helper");
+    addReason(reasons, "Read-only agent");
+  }
+  if (actions === "unsure") {
+    if (!canTakeActions) {
+      score += 4;
+      addReason(reasons, "Read-only by default");
+    } else if (asksBeforeRisk) {
+      score += 3;
+      addReason(reasons, "Actions pause for approval");
+    }
   }
   if (filters.needsApproval && asksBeforeRisk) score += 8;
   if (filters.usesPrivateInfo && hasPrivateInfo) score += 6;
   if (filters.canTakeActions && canTakeActions) score += 6;
 
+  if (hasTrustGuidance(agent)) score += 4;
+  if (!manifest.description && !agent.description && !agent.tagline) score -= 12;
   score += Math.min(agent.trustScore, 100) / 16;
   score += Math.min(agent.averageRating, 5);
   score += Math.min(agent.installCount / 1000, 3);

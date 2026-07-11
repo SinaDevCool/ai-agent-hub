@@ -21,7 +21,7 @@ type InstallSuccessPanelProps = {
 export function InstallSuccessPanel({ install, onDismiss, onFindAnother, onReviewAccess, onTryPrompt }: InstallSuccessPanelProps) {
   const hasPrivateInfo = install.requestedSchemas.length > 0;
   const hasSensitiveActions = install.highRiskActions.length > 0;
-  const canOpenHelper = Boolean(install.agentId);
+  const canOpenAgent = Boolean(install.agentId);
   const firstPrompt = install.firstPrompt || `Ask ${install.displayName} for help with ${install.category.toLowerCase()}.`;
   const sensitiveActionLabel = friendlyList(install.highRiskActions.map(friendlyActionName), "sensitive actions");
   const sensitiveActionSentence = `${sensitiveActionLabel.charAt(0).toLowerCase()}${sensitiveActionLabel.slice(1)}`;
@@ -29,12 +29,12 @@ export function InstallSuccessPanel({ install, onDismiss, onFindAnother, onRevie
   return (
     <section className="panel install-success-panel" aria-label={`${install.displayName} next steps`} aria-live="polite">
       <div className="install-success-copy">
-        <div className="panel-title">Helper Added</div>
+        <div className="panel-title">Agent Added</div>
         <h2><Bot aria-hidden="true" size={20} /> {install.displayName}</h2>
         <p>{hasPrivateInfo ? "It is ready. You decide which private info it can use." : "It is ready to use now."}</p>
       </div>
 
-      <div className="install-success-summary" aria-label="Helper access summary">
+      <div className="install-success-summary" aria-label="Agent access summary">
         <div>
           <strong>Try first</strong>
           <span>{firstPrompt}</span>
@@ -50,8 +50,8 @@ export function InstallSuccessPanel({ install, onDismiss, onFindAnother, onRevie
       </div>
 
       <div className="install-success-actions">
-        <button className="primary-action" disabled={!canOpenHelper} onClick={onTryPrompt} type="button">
-          <MessageSquare aria-hidden="true" size={16} /> Use helper
+        <button className="primary-action" disabled={!canOpenAgent} onClick={onTryPrompt} type="button">
+          <MessageSquare aria-hidden="true" size={16} /> Use agent
         </button>
         {hasPrivateInfo ? (
           <button onClick={onReviewAccess} type="button"><KeyRound aria-hidden="true" size={16} /> Review access</button>

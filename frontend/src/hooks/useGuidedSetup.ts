@@ -13,7 +13,7 @@ function getStarterPrompt(templateId: string) {
     shopping: "Compare options without buying anything",
     health: "Summarize the health note I saved"
   };
-  return prompts[templateId] ?? "Find the personal info this helper can use";
+  return prompts[templateId] ?? "Find the personal info this agent can use";
 }
 
 function getAvailableAgentName(baseName: string, existingNames: string[], fallbackSuffix = "") {

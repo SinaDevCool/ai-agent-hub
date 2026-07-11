@@ -1,6 +1,6 @@
 import type { Agent, HitlRequest, VaultSchema } from "../api/types";
 import { friendlyActionName } from "./display";
-import { testHelperPattern } from "./appCatalog";
+import { testAgentPattern } from "./appCatalog";
 
 export type HelperPrompt = {
   label: string;
@@ -21,11 +21,11 @@ export function approvalReason(action: string) {
   if (/transfer|pay|payment|credit|purchase|buy/.test(lower)) return "This may move money, make a purchase, or affect your finances.";
   if (/medical|health/.test(lower)) return "This may share sensitive health information.";
   if (/send|email|share/.test(lower)) return "This may send or share information outside your account.";
-  return "This is a sensitive action, so the helper must pause for your approval.";
+  return "This is a sensitive action, so the agent must pause for your approval.";
 }
 
 export function approvalPlainSentence(action: string) {
-  return `This helper wants to ${friendlyActionName(action)}.`;
+  return `This agent wants to ${friendlyActionName(action)}.`;
 }
 
 export function agentCannotDo(agent: Agent | undefined) {
@@ -43,16 +43,16 @@ export function agentCannotDo(agent: Agent | undefined) {
   return Array.from(new Set(rules));
 }
 
-export function isTestHelper(agent: Pick<Agent, "name" | "capabilityManifest">) {
-  return testHelperPattern.test(agent.name) || testHelperPattern.test(agent.capabilityManifest.description ?? "");
+export function isTestAgent(agent: Pick<Agent, "name" | "capabilityManifest">) {
+  return testAgentPattern.test(agent.name) || testAgentPattern.test(agent.capabilityManifest.description ?? "");
 }
 
 export function agentReadiness(agent: Agent | undefined, missingCount: number, pendingApprovalCount: number) {
   if (!agent) {
     return {
       tone: "red" as const,
-      label: "No helper selected",
-      detail: "Choose a helper to start."
+      label: "No agent selected",
+      detail: "Choose an agent to start."
     };
   }
   if (pendingApprovalCount > 0) {
@@ -66,13 +66,13 @@ export function agentReadiness(agent: Agent | undefined, missingCount: number, p
     return {
       tone: "amber" as const,
       label: "Needs access",
-      detail: "Allow the requested private info before this helper can answer well."
+    detail: "Allow the requested private info before this agent can answer well."
     };
   }
   return {
     tone: "green" as const,
     label: "Ready",
-    detail: "This helper can answer using only the info you approved."
+    detail: "This agent can answer using only the info you approved."
   };
 }
 
@@ -113,14 +113,14 @@ export function promptRiskPreview(prompt: string, agent: Agent | undefined, miss
     return {
       tone: "blue" as const,
       label: "Ready when you are",
-      detail: "Choose a starter or type what you want this helper to do."
+      detail: "Choose a starter or type what you want this agent to do."
     };
   }
   if (/\b(book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open)\b/i.test(cleanPrompt)) {
     return {
       tone: "amber" as const,
       label: "Will ask first",
-      detail: `${agent?.name ?? "This helper"} should pause before taking a sensitive action.`
+      detail: `${agent?.name ?? "This agent"} should pause before taking a sensitive action.`
     };
   }
   if (missingPermissions > 0) {

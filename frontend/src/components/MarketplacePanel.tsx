@@ -17,7 +17,7 @@ type MarketplacePanelProps = {
   className: string;
   installedCount: number;
   canUseCreatorTools: boolean;
-  onBackToHelpers: () => void;
+  onBackToAgents: () => void;
   marketplaceNeedOptions: MarketplaceNeed[];
   matcherNeedId: string;
   setMatcherNeedId: (value: string) => void;
@@ -47,7 +47,7 @@ type MarketplacePanelProps = {
   prioritizedMarketplaceAgents: MarketplaceAgent[];
   prioritizedMarketplaceMatches: MarketplaceMatch[];
   hasInstallableMarketplaceAgent: boolean;
-  onCreateCustomHelper: () => void;
+  onCreateCustomAgent: () => void;
   installedDefinitionIds: Set<string>;
   selectedMarketplaceAgent?: MarketplaceAgent;
   onOpenDetails: (agent: MarketplaceAgent) => void;
@@ -72,14 +72,14 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
   const [isMoreNeedsOpen, setIsMoreNeedsOpen] = useState(false);
-  const [isAddedHelpersOpen, setIsAddedHelpersOpen] = useState(false);
+  const [isAddedAgentsOpen, setIsAddedAgentsOpen] = useState(false);
   const [isShowingMoreResults, setIsShowingMoreResults] = useState(false);
 
   const isInstalled = (agent: MarketplaceAgent) => Boolean(agent.installed || props.installedDefinitionIds.has(agent.id));
   const installedMarketplaceMatches = props.prioritizedMarketplaceMatches.filter((match) => isInstalled(match.agent));
   const discoveryMarketplaceMatches = props.prioritizedMarketplaceMatches.filter((match) => !isInstalled(match.agent));
   const hasDiscoveryResults = discoveryMarketplaceMatches.length > 0;
-  const shouldShowInstalledStrip = installedMarketplaceMatches.length > 0 && isAddedHelpersOpen;
+  const shouldShowInstalledStrip = installedMarketplaceMatches.length > 0 && isAddedAgentsOpen;
   const resultSource = hasDiscoveryResults ? discoveryMarketplaceMatches : installedMarketplaceMatches;
   const defaultResultLimit = props.marketplaceSearch.trim() || props.marketplaceCategory !== "All" ? 6 : 3;
   const cardMatches = resultSource.slice(0, isShowingMoreResults ? 6 : defaultResultLimit);
@@ -88,12 +88,12 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
     <div className={props.className}>
       <div className="panel-heading-row">
         <div>
-          <div className="panel-title">Find a Helper</div>
-          <p className="mobile-section-intro">Choose what you need help with. Helpers start restricted, and you decide what private info they can read.</p>
+          <div className="panel-title">Agent Pool</div>
+          <p className="mobile-section-intro">Choose what you need. Agents start restricted, and you decide what private info they can read.</p>
         </div>
         <div className="marketplace-heading-actions">
           <StatusPill tone="blue">{props.installedCount} installed</StatusPill>
-          <button className="marketplace-mobile-exit" onClick={props.onBackToHelpers} type="button">Back to my helpers</button>
+          <button className="marketplace-mobile-exit" onClick={props.onBackToAgents} type="button">Back to My Agents</button>
         </div>
       </div>
 
@@ -119,7 +119,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
         marketplaceAgentCount={props.marketplaceAgentCount}
         marketplaceError={props.marketplaceError}
         onClearFilters={props.onClearFilters}
-        onCreateCustomHelper={props.onCreateCustomHelper}
+        onCreateCustomAgent={props.onCreateCustomAgent}
         canUseCreatorTools={props.canUseCreatorTools}
         onMarketplaceRetry={props.onMarketplaceRetry}
         onRefresh={props.onRefresh}
@@ -129,7 +129,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
       />
 
       {installedMarketplaceMatches.length ? (
-        <button className="marketplace-added-toggle" onClick={() => setIsAddedHelpersOpen((current) => !current)} type="button">
+        <button className="marketplace-added-toggle" onClick={() => setIsAddedAgentsOpen((current) => !current)} type="button">
           {installedMarketplaceMatches.length} already added
         </button>
       ) : null}
@@ -139,7 +139,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
           discoveryMarketplaceMatchesLength={discoveryMarketplaceMatches.length}
           installedByDefinitionId={props.installedByDefinitionId}
           installedMarketplaceMatches={installedMarketplaceMatches}
-          onCreateCustomHelper={props.onCreateCustomHelper}
+          onCreateCustomAgent={props.onCreateCustomAgent}
           canUseCreatorTools={props.canUseCreatorTools}
           onOpenInstalledAgent={props.onOpenInstalledAgent}
         />
@@ -159,7 +159,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
         setIsShowingMoreResults={setIsShowingMoreResults}
       />
 
-      <div className="marketplace-assist-row" aria-label="Marketplace helper tools">
+      <div className="marketplace-assist-row" aria-label="Agent pool tools">
         <button aria-expanded={isMatcherOpen} onClick={() => setIsMatcherOpen((current) => !current)} type="button">
           <Search size={16} /> Help me choose
         </button>
@@ -188,7 +188,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
           isImportOpen={isImportOpen}
           marketplaceFilterLabels={props.marketplaceFilterLabels}
           marketplaceFilters={props.marketplaceFilters}
-          onCreateCustomHelper={props.onCreateCustomHelper}
+          onCreateCustomAgent={props.onCreateCustomAgent}
           setIsImportOpen={setIsImportOpen}
           setMarketplaceFilters={props.setMarketplaceFilters}
         />

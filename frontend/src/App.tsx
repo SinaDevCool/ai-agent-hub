@@ -13,7 +13,7 @@ import { useCreator } from "./hooks/useCreator";
 import { useCreatorAccess } from "./hooks/useCreatorAccess";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { useGuidedSetup } from "./hooks/useGuidedSetup";
-import { helperStatusFilters, useInstalledHelpers } from "./hooks/useInstalledHelpers";
+import { agentStatusFilters, useInstalledAgents } from "./hooks/useInstalledAgents";
 import { useMarketplace } from "./hooks/useMarketplace";
 import { useMarketplaceActions } from "./hooks/useMarketplaceActions";
 import { useModeration } from "./hooks/useModeration";
@@ -27,7 +27,7 @@ import {
   approvalPlainSentence,
   approvalReason,
   friendlyTrustLabel,
-  isTestHelper,
+  isTestAgent,
   permissionProgress,
   promptRiskPreview,
   promptSuggestions
@@ -90,30 +90,30 @@ export function App() {
   const currentUser = useCurrentUser({ formatError: friendlyAppError });
   const moderation = useModeration({ formatError: friendlyAppError });
   const {
-    helperSearch,
-    helperStatusFilter,
-    helperSummary,
-    hiddenTestHelperCount,
-    hideTestHelpers,
-    isHelperAddOpen,
-    isHelperFiltersOpen,
+    agentSearch,
+    agentStatusFilter,
+    agentSummary,
+    hiddenTestAgentCount,
+    hideTestAgents,
+    isAgentAddOpen,
+    isAgentFiltersOpen,
     mobileInstalledAgentCards,
     pinnedAgentIds,
     selectedAgent,
-    setHelperSearch,
-    setHelperStatusFilter,
-    setHideTestHelpers,
-    setIsHelperAddOpen,
-    setIsHelperFiltersOpen,
+    setAgentSearch,
+    setAgentStatusFilter,
+    setHideTestAgents,
+    setIsAgentAddOpen,
+    setIsAgentFiltersOpen,
     setSelectedAgentId,
     togglePinnedAgent,
     visibleAgents,
     visibleInstalledAgentCards
-  } = useInstalledHelpers({
+  } = useInstalledAgents({
     agentReadinessFor,
     agents,
     hitl,
-    isTestHelper,
+    isTestAgent,
     permissionProgress,
     schemas
   });
@@ -150,7 +150,7 @@ export function App() {
   });
   const [confirmation, setConfirmation] = useState<ConfirmationDialog | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
-  const [isMobileHelperDetailOpen, setIsMobileHelperDetailOpen] = useState(false);
+  const [isMobileAgentDetailOpen, setIsMobileAgentDetailOpen] = useState(false);
   const [startupRetryMessage, setStartupRetryMessage] = useState("");
   const canModerateMarketplace = currentUser.capabilities.canModerateMarketplace;
   const canUseCreatorTools = currentUser.capabilities.canCreateMarketplaceAgents;
@@ -161,7 +161,7 @@ export function App() {
       maxAttempts: 4,
       retryDelayMs: 1500,
       onRetry: ({ attempt, maxAttempts }) => {
-        setStartupRetryMessage(`Connecting to your helper service (${attempt + 1}/${maxAttempts})…`);
+        setStartupRetryMessage(`Connecting to your agent service (${attempt + 1}/${maxAttempts})…`);
       }
     });
     setStartupRetryMessage("");
@@ -247,7 +247,7 @@ export function App() {
     setMatcherActions,
     setMatcherNeedId,
     setMatcherPrivateInfo,
-    setMobileHelperDetailOpen: setIsMobileHelperDetailOpen,
+    setMobileAgentDetailOpen: setIsMobileAgentDetailOpen,
     setSelectedAgentId,
     setToolResult
   });
@@ -362,11 +362,11 @@ export function App() {
     if (activeSection !== "vault") setIsAddingVaultItem(false);
     if (activeSection !== "helpers") {
       setIsAddingAgent(false);
-      setIsHelperAddOpen(false);
-      setIsHelperFiltersOpen(false);
-      setIsMobileHelperDetailOpen(false);
+      setIsAgentAddOpen(false);
+      setIsAgentFiltersOpen(false);
+      setIsMobileAgentDetailOpen(false);
     }
-  }, [activeSection, setIsAddingVaultItem, setIsAddingAgent, setIsHelperAddOpen, setIsHelperFiltersOpen, setIsMobileHelperDetailOpen]);
+  }, [activeSection, setIsAddingVaultItem, setIsAddingAgent, setIsAgentAddOpen, setIsAgentFiltersOpen, setIsMobileAgentDetailOpen]);
 
   const privacySummary = useMemo(() => buildPrivacyExportPayload({
     account: auth.session?.user.email ?? "Local development user",
@@ -462,16 +462,16 @@ export function App() {
   const suggestedPrompts = promptSuggestions(selectedAgent);
   const promptPreview = promptRiskPreview(chatInput, selectedAgent, ungrantedRequestedSchemas.length, selectedAgentApprovals.length);
   const selectedRiskyActions = selectedAgent?.capabilityManifest.highRiskActions ?? [];
-  const selectedHelperTools = selectedAgent?.capabilityManifest.tools?.map(friendlyToolName) ?? [];
+  const selectedAgentTools = selectedAgent?.capabilityManifest.tools?.map(friendlyToolName) ?? [];
   const selectedCannotDo = agentCannotDo(selectedAgent);
   const selectedReadableInfoLabel = friendlyList(selectedReadableInfo, "Nothing yet");
   const selectedRiskyActionsLabel = friendlyList(selectedAgent?.capabilityManifest.highRiskActions?.map(friendlyActionName) ?? [], "No risky actions listed");
-  const selectedHelperToolsLabel = friendlyList(selectedHelperTools, "Answer simple questions");
+  const selectedAgentToolsLabel = friendlyList(selectedAgentTools, "Answer simple questions");
   const selectedCannotDoLabel = friendlyList(selectedCannotDo, "Nothing blocked");
-  const helperNextStep = selectedAgentApprovals.length
-    ? "Review what is waiting before this helper continues."
+  const agentNextStep = selectedAgentApprovals.length
+    ? "Review what is waiting before this agent continues."
     : ungrantedRequestedSchemas.length
-      ? "Give access only to the saved info this helper needs."
+      ? "Give access only to the saved info this agent needs."
       : "Type what you need, or tap a starter prompt.";
   const runSummary = runtimeSummary(agentRunResult);
   const selectedAgentLogs = useMemo(
@@ -483,7 +483,7 @@ export function App() {
   const recentLogs = logs.slice(0, 6);
   const setupSteps = [
     {
-      label: "Pick a helper",
+      label: "Pick an agent",
       detail: "Choose one to start",
       done: agents.length > 0
     },
@@ -499,21 +499,21 @@ export function App() {
     },
     {
       label: "Ask for help",
-      detail: selectedAgent ? "Send a first request" : "Choose a helper to start",
+      detail: selectedAgent ? "Send a first request" : "Choose an agent to start",
       done: Boolean(selectedAgent && chatTranscript.length > 0)
     }
   ];
   const setupProgress = setupSteps.filter((step) => step.done).length;
   const showSetupProgress = setupProgress < setupSteps.length;
   const primarySetupLabel = agents.length === 0
-    ? "Pick your first helper"
+    ? "Pick your first agent"
     : documents.length === 0
       ? "Add private info"
       : ungrantedRequestedSchemas.length > 0
         ? "Review access"
         : selectedAgent
-          ? "Use selected helper"
-          : "Find Helpers";
+          ? "Use selected agent"
+          : "Agent Pool";
 
   function runPrimarySetupAction() {
     if (agents.length === 0) {
@@ -584,7 +584,7 @@ export function App() {
       connectionState={connectionState}
       heading={heading}
       onAddPrivateInfo={() => setIsAddingVaultItem((current) => !current)}
-      onFindHelper={() => openMarketplace()}
+      onOpenAgentPool={() => openMarketplace()}
       onNavigate={scrollToSection}
       onSignOut={auth.session ? () => void auth.signOut() : undefined}
       userEmail={auth.session?.user.email}
@@ -656,13 +656,13 @@ export function App() {
             guidedTemplateId,
             guidedTemplates,
             hasInstallableMarketplaceAgent,
-            helperNextStep,
-            helperSearch,
-            helperStatusFilter,
-            helperStatusFilters,
-            helperSummary,
-            hiddenTestHelperCount,
-            hideTestHelpers,
+            agentNextStep,
+            agentSearch,
+            agentStatusFilter,
+            agentStatusFilters,
+            agentSummary,
+            hiddenTestAgentCount,
+            hideTestAgents,
             hitl,
             installedAgents,
             installedByDefinitionId,
@@ -677,9 +677,9 @@ export function App() {
             isExternalImportSaving,
             isGuidedSetupOpen,
             isGuidedSetupSaving,
-            isHelperAddOpen,
-            isHelperFiltersOpen,
-            isMobileHelperDetailOpen,
+            isAgentAddOpen,
+            isAgentFiltersOpen,
+            isMobileAgentDetailOpen,
             isRefreshing,
             isSearchingVault,
             lastFailedPrompt,
@@ -743,7 +743,7 @@ export function App() {
             selectedAgentApprovals,
             selectedAgentLogs,
             selectedCannotDoLabel,
-            selectedHelperToolsLabel,
+            selectedAgentToolsLabel,
             selectedMarketplaceAgent,
             selectedReadableInfo,
             selectedReadableInfoLabel,
@@ -757,14 +757,14 @@ export function App() {
             setGuidedInfoText,
             setGuidedSetupStep,
             setGuidedTemplateId,
-          setHelperSearch,
-            setHelperStatusFilter,
-            setHideTestHelpers,
+          setAgentSearch,
+            setAgentStatusFilter,
+            setHideTestAgents,
             setIsAddingAgent,
             setIsAddingVaultItem,
             setIsGuidedSetupOpen,
-            setIsHelperAddOpen,
-            setIsHelperFiltersOpen,
+            setIsAgentAddOpen,
+            setIsAgentFiltersOpen,
             setMarketplaceCategory,
             setMarketplaceError,
             setMarketplaceFilters,
@@ -772,7 +772,7 @@ export function App() {
             setMatcherActions,
             setMatcherNeedId,
             setMatcherPrivateInfo,
-            setMobileHelperDetailOpen: setIsMobileHelperDetailOpen,
+            setMobileAgentDetailOpen: setIsMobileAgentDetailOpen,
             setRecentInstall,
             setSearchQuery,
             setSearchSchemaId,

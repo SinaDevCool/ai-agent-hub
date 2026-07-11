@@ -19,12 +19,12 @@ export function PublishConfirmDialog(props: {
   return (
     <div className="confirm-backdrop" role="presentation">
       <section aria-labelledby="publish-dialog-title" aria-modal="true" className="confirm-dialog publish-confirm-dialog" role="dialog">
-        <div className="panel-title">{props.isPublishingReturnedDraft ? "Resubmit Helper" : "Publish Helper"}</div>
+        <div className="panel-title">{props.isPublishingReturnedDraft ? "Resubmit Agent" : "Publish Agent"}</div>
         <h2 id="publish-dialog-title">{props.isPublishingReturnedDraft ? "Resubmit" : "Publish"} {props.agent.name}?</h2>
         <p>
           {props.isPublishingReturnedDraft
-            ? "This checks the updated helper again. Strong listings can go live; borderline listings return to review."
-            : "This makes the helper discoverable in the marketplace. People can install it, but private info still requires their approval."}
+            ? "This checks the updated agent again. Strong listings can go live; borderline listings return to review."
+            : "This makes the agent discoverable in the marketplace. People can install it, but private info still requires their approval."}
         </p>
         {props.isPublishingReturnedDraft && props.agent.moderationNote ? (
           <div className="moderation-note creator-review-note">
@@ -71,14 +71,14 @@ export function ArchiveConfirmDialog(props: {
         className="confirm-dialog archive-confirm-dialog"
         role="dialog"
       >
-        <div className="panel-title">Archive Helper</div>
+        <div className="panel-title">Archive Agent</div>
         <h2 id="archive-dialog-title">Archive {props.agent.name}?</h2>
         <p id="archive-dialog-copy">It will be hidden from marketplace search. People who already installed it keep their records, but new people will not find it.</p>
         <div className="button-row">
           <button className="danger" data-testid="creator-confirm-archive" disabled={props.isSaving} onClick={props.onArchive} type="button">
-            <Archive size={16} /> {props.isSaving ? "Archiving…" : "Archive helper"}
+            <Archive size={16} /> {props.isSaving ? "Archiving…" : "Archive agent"}
           </button>
-          <button disabled={props.isSaving} onClick={props.onCancel} type="button">Keep helper</button>
+          <button disabled={props.isSaving} onClick={props.onCancel} type="button">Keep agent</button>
         </div>
       </section>
     </div>

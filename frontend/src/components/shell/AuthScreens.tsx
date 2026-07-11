@@ -24,8 +24,8 @@ export function AuthSignInScreen(props: {
     <main className="auth-shell">
       <section className="auth-panel">
         <div className="brand-mark"><ShieldCheck size={22} /> AI Agent Hub</div>
-        <h1>Find your AI helpers</h1>
-        <p>Add a travel helper, money helper, or daily-task helper. You decide what each one can see.</p>
+        <h1>Find your AI agents</h1>
+        <p>Add a travel agent, money agent, or daily-task agent. You decide what each one can see.</p>
         <div className="auth-trust-list" aria-label="Privacy promises">
           <span><ShieldCheck size={15} /> Private by default</span>
           <span><KeyRound size={15} /> You approve access</span>

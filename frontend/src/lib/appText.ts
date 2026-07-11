@@ -5,11 +5,11 @@ import { friendlyActionName } from "./display";
 
 export function runtimeSummary(result: AgentRunResult | null) {
   if (!result) return null;
-  if (result.externalRuntime?.proxyStatus === "executed") return "External helper answered through AI Agent Hub's safety proxy.";
-  if (result.externalRuntime?.proxyStatus === "timed_out") return "The external helper took too long to respond.";
-  if (result.externalRuntime?.proxyStatus === "failed") return "The external helper returned an error.";
-  if (result.externalRuntime?.proxyStatus === "blocked") return "The external helper was blocked by a safety check.";
-  if (result.runtimeState === "needs_permission") return "This helper needs permission before it can use that private info.";
+  if (result.externalRuntime?.proxyStatus === "executed") return "External agent answered through AI Agent Hub's safety proxy.";
+  if (result.externalRuntime?.proxyStatus === "timed_out") return "The external agent took too long to respond.";
+  if (result.externalRuntime?.proxyStatus === "failed") return "The external agent returned an error.";
+  if (result.externalRuntime?.proxyStatus === "blocked") return "The external agent was blocked by a safety check.";
+  if (result.runtimeState === "needs_permission") return "This agent needs permission before it can use that private info.";
   if (result.runtimeState === "needs_approval") return "Waiting for you. Nothing continues unless you allow it.";
   if (result.status === "blocked") return result.reason ?? "This request was blocked by your safety rules.";
   if (result.provider === "openai") return `Answered with OpenAI${result.model ? ` (${result.model})` : ""}.`;
@@ -41,13 +41,13 @@ export function getStarterInfoPlaceholder(templateId: string) {
     shopping: "Example: I prefer durable items, compare prices first, and ask me before any purchase.",
     health: "Example: Keep health notes private and ask before sharing anything with another service."
   };
-  return placeholders[templateId] ?? "Add one useful preference or rule this helper should remember.";
+  return placeholders[templateId] ?? "Add one useful preference or rule this agent should remember.";
 }
 
 export function friendlyLogText(log: ActivityLog) {
   const external = externalLogDisplay(log);
   if (external) return external.title;
-  const agent = log.agent?.name ?? "A helper";
+  const agent = log.agent?.name ?? "An agent";
   if (log.actionType === "api_callback") return `${agent} contacted an external service`;
   if (log.actionType === "vault_read") return `${agent} used saved info`;
   if (log.actionType === "vault_write") return "Saved info changed";
@@ -75,8 +75,8 @@ export function friendlyLogDetail(log: ActivityLog) {
   if (log.actionType === "hitl_approved") return log.dataAccessed ? `Allowed once: ${friendlyActionName(log.dataAccessed)}` : "Allowed once.";
   if (log.actionType === "hitl_denied") return log.dataAccessed ? `Denied: ${friendlyActionName(log.dataAccessed)}.` : "Denied. Nothing continued.";
   if (log.actionType === "execution_triggered" && log.status === "blocked_by_policy") return "Denied. Nothing continued.";
-  if (log.actionType === "agent_created") return log.dataAccessed ? `Helper: ${log.dataAccessed}` : "Helper added to profile";
-  if (log.actionType === "agent_removed") return log.dataAccessed ? `Helper: ${log.dataAccessed}` : "Helper removed from profile";
+  if (log.actionType === "agent_created") return log.dataAccessed ? `Agent: ${log.dataAccessed}` : "Agent added to profile";
+  if (log.actionType === "agent_removed") return log.dataAccessed ? `Agent: ${log.dataAccessed}` : "Agent removed from profile";
   if (log.dataAccessed) return friendlyActionName(log.dataAccessed);
   return "No extra detail";
 }
@@ -97,7 +97,7 @@ export function friendlyNotificationText(log: ActivityLog) {
 export function friendlyResult(result: Record<string, unknown>) {
   const status = String(result.status ?? "ok");
   if (status === "ok" && Array.isArray(result.documents)) return `Found ${result.documents.length} matching personal info item${result.documents.length === 1 ? "" : "s"}.`;
-  if (status === "blocked") return `Blocked: ${String(result.reason ?? "this helper does not have permission.")}`;
+  if (status === "blocked") return `Blocked: ${String(result.reason ?? "this agent does not have permission.")}`;
   if (status === "awaiting_human_approval") return "Waiting for you. Nothing continues unless you allow it.";
   if (status === "vault_item_created") return "Personal info saved.";
   if (status === "vault_item_updated") return "Personal info updated.";
@@ -120,7 +120,7 @@ export function friendlyAppError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   if (/openai|api key|quota|billing|model/i.test(message)) return "The AI answer service needs attention. Check the OpenAI key or account limits, then try again.";
   if (/supabase|auth|jwt|session/i.test(message)) return "Your sign-in session needs a refresh. Sign in again if this keeps happening.";
-  if (/render|timeout|sleep|waking/i.test(message)) return "Your helper service may be waking up. Wait a few seconds and try again.";
-  if (/failed to fetch|network|connection/i.test(message)) return "Could not reach your helper service. Check the connection, wait a few seconds, and try again.";
+  if (/render|timeout|sleep|waking/i.test(message)) return "Your agent service may be waking up. Wait a few seconds and try again.";
+  if (/failed to fetch|network|connection/i.test(message)) return "Could not reach your agent service. Check the connection, wait a few seconds, and try again.";
   return message || "Something went wrong. Please try again.";
 }

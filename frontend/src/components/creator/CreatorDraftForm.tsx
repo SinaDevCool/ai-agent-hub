@@ -41,8 +41,8 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
     <form className="creator-form" data-testid="creator-agent-form" onSubmit={(event) => void onSubmit(event)}>
       <div className="panel-heading-row">
         <div>
-          <div className="panel-title">{editingAgent ? "Edit Draft" : "New Helper"}</div>
-          <p className="mobile-section-intro">Keep the listing clear. People should know what the helper does before they install it.</p>
+          <div className="panel-title">{editingAgent ? "Edit Draft" : "New Agent"}</div>
+          <p className="mobile-section-intro">Keep the listing clear. People should know what the agent does before they install it.</p>
         </div>
         <StatusPill tone={readiness.ready ? "green" : "amber"}>{readiness.ready ? "ready" : "needs details"}</StatusPill>
       </div>
@@ -55,12 +55,12 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
 
       <div className="form-grid creator-form-grid">
         <label>
-          <span>Helper name</span>
+          <span>Agent name</span>
           <input
             autoComplete="off"
             maxLength={100}
             minLength={2}
-            name="creator-helper-name"
+            name="creator-agent-name"
             onChange={(event) => updateForm({ name: event.currentTarget.value })}
             placeholder="Weekend Trip Planner"
             required
@@ -69,7 +69,7 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
         </label>
         <label>
           <span>Category</span>
-          <select autoComplete="off" name="creator-helper-category" onChange={(event) => updateForm({ category: event.currentTarget.value })} value={form.category}>
+          <select autoComplete="off" name="creator-agent-category" onChange={(event) => updateForm({ category: event.currentTarget.value })} value={form.category}>
             {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
           </select>
         </label>
@@ -79,7 +79,7 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
             autoComplete="off"
             maxLength={180}
             minLength={8}
-            name="creator-helper-tagline"
+            name="creator-agent-tagline"
             onChange={(event) => updateForm({ tagline: event.currentTarget.value })}
             placeholder="Plans low-stress weekend trips and asks before booking anything."
             required
@@ -92,9 +92,9 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
             autoComplete="off"
             maxLength={1000}
             minLength={20}
-            name="creator-helper-description"
+            name="creator-agent-description"
             onChange={(event) => updateForm({ description: event.currentTarget.value })}
-            placeholder="Describe what the helper does, what kind of user it is for, and when it will ask permission."
+            placeholder="Describe what the agent does, what kind of user it is for, and when it will ask permission."
             required
             rows={4}
             value={form.description}
@@ -104,14 +104,14 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
 
       <div className="external-source-panel">
         <div>
-          <strong><Link size={16} /> Where is this helper built?</strong>
-          <span>Imported helpers must be reviewed before they appear in marketplace search.</span>
+          <strong><Link size={16} /> Where is this agent built?</strong>
+          <span>Imported agents must be reviewed before they appear in marketplace search.</span>
         </div>
         <label>
           <span>Source</span>
           <select
             autoComplete="off"
-            name="creator-helper-source"
+            name="creator-agent-source"
             onChange={(event) => {
               const sourceType = event.currentTarget.value as CreatorFormState["sourceType"];
               updateForm({
@@ -132,9 +132,9 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
           <input
             autoComplete="url"
             disabled={form.sourceType === "native"}
-            name="creator-helper-endpoint"
+            name="creator-agent-endpoint"
             onChange={(event) => updateForm({ externalEndpointUrl: event.currentTarget.value })}
-            placeholder={form.sourceType === "native" ? "Not needed for native helpers" : "https://example.com/agent"}
+            placeholder={form.sourceType === "native" ? "Not needed for native agents" : "https://example.com/agent"}
             required={form.sourceType !== "native"}
             type="url"
             value={form.externalEndpointUrl}
@@ -176,7 +176,7 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
           <span>Example prompts</span>
           <textarea
             autoComplete="off"
-            name="creator-helper-prompts"
+            name="creator-agent-prompts"
             onChange={(event) => updateForm({ examplePromptsText: event.currentTarget.value })}
             placeholder={"Plan a 3-day Lisbon trip under $900\nCompare two hotels for a family weekend"}
             required
@@ -188,7 +188,7 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
           <span>Why should people trust it?</span>
           <textarea
             autoComplete="off"
-            name="creator-helper-trust"
+            name="creator-agent-trust"
             onChange={(event) => updateForm({ trustReasonsText: event.currentTarget.value })}
             placeholder={"Explains what it needs before asking for access\nPauses before purchases, bookings, or sharing private info"}
             required
@@ -200,7 +200,7 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
           <span>Always ask before</span>
           <textarea
             autoComplete="off"
-            name="creator-helper-approval-rules"
+            name="creator-agent-approval-rules"
             onChange={(event) => updateForm({ highRiskActionsText: event.currentTarget.value })}
             placeholder="Booking travel, sending email, buying items"
             rows={3}
@@ -224,15 +224,15 @@ export function CreatorDraftForm(props: CreatorDraftFormProps) {
       <div className="creator-preview-card" aria-label="Marketplace preview">
         <div className="creator-preview-heading">
           <div>
-            <strong>{form.name.trim() || "Helper name"}</strong>
-            <span>{friendlyCategoryName(form.category)} helper preview</span>
+            <strong>{form.name.trim() || "Agent name"}</strong>
+            <span>{friendlyCategoryName(form.category)} agent preview</span>
           </div>
           <StatusPill tone={readiness.score >= 80 ? "green" : "amber"}>{readiness.score}% quality</StatusPill>
         </div>
         <p>{form.tagline.trim() || "One clear sentence about who this helps and why."}</p>
         <div className="creator-preview-grid">
           <div><strong>Source</strong><span>{sourceLabel(form.sourceType)}</span></div>
-          <div><strong>Good for</strong><span>{form.description.trim() || "Describe the real-life task this helper handles."}</span></div>
+          <div><strong>Good for</strong><span>{form.description.trim() || "Describe the real-life task this agent handles."}</span></div>
           <div><strong>May ask to read</strong><span>{friendlyList(form.requestedSchemas, "No private info")}</span></div>
           <div><strong>Will ask before</strong><span>{friendlyList(splitLines(form.highRiskActionsText).map(friendlyActionName), "No risky actions listed")}</span></div>
         </div>

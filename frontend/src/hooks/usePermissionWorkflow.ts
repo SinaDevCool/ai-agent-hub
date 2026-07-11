@@ -81,7 +81,7 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
     setGrantingSchemaName(schema.name);
     try {
       await togglePermission(schema, true);
-      setToolResult(`${selectedAgent?.name ?? "This helper"} can now read ${schema.name}.`);
+      setToolResult(`${selectedAgent?.name ?? "This agent"} can now read ${schema.name}.`);
     } finally {
       setGrantingSchemaName("");
     }
@@ -94,7 +94,7 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
       for (const item of ungrantedRequestedSchemas) {
         if (item.schema) await togglePermission(item.schema, true);
       }
-      setToolResult(`${selectedAgent?.name ?? "This helper"} can now read ${ungrantedRequestedSchemas.length} approved info categories.`);
+      setToolResult(`${selectedAgent?.name ?? "This agent"} can now read ${ungrantedRequestedSchemas.length} approved info categories.`);
     } finally {
       setGrantingSchemaName("");
     }
@@ -112,7 +112,7 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
   function revokeSelectedAgentAccess() {
     if (!selectedAgent) return;
     setConfirmation({
-      title: "Revoke this helper's access?",
+      title: "Revoke this agent's access?",
       message: `${selectedAgent.name} will lose access to every private info category you allowed.`,
       confirmLabel: "Revoke access",
       tone: "danger",
@@ -135,13 +135,13 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
       }
     }
     await refresh();
-    setToolResult("All helper access to saved info was removed.");
+    setToolResult("All agent access to saved info was removed.");
   }
 
   function revokeAllAgentAccess() {
     setConfirmation({
-      title: "Remove all helper access?",
-      message: "Helpers will stop using saved info until you allow access again.",
+      title: "Remove all agent access?",
+      message: "Agents will stop using saved info until you allow access again.",
       confirmLabel: "Remove all access",
       tone: "danger",
       onConfirm: revokeAllAgentAccessNow
@@ -150,9 +150,9 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
 
   function removeAgentFromProfile(agent: Agent) {
     setConfirmation({
-      title: "Remove this helper?",
+      title: "Remove this agent?",
       message: `${agent.name} will be removed from your profile and lose access to your private info. Your saved private notes stay safe.`,
-      confirmLabel: "Remove helper",
+      confirmLabel: "Remove agent",
       tone: "danger",
       onConfirm: async () => {
         await apiDelete(`/api/agents/${agent.id}`);

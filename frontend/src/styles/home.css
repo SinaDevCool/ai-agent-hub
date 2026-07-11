@@ -100,6 +100,28 @@
   gap: 12px;
 }
 
+.home-card-intro {
+  color: #91a4ba;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: -5px 0 2px;
+}
+
+.home-agent-count {
+  align-items: center;
+  background: rgba(64, 156, 255, 0.14);
+  border: 1px solid rgba(64, 156, 255, 0.32);
+  border-radius: 999px;
+  color: #bfe2ff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  height: 28px;
+  justify-content: center;
+  min-width: 28px;
+  padding: 0 9px;
+}
+
 .home-primary-card {
   background:
     linear-gradient(135deg, rgba(64, 156, 255, 0.1), transparent 58%),
@@ -277,6 +299,68 @@
   background: #251d12;
 }
 
+.home-agents-card {
+  gap: 10px;
+}
+
+.home-agent-card {
+  align-items: center;
+  background: rgba(13, 31, 52, 0.76);
+  border-color: rgba(137, 163, 196, 0.14);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  justify-content: stretch;
+  min-height: 62px;
+  padding: 11px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.home-agent-card:hover {
+  background: rgba(18, 43, 70, 0.84);
+  border-color: rgba(64, 156, 255, 0.34);
+}
+
+.home-agent-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.home-agent-main strong,
+.home-agent-main small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-agent-main strong {
+  color: #f5f9ff;
+  font-size: 14px;
+}
+
+.home-agent-main small {
+  color: #91a4ba;
+  font-size: 12px;
+}
+
+.home-agent-meta {
+  align-items: center;
+  background: rgba(64, 209, 137, 0.1);
+  border: 1px solid rgba(64, 209, 137, 0.2);
+  border-radius: 999px;
+  color: #b8e8c9;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 850;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 9px;
+  white-space: nowrap;
+}
+
 .home-wide-card {
   grid-column: 2;
   min-height: 116px;
@@ -383,7 +467,7 @@
 @media (min-width: 901px) {
   .home-dashboard {
     grid-template-columns: minmax(0, 1fr);
-    max-width: 980px;
+    width: 100%;
   }
 
   .home-primary-card {

@@ -1,7 +1,7 @@
 import type { WorkspaceSectionsProps } from "./WorkspaceSections.types";
 import { AgentProfilePanel } from "../AgentProfilePanel";
 
-export function SelectedHelperProfileSection({ props }: { props: WorkspaceSectionsProps }) {
+export function SelectedAgentProfileSection({ props }: { props: WorkspaceSectionsProps }) {
   const {
     activeMobileClass,
     agentConversation,
@@ -24,10 +24,10 @@ export function SelectedHelperProfileSection({ props }: { props: WorkspaceSectio
     grantAllRequestedSchemas,
     grantingSchemaName,
     grantRequestedSchema,
-    helperNextStep,
+    agentNextStep,
     isAgentRunning,
     isConversationLoading,
-    isMobileHelperDetailOpen,
+    isMobileAgentDetailOpen,
     lastFailedPrompt,
     permissionReview,
     promptPreview,
@@ -43,14 +43,14 @@ export function SelectedHelperProfileSection({ props }: { props: WorkspaceSectio
     selectedAgentApprovals,
     selectedAgentLogs,
     selectedCannotDoLabel,
-    selectedHelperToolsLabel,
+    selectedAgentToolsLabel,
     selectedReadableInfo,
     selectedReadableInfoLabel,
     selectedRiskyActions,
     selectedRiskyActionsLabel,
     setAgentProfileTab,
     setChatInput,
-    setMobileHelperDetailOpen,
+    setMobileAgentDetailOpen,
     submitAgentPrompt,
     suggestedPrompts,
     togglePermission,
@@ -71,7 +71,7 @@ export function SelectedHelperProfileSection({ props }: { props: WorkspaceSectio
       approvedContinuation={approvedContinuation}
       chatInput={chatInput}
       chatTranscript={chatTranscript}
-      className={`panel detail-panel mobile-section desktop-section ${activeMobileClass("helpers")} ${sectionClass("helpers")} ${isMobileHelperDetailOpen ? "mobile-helper-detail-is-open" : ""}`}
+      className={`panel detail-panel mobile-section desktop-section ${activeMobileClass("helpers")} ${sectionClass("helpers")} ${isMobileAgentDetailOpen ? "mobile-agent-detail-is-open" : ""}`}
       continueApprovedAction={continueApprovedAction}
       decideHitl={decideHitl}
       decidingApprovalId={decidingApprovalId}
@@ -83,7 +83,7 @@ export function SelectedHelperProfileSection({ props }: { props: WorkspaceSectio
       grantAllRequestedSchemas={grantAllRequestedSchemas}
       grantingSchemaName={grantingSchemaName}
       grantRequestedSchema={grantRequestedSchema}
-      helperNextStep={helperNextStep}
+      agentNextStep={agentNextStep}
       isAgentRunning={isAgentRunning}
       isConversationLoading={isConversationLoading}
       lastFailedPrompt={lastFailedPrompt}
@@ -94,14 +94,14 @@ export function SelectedHelperProfileSection({ props }: { props: WorkspaceSectio
       revokeSelectedAgentAccess={revokeSelectedAgentAccess}
       runAgentChat={runAgentChat}
       runSummary={runSummary}
-      onBackToHelpers={() => setMobileHelperDetailOpen(false)}
+      onBackToAgents={() => setMobileAgentDetailOpen(false)}
       runVaultSearch={runVaultSearch}
       scrollToClearance={() => scrollToSection("clearance")}
       selectedAgent={selectedAgent}
       selectedAgentApprovals={selectedAgentApprovals}
       selectedAgentLogs={selectedAgentLogs}
       selectedCannotDoLabel={selectedCannotDoLabel}
-      selectedHelperToolsLabel={selectedHelperToolsLabel}
+      selectedAgentToolsLabel={selectedAgentToolsLabel}
       selectedReadableInfo={selectedReadableInfo}
       selectedReadableInfoLabel={selectedReadableInfoLabel}
       selectedRiskyActions={selectedRiskyActions}

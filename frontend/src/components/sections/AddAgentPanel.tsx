@@ -43,8 +43,8 @@ export function AddAgentPanel(props: AddAgentPanelProps) {
 
   return (
     <form className="panel add-agent-panel" onSubmit={(event) => void createAgent(event)}>
-      <div className="panel-title">Add a Helper</div>
-      <div className="wizard-steps" aria-label="Helper setup progress">
+      <div className="panel-title">Add an Agent</div>
+      <div className="wizard-steps" aria-label="Agent setup progress">
         {[1, 2, 3, 4].map((step) => (
           <button className={agentWizardStep === step ? "step-active" : ""} key={step} onClick={() => setAgentWizardStep(step)} type="button">
             {step}
@@ -54,7 +54,7 @@ export function AddAgentPanel(props: AddAgentPanelProps) {
 
       {agentWizardStep === 1 ? (
         <section className="wizard-page">
-          <h2>What kind of helper do you want?</h2>
+          <h2>What kind of agent do you want?</h2>
           <div className="template-grid">
             {agentTemplates.map((template) => (
               <button
@@ -76,11 +76,11 @@ export function AddAgentPanel(props: AddAgentPanelProps) {
           <h2>Name and describe it</h2>
           <div className="form-grid consumer-form-grid">
             <label>
-              <span>Helper name</span>
+              <span>Agent name</span>
               <input
                 autoComplete="off"
                 maxLength={80}
-                name="helper-name"
+                name="agent-name"
                 onChange={(event) => updateAgentDraft({ name: event.currentTarget.value })}
                 placeholder="My Travel Planner"
                 required
@@ -88,8 +88,8 @@ export function AddAgentPanel(props: AddAgentPanelProps) {
               />
             </label>
             <label>
-              <span>Helper type</span>
-              <select autoComplete="off" name="helper-category" onChange={(event) => updateAgentDraft({ category: event.currentTarget.value })} value={agentDraft.category}>
+              <span>Agent type</span>
+              <select autoComplete="off" name="agent-category" onChange={(event) => updateAgentDraft({ category: event.currentTarget.value })} value={agentDraft.category}>
                 {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
               </select>
             </label>
@@ -98,7 +98,7 @@ export function AddAgentPanel(props: AddAgentPanelProps) {
               <textarea
                 maxLength={500}
                 minLength={10}
-                name="helper-description"
+                name="agent-description"
                 autoComplete="off"
                 onChange={(event) => updateAgentDraft({ description: event.currentTarget.value })}
                 placeholder="Plans trips using my preferences and asks before booking."
@@ -116,7 +116,7 @@ export function AddAgentPanel(props: AddAgentPanelProps) {
           <h2>Choose what it can access</h2>
           <div className="choice-grid consumer-choice-grid">
             <fieldset>
-              <legend>Private info this helper can request</legend>
+              <legend>Private info this agent can request</legend>
               {schemas.map((schema) => (
                 <label className="choice-row" key={schema.id}>
                   <input
@@ -152,7 +152,7 @@ export function AddAgentPanel(props: AddAgentPanelProps) {
             <span>Ask me before</span>
             <textarea
               autoComplete="off"
-              name="helper-approval-rules"
+              name="agent-approval-rules"
               onChange={(event) => updateAgentDraft({ highRiskActionsText: event.currentTarget.value })}
               placeholder="Buying, booking, sending, or sharing anything important"
               rows={4}
@@ -172,7 +172,7 @@ export function AddAgentPanel(props: AddAgentPanelProps) {
         {agentWizardStep > 1 ? <button onClick={() => setAgentWizardStep((step: number) => step - 1)} type="button">Back</button> : null}
         {agentWizardStep < 4 ? <button onClick={() => setAgentWizardStep((step: number) => step + 1)} type="button">Next</button> : null}
         {agentWizardStep === 4 ? (
-          <button disabled={isCreatingAgent} type="submit"><Bot size={16} /> {isCreatingAgent ? "Adding…" : "Add helper"}</button>
+          <button disabled={isCreatingAgent} type="submit"><Bot size={16} /> {isCreatingAgent ? "Adding…" : "Add agent"}</button>
         ) : null}
         <button onClick={() => setIsAddingAgent(false)} type="button">Cancel</button>
       </div>

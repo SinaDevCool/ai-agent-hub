@@ -1,14 +1,14 @@
 import type { WorkspaceSectionsProps } from "./WorkspaceSections.types";
-import { InstalledHelpersPanelSection } from "./InstalledHelpersPanelSection";
+import { InstalledAgentsPanelSection } from "./InstalledAgentsPanelSection";
 import { MarketplaceSection } from "./MarketplaceSection";
-import { SelectedHelperProfileSection } from "./SelectedHelperProfileSection";
+import { SelectedAgentProfileSection } from "./SelectedAgentProfileSection";
 
 export function ConsumerMainPanels({ props }: { props: WorkspaceSectionsProps }) {
   return (
     <>
       <MarketplaceSection props={props} />
-      <InstalledHelpersPanelSection props={props} />
-      <SelectedHelperProfileSection props={props} />
+      <InstalledAgentsPanelSection props={props} />
+      <SelectedAgentProfileSection props={props} />
     </>
   );
 }

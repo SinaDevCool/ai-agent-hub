@@ -259,6 +259,10 @@ small {
   flex-wrap: wrap;
 }
 
+.mobile-settings-button {
+  display: none;
+}
+
 .connection-status {
   position: relative;
   min-height: 38px;

@@ -24,7 +24,7 @@ export const marketplaceFilterLabels: Array<{ id: keyof MarketplaceFilters; labe
   { id: "needsApproval", label: "Must ask first" }
 ];
 
-export const testHelperPattern = /(smoke|test|demo|sample)/i;
+export const testAgentPattern = /(smoke|test|demo|sample)/i;
 
 export const agentTemplates: AgentTemplate[] = [
   {
@@ -40,9 +40,9 @@ export const agentTemplates: AgentTemplate[] = [
   },
   {
     id: "money",
-    title: "Money helper",
+    title: "Money agent",
     category: "Financial",
-    starterName: "My Money Helper",
+    starterName: "My Money Agent",
     description: "Checks financial preferences and asks before purchases, transfers, or credit decisions.",
     tools: ["vault.search", "action.execute"],
     requestedSchemas: ["Financial Preferences"],
@@ -62,9 +62,9 @@ export const agentTemplates: AgentTemplate[] = [
   },
   {
     id: "applications",
-    title: "Application helper",
+    title: "Application agent",
     category: "Executive",
-    starterName: "My Application Helper",
+    starterName: "My Application Agent",
     description: "Helps organize resumes, applications, deadlines, and drafts while asking before anything is submitted.",
     tools: ["vault.search", "email.draft"],
     requestedSchemas: ["Personal Identity Profile"],

@@ -13,7 +13,7 @@ type AgentProfilePanelProps = {
   className: string;
   selectedAgent: Agent;
   readiness: ToneState;
-  selectedHelperToolsLabel: string;
+  selectedAgentToolsLabel: string;
   selectedReadableInfoLabel: string;
   selectedRiskyActionsLabel: string;
   selectedCannotDoLabel: string;
@@ -27,7 +27,7 @@ type AgentProfilePanelProps = {
   approvalPlainSentence: (action: string) => string;
   approvalReason: (action: string) => string;
   scrollToClearance: () => void;
-  helperNextStep: string;
+  agentNextStep: string;
   promptPreview: ToneState;
   suggestedPrompts: HelperPrompt[];
   setChatInput: (value: string) => void;
@@ -56,7 +56,7 @@ type AgentProfilePanelProps = {
   grantRequestedSchema: (schema: VaultSchema) => void | Promise<void>;
   togglePermission: (schema: VaultSchema, enabled: boolean) => void | Promise<void>;
   friendlyTrustLabel: (score: number) => string;
-  onBackToHelpers: () => void;
+  onBackToAgents: () => void;
   runVaultSearch: () => void | Promise<void>;
   triggerHighRiskAction: () => void | Promise<void>;
   revokeSelectedAgentAccess: () => void | Promise<void>;
@@ -75,12 +75,12 @@ export function AgentProfilePanel(props: AgentProfilePanelProps) {
     className,
     selectedAgent,
     readiness,
-    selectedHelperToolsLabel,
+    selectedAgentToolsLabel,
     selectedReadableInfoLabel,
     selectedRiskyActionsLabel,
     agentProfileTab,
     setAgentProfileTab,
-    onBackToHelpers
+    onBackToAgents
   } = props;
 
   const selectedIsExternal = isExternalAgent(selectedAgent);
@@ -90,13 +90,13 @@ export function AgentProfilePanel(props: AgentProfilePanelProps) {
 
   return (
     <div className={className}>
-      <button className="mobile-back-to-helpers" onClick={onBackToHelpers} type="button">Back to helpers</button>
+      <button className="mobile-back-to-agents" onClick={onBackToAgents} type="button">Back to My Agents</button>
       <div className="agent-use-shell">
         <AgentProfileHeader
           agentProfileTab={agentProfileTab}
           readiness={readiness}
           selectedAgent={selectedAgent}
-          selectedHelperToolsLabel={selectedHelperToolsLabel}
+          selectedAgentToolsLabel={selectedAgentToolsLabel}
           selectedReadableInfoLabel={selectedReadableInfoLabel}
           selectedRiskyActionsLabel={selectedRiskyActionsLabel}
           setAgentProfileTab={setAgentProfileTab}
@@ -133,7 +133,7 @@ export function AgentProfilePanel(props: AgentProfilePanelProps) {
           friendlyDate={props.friendlyDate}
           friendlyFallbackReason={props.friendlyFallbackReason}
           friendlyLogText={props.friendlyLogText}
-          helperNextStep={props.helperNextStep}
+          agentNextStep={props.agentNextStep}
           isAgentRunning={props.isAgentRunning}
           isConversationLoading={props.isConversationLoading}
           lastFailedPrompt={props.lastFailedPrompt}

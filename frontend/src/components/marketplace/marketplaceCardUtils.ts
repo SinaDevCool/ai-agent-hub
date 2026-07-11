@@ -1,11 +1,11 @@
 import type { MarketplaceAgent } from "../../api/types";
 import type { MarketplaceMatch } from "../../lib/marketplaceMatching";
 
-export function helperValueLine(agent: MarketplaceAgent) {
+export function agentValueLine(agent: MarketplaceAgent) {
   return agent.tagline || agent.description;
 }
 
-export function helperDecisionReason(match: MarketplaceMatch, index: number) {
+export function agentDecisionReason(match: MarketplaceMatch, index: number) {
   const reason = match.reasons[0] ?? "Visible safety profile";
   if (index === 0) return `Best because ${reason.charAt(0).toLowerCase()}${reason.slice(1)}`;
   return reason;

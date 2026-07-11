@@ -7,7 +7,7 @@ type MarketplaceInstalledStripProps = {
   discoveryMarketplaceMatchesLength: number;
   installedByDefinitionId: Map<string, UserAgentInstall>;
   installedMarketplaceMatches: MarketplaceMatch[];
-  onCreateCustomHelper: () => void;
+  onCreateCustomAgent: () => void;
   onOpenInstalledAgent: (agentId: string) => void;
 };
 
@@ -17,15 +17,15 @@ export function MarketplaceInstalledStrip(props: MarketplaceInstalledStripProps)
     discoveryMarketplaceMatchesLength,
     installedByDefinitionId,
     installedMarketplaceMatches,
-    onCreateCustomHelper,
+    onCreateCustomAgent,
     onOpenInstalledAgent
   } = props;
 
   return (
-    <section className="marketplace-installed-strip" aria-label="Already added helpers">
+    <section className="marketplace-installed-strip" aria-label="Already added agents">
       <div>
-        <strong>Already in My Helpers</strong>
-        <span>{installedMarketplaceMatches.length} matching {installedMarketplaceMatches.length === 1 ? "helper is" : "helpers are"} ready to use.</span>
+        <strong>Already in My Agents</strong>
+        <span>{installedMarketplaceMatches.length} matching {installedMarketplaceMatches.length === 1 ? "agent is" : "agents are"} ready to use.</span>
       </div>
       <div className="marketplace-installed-actions">
         {installedMarketplaceMatches.slice(0, 4).map((match) => {
@@ -46,7 +46,7 @@ export function MarketplaceInstalledStrip(props: MarketplaceInstalledStripProps)
           );
         })}
         {canUseCreatorTools && !discoveryMarketplaceMatchesLength ? (
-          <button onClick={onCreateCustomHelper} type="button"><Pencil size={15} /> Create custom helper</button>
+          <button onClick={onCreateCustomAgent} type="button"><Pencil size={15} /> Create custom agent</button>
         ) : null}
       </div>
     </section>

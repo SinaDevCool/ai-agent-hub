@@ -147,7 +147,7 @@ export function useVaultWorkflow(input: {
   function deleteVaultItem(document: VaultDocument) {
     input.setConfirmation({
       title: "Delete private info?",
-      message: `Delete "${document.title}"? Your helpers will no longer be able to use this note.`,
+      message: `Delete "${document.title}"? Your agents will no longer be able to use this note.`,
       confirmLabel: "Delete note",
       tone: "danger",
       onConfirm: async () => {

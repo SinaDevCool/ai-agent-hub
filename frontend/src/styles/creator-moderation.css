@@ -1,4 +1,4 @@
-.helper-summary-strip,
+.agent-summary-strip,
 .marketplace-trust-summary,
 .marketplace-fit-grid {
   display: grid;
@@ -6,7 +6,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.helper-summary-strip button,
+.agent-summary-strip button,
 .marketplace-trust-summary div,
 .marketplace-fit-grid section,
 .creator-identity-card {
@@ -20,7 +20,7 @@
   text-align: left;
 }
 
-.helper-summary-strip strong,
+.agent-summary-strip strong,
 .marketplace-trust-summary strong,
 .marketplace-fit-grid strong,
 .creator-identity-card strong {
@@ -28,7 +28,7 @@
   font-size: 14px;
 }
 
-.helper-summary-strip span,
+.agent-summary-strip span,
 .marketplace-trust-summary span,
 .marketplace-fit-grid span,
 .creator-identity-card span {
@@ -37,7 +37,7 @@
   line-height: 1.35;
 }
 
-.helper-summary-strip button strong {
+.agent-summary-strip button strong {
   color: #7dd3fc;
   font-size: 22px;
 }

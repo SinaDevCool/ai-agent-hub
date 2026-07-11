@@ -12,7 +12,7 @@ function statusTone(status: CreatorAgent["status"]) {
 function sourceLabel(sourceType?: string) {
   if (sourceType === "mcp_server") return "External MCP";
   if (sourceType === "openapi_endpoint") return "External OpenAPI";
-  return "Native helper";
+  return "Native agent";
 }
 
 export function CreatorAgentRow(props: {
@@ -30,7 +30,7 @@ export function CreatorAgentRow(props: {
       <div className="creator-agent-main">
         <div>
           <strong>{props.agent.name}</strong>
-          <small>{friendlyCategoryName(props.agent.category)} helper</small>
+          <small>{friendlyCategoryName(props.agent.category)} agent</small>
         </div>
         <StatusPill tone={isReturnedDraft ? "amber" : statusTone(props.agent.status)}>{isReturnedDraft ? "returned" : props.agent.status}</StatusPill>
       </div>
@@ -65,7 +65,7 @@ export function CreatorAgentRow(props: {
             <button className="danger" data-testid={`creator-archive-${props.agent.id}`} disabled={props.isSaving} onClick={() => props.onArchive(props.agent)} type="button"><Archive size={15} /> Archive</button>
           </>
         ) : null}
-        {props.agent.status === "archived" ? <span>Archived helpers stay out of marketplace search.</span> : null}
+        {props.agent.status === "archived" ? <span>Archived agents stay out of marketplace search.</span> : null}
       </div>
     </article>
   );

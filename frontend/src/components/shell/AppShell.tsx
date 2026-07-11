@@ -1,4 +1,4 @@
-import { Bot, FilePlus, LogOut, ShieldCheck } from "lucide-react";
+import { Bot, FilePlus, LogOut, Settings, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { consumerNavIds, navItems, type SectionHeading, type SectionId } from "../../lib/appNavigation";
 
@@ -10,7 +10,7 @@ export function AppShell(props: {
   connectionState: string;
   heading: SectionHeading;
   onAddPrivateInfo: () => void;
-  onFindHelper: () => void;
+  onOpenAgentPool: () => void;
   onNavigate: (section: SectionId) => void;
   onSignOut?: () => void;
   userEmail?: string;
@@ -20,18 +20,18 @@ export function AppShell(props: {
       <aside className="nav-rail">
         <div className="brand-mark"><ShieldCheck size={22} /> AI Agent Hub</div>
         <nav>
-          {navItems.filter((item) => consumerNavIds.has(item.id) || (item.id === "creator" && props.canUseCreatorTools) || (item.id === "moderation" && props.canModerateMarketplace)).map(({ id, label, mobileLabel, icon: Icon }) => (
+          {navItems.filter((item) => consumerNavIds.has(item.id) || (item.id === "creator" && props.canUseCreatorTools) || (item.id === "moderation" && props.canModerateMarketplace)).map(({ id, label, mobileLabel, icon: Icon, mobileVisible }) => (
             <button
               aria-current={props.activeSection === id ? "page" : undefined}
               aria-label={label}
-              className={props.activeSection === id ? "nav-active" : ""}
+              className={`${props.activeSection === id ? "nav-active" : ""} ${mobileVisible === false ? "nav-mobile-hidden" : ""}`}
+              data-mobile-label={mobileLabel}
               key={id}
               onClick={() => props.onNavigate(id)}
               type="button"
             >
               <Icon size={18} />
               <span aria-hidden="true" className="nav-label-full">{label}</span>
-              <span aria-hidden="true" className="nav-label-mobile">{mobileLabel}</span>
             </button>
           ))}
         </nav>
@@ -50,11 +50,19 @@ export function AppShell(props: {
             </span>
             {props.userEmail ? <span className="user-chip">{props.userEmail}</span> : null}
             {props.activeSection !== "marketplace" && props.activeSection !== "vault" ? (
-              <button className="topbar-primary" onClick={props.onFindHelper} type="button"><Bot size={16} /> Find a Helper</button>
+              <button className="topbar-primary" onClick={props.onOpenAgentPool} type="button"><Bot size={16} /> Agent Pool</button>
             ) : null}
             {props.activeSection === "vault" ? (
               <button className="topbar-primary" onClick={props.onAddPrivateInfo} type="button"><FilePlus size={16} /> Add Private Info</button>
             ) : null}
+            <button
+              aria-label="Settings"
+              className={`mobile-settings-button ${props.activeSection === "settings" ? "is-active" : ""}`}
+              onClick={() => props.onNavigate("settings")}
+              type="button"
+            >
+              <Settings aria-hidden="true" size={20} />
+            </button>
             {props.onSignOut ? <button className="topbar-secondary" onClick={props.onSignOut} type="button"><LogOut size={16} /> Sign out</button> : null}
           </div>
         </header>

@@ -5,7 +5,7 @@ import { friendlyCategoryName } from "../../lib/display";
 import type { MarketplaceMatch } from "../../lib/marketplaceMatching";
 import { StatusPill } from "../StatusPill";
 
-function helperGoodFor(agent: MarketplaceAgent) {
+function agentGoodFor(agent: MarketplaceAgent) {
   const manifest = agent.versions[0]?.capabilityManifest ?? {};
   return [
     agent.tagline || agent.description,
@@ -13,7 +13,7 @@ function helperGoodFor(agent: MarketplaceAgent) {
   ].filter(Boolean);
 }
 
-function helperNotFor(agent: MarketplaceAgent) {
+function agentNotFor(agent: MarketplaceAgent) {
   const manifest = agent.versions[0]?.capabilityManifest ?? {};
   return [
     manifest.highRiskActions?.length ? "Surprise bookings, purchases, sending, or sharing without approval" : "High-stakes decisions that should involve a person",
@@ -30,9 +30,9 @@ function privateInfoLabel(agent: MarketplaceAgent) {
 
 function sourceLabel(agent: MarketplaceAgent) {
   const sourceType = agent.versions[0]?.capabilityManifest.sourceType;
-  if (sourceType === "mcp_server") return "External MCP helper";
-  if (sourceType === "openapi_endpoint") return "External OpenAPI helper";
-  return "AI Agent Hub helper";
+  if (sourceType === "mcp_server") return "External MCP agent";
+  if (sourceType === "openapi_endpoint") return "External OpenAPI agent";
+  return "AI Agent Hub agent";
 }
 
 function actionLabel(agent: MarketplaceAgent) {
@@ -41,7 +41,7 @@ function actionLabel(agent: MarketplaceAgent) {
   return manifest.highRiskActions?.length ? "Actions require approval" : "Low-risk actions only";
 }
 
-function helperValueLine(agent: MarketplaceAgent) {
+function agentValueLine(agent: MarketplaceAgent) {
   return agent.tagline || agent.description;
 }
 
@@ -91,11 +91,11 @@ export function MarketplaceDetail(props: {
       <div className="marketplace-card-top">
         <div>
           <strong>{agent.name}</strong>
-          <small>{friendlyCategoryName(agent.category)} helper</small>
+          <small>{friendlyCategoryName(agent.category)} agent</small>
         </div>
         <StatusPill tone={alreadyInstalled ? "green" : "blue"}>{alreadyInstalled ? "installed" : "available"}</StatusPill>
       </div>
-      <p>{helperValueLine(agent)}</p>
+      <p>{agentValueLine(agent)}</p>
       {selectedMatch ? (
         <div className="match-reason-list">
           <strong>{selectedMatchRank === 0 ? "Best match because" : "Why this fits"}</strong>
@@ -114,7 +114,7 @@ export function MarketplaceDetail(props: {
         <div><strong>Source</strong><span>{sourceLabel(agent)}</span></div>
         <div><strong>Private Info</strong><span>{privateInfoLabel(agent)}</span></div>
         <div><strong>Actions</strong><span>{actionLabel(agent)}</span></div>
-        <div><strong>Creator</strong><span>{agent.creator?.displayName ?? "AI Agent Hub"}{agent.creator?.verified ? " · verified" : ""}</span></div>
+        <div><strong>Creator</strong><span>{agent.creator?.displayName ?? "AI Agent Hub"}{agent.creator?.verified ? " - verified" : ""}</span></div>
         <div><strong>Activity</strong><span>Every access stays visible</span></div>
       </div>
       <div className="trust-row">
@@ -132,7 +132,7 @@ export function MarketplaceDetail(props: {
           <span>{installedPermissions.allowed} of {installedPermissions.requested} info categories allowed</span>
           <span>{pendingApprovals ? `${pendingApprovals} waiting for you` : "Nothing waiting"}</span>
           <div>
-            {installedAgent ? <button onClick={() => onOpenInstalledAgent(installedAgent.id)} type="button"><MessageSquare size={15} /> Open helper</button> : null}
+            {installedAgent ? <button onClick={() => onOpenInstalledAgent(installedAgent.id)} type="button"><MessageSquare size={15} /> Open Agent</button> : null}
             {installedAgent ? <button onClick={() => onEditInstalledAgentAccess(installedAgent.id)} type="button"><KeyRound size={15} /> Edit access</button> : null}
           </div>
         </div>
@@ -140,15 +140,15 @@ export function MarketplaceDetail(props: {
       <div className="marketplace-fit-grid">
         <section>
           <strong>Good for</strong>
-          {helperGoodFor(agent).map((item) => <span key={item}>{item}</span>)}
+          {agentGoodFor(agent).map((item) => <span key={item}>{item}</span>)}
         </section>
         <section>
           <strong>Not for</strong>
-          {helperNotFor(agent).map((item) => <span key={item}>{item}</span>)}
+          {agentNotFor(agent).map((item) => <span key={item}>{item}</span>)}
         </section>
       </div>
       <div className="creator-identity-card">
-        <strong>{agent.creator?.displayName ?? "AI Agent Hub starter helper"}</strong>
+        <strong>{agent.creator?.displayName ?? "AI Agent Hub starter agent"}</strong>
         <span>{agent.creator?.verified ? "Verified creator. Listing reviewed before marketplace visibility." : "Community creator. Safety labels and receipts still apply."}</span>
       </div>
       <div className="example-prompt-list">
@@ -168,9 +168,9 @@ export function MarketplaceDetail(props: {
         type="button"
       >
         {alreadyInstalled ? <MessageSquare size={16} /> : <Download size={16} />}
-        {alreadyInstalled ? "Open helper" : installingAgentId === agent.id ? "Adding…" : "Add helper"}
+        {alreadyInstalled ? "Open Agent" : installingAgentId === agent.id ? "Adding…" : "Add Agent"}
       </button>
-      <p className="marketplace-confidence">You can review and revoke access after adding this helper.</p>
+      <p className="marketplace-confidence">You can review and revoke access after adding this agent.</p>
     </aside>
   );
 }

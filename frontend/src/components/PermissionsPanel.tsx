@@ -39,10 +39,10 @@ export function PermissionsPanel(props: PermissionsPanelProps) {
     const granted = Boolean(selectedAgent?.permissions.some((permission) => permission.vaultSchemaId === schema.id && permission.permissionType === "read"));
     const selectedRequestsThis = Boolean(selectedAgent?.capabilityManifest.requestedSchemas?.includes(schema.name));
     const allowedSummary = allowedAgents.length
-      ? `${allowedAgents.length} helper${allowedAgents.length === 1 ? "" : "s"} can use this info.`
-      : "No helper can use this info yet.";
+      ? `${allowedAgents.length} agent${allowedAgents.length === 1 ? "" : "s"} can use this info.`
+      : "No agent can use this info yet.";
     const requestSummary = requestingAgents.length
-      ? `${requestingAgents.length} helper${requestingAgents.length === 1 ? "" : "s"} may ask for this info.`
+      ? `${requestingAgents.length} agent${requestingAgents.length === 1 ? "" : "s"} may ask for this info.`
       : "";
     return (
       <div className="clearance-row permission-category-row" key={schema.id}>
@@ -55,8 +55,8 @@ export function PermissionsPanel(props: PermissionsPanelProps) {
           <small>{schema.description}</small>
           <small>
             {selectedIsExternal && selectedRequestsThis
-              ? `${selectedAgent?.name ?? "This external helper"} can receive only the snippets you allow.`
-              : selectedRequestsThis ? `${selectedAgent?.name ?? "This helper"} is asking to use this saved info.` : `${selectedAgent?.name ?? "This helper"} is not asking for this right now.`}
+              ? `${selectedAgent?.name ?? "This external agent"} can receive only the snippets you allow.`
+              : selectedRequestsThis ? `${selectedAgent?.name ?? "This agent"} is asking to use this saved info.` : `${selectedAgent?.name ?? "This agent"} is not asking for this right now.`}
           </small>
           <small>{allowedSummary}</small>
           {requestSummary ? <small>{requestSummary}</small> : null}
@@ -72,8 +72,8 @@ export function PermissionsPanel(props: PermissionsPanelProps) {
           <div className="panel-title">Access & Approvals</div>
           <p className="mobile-section-intro">
             {selectedIsExternal
-              ? `Choose what saved info ${selectedAgent?.name ?? "this external helper"} can receive through AI Agent Hub safety.`
-              : `Choose what saved info ${selectedAgent?.name ?? "this helper"} can use. Sensitive actions pause here first.`}
+              ? `Choose what saved info ${selectedAgent?.name ?? "this external agent"} can receive through AI Agent Hub safety.`
+              : `Choose what saved info ${selectedAgent?.name ?? "this agent"} can use. Sensitive actions pause here first.`}
           </p>
         </div>
         <StatusPill tone={ungrantedRequestedCount ? "amber" : "green"}>
@@ -88,19 +88,19 @@ export function PermissionsPanel(props: PermissionsPanelProps) {
       {permissionCenterRows.length === 0 ? (
         <div className="friendly-empty-state">
           <strong>No saved info yet</strong>
-          <p>Add your first note and this page will show which helpers can use it.</p>
+          <p>Add your first note and this page will show which agents can use it.</p>
           <button onClick={onAddPrivateInfo} type="button"><FilePlus aria-hidden="true" size={16} /> Add info</button>
         </div>
       ) : null}
       {requestedRows.length ? (
         <section className="permission-group" aria-label="Requested private info">
-          <div className="panel-title">This Helper Wants To Use</div>
+          <div className="panel-title">This Agent Wants To Use</div>
           {requestedRows.map(renderPermissionRow)}
         </section>
       ) : permissionCenterRows.length ? (
         <div className="friendly-empty-state compact-empty-state">
           <strong>No access needed right now</strong>
-          <p>This helper is not asking to use saved info.</p>
+          <p>This agent is not asking to use saved info.</p>
         </div>
       ) : null}
       {otherRows.length ? (

@@ -90,7 +90,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         friendlyLogText={friendlyLogText}
         friendlyNotificationText={friendlyNotificationText}
         logsCount={logs.length}
-        onUseHelper={() => scrollToSection("helpers")}
+        onUseAgent={() => scrollToSection("helpers")}
         recentLogs={recentLogs}
       />
 
@@ -105,8 +105,8 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         {hitl.length === 0 ? (
           <div className="friendly-empty-state">
             <strong>Nothing needs your approval right now</strong>
-            <p>When a helper wants to spend money, share saved info, or continue a sensitive action, you decide here first.</p>
-            <button onClick={() => scrollToSection("helpers")} type="button"><Bot aria-hidden="true" size={16} /> Back to helpers</button>
+            <p>When an agent wants to spend money, share saved info, or continue a sensitive action, you decide here first.</p>
+            <button onClick={() => scrollToSection("helpers")} type="button"><Bot aria-hidden="true" size={16} /> Back to My Agents</button>
           </div>
         ) : visibleApprovals.map((request) => (
           <div className="hitl-row" key={request.id}>
@@ -130,7 +130,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         creatorAccessError={creatorAccess.error}
         creatorAccessReason={creatorAccess.reason}
         creatorAccessRequest={creatorAccess.request}
-        helperCount={agents.length}
+        agentCount={agents.length}
         isCreatorAccessSaving={creatorAccess.isSaving}
         onCreatorAccessReasonChange={creatorAccess.setReason}
         onExportData={exportMyData}

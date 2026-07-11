@@ -143,7 +143,7 @@
   line-height: 1.45;
 }
 
-.helper-match-panel {
+.agent-match-panel {
   align-items: end;
   background: rgba(8, 22, 38, 0.62);
   border: 1px solid rgba(137, 163, 196, 0.11);
@@ -155,46 +155,46 @@
   padding: 12px;
 }
 
-.helper-match-panel > div,
-.helper-match-panel label {
+.agent-match-panel > div,
+.agent-match-panel label {
   display: grid;
   gap: 7px;
 }
 
-.helper-match-panel strong,
-.helper-match-panel > div span,
-.helper-match-panel label > span,
-.helper-match-panel legend {
+.agent-match-panel strong,
+.agent-match-panel > div span,
+.agent-match-panel label > span,
+.agent-match-panel legend {
   display: block;
 }
 
-.helper-match-panel strong {
+.agent-match-panel strong {
   color: #f5f9ff;
   font-size: 15px;
 }
 
-.helper-match-panel > div span {
+.agent-match-panel > div span {
   color: #a9bbcf;
   font-size: 13px;
   line-height: 1.35;
 }
 
-.helper-match-panel label > span,
-.helper-match-panel legend {
+.agent-match-panel label > span,
+.agent-match-panel legend {
   color: #b9c7d8;
   font-size: 12px;
   font-weight: 850;
   text-transform: none;
 }
 
-.helper-match-panel fieldset {
+.agent-match-panel fieldset {
   align-content: start;
   display: grid;
   gap: 6px;
   min-height: 94px;
 }
 
-.helper-match-panel fieldset label {
+.agent-match-panel fieldset label {
   align-items: center;
   color: #d9e7f7;
   display: inline-flex;
@@ -202,7 +202,7 @@
   gap: 7px;
 }
 
-.helper-match-panel input {
+.agent-match-panel input {
   accent-color: #409cff;
   margin: 0;
   width: auto;
@@ -872,7 +872,7 @@
 
 @media (min-width: 901px) {
   .marketplace-panel {
-    max-width: 1080px;
+    width: 100%;
   }
 
   .marketplace-need-row {

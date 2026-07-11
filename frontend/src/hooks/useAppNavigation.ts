@@ -16,7 +16,9 @@ export function useAppNavigation(initialSection: SectionId = "home") {
   function scrollToSection(id: SectionId) {
     setActiveSection(id);
     window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
     });
   }
 

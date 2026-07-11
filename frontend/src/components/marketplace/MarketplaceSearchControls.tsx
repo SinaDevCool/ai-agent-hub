@@ -53,7 +53,7 @@ export function MarketplaceSearchControls(props: MarketplaceSearchControlsProps)
         </label>
       </div>
 
-      <div className="marketplace-need-row" aria-label="Common helper needs">
+      <div className="marketplace-need-row" aria-label="Common agent needs">
         {[...primaryNeedOptions, ...(isMoreNeedsOpen ? secondaryNeedOptions : [])].map((need) => (
           <button
             className={marketplaceCategory === need.category && marketplaceSearch === need.query ? "selected" : ""}

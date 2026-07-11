@@ -52,7 +52,7 @@ export function MarketplaceDetailSheet(props: MarketplaceDetailSheetProps) {
       <section aria-describedby="marketplace-detail-copy" aria-labelledby="marketplace-detail-title" aria-modal="true" className="marketplace-detail-sheet" role="dialog">
         <div className="marketplace-sheet-head">
           <div>
-            <div className="panel-title marketplace-sheet-kicker">Helper Details</div>
+            <div className="panel-title marketplace-sheet-kicker">Agent Details</div>
             <h2 id="marketplace-detail-title">{agent.name}</h2>
             <p id="marketplace-detail-copy">{agent.tagline || agent.description}</p>
           </div>
@@ -60,7 +60,7 @@ export function MarketplaceDetailSheet(props: MarketplaceDetailSheetProps) {
         </div>
 
         <div className="marketplace-sheet-summary" aria-label={`${agent.name} summary`}>
-          <span>{categoryLabel} helper</span>
+          <span>{categoryLabel} agent</span>
           <span>{trustLabel}</span>
           <span>{creatorLabel}</span>
         </div>
@@ -96,7 +96,7 @@ export function MarketplaceDetailSheet(props: MarketplaceDetailSheetProps) {
             <span>{pendingApprovals ? `${pendingApprovals} waiting for you` : "Nothing waiting"}</span>
             <div>
               {installedAgent ? (
-                <button onClick={() => onOpenInstalledAgent(installedAgent.id)} type="button"><MessageSquare aria-hidden="true" size={15} /> Open helper</button>
+                <button onClick={() => onOpenInstalledAgent(installedAgent.id)} type="button"><MessageSquare aria-hidden="true" size={15} /> Open Agent</button>
               ) : null}
               {installedAgent ? (
                 <button onClick={() => onEditInstalledAgentAccess(installedAgent.id)} type="button"><KeyRound aria-hidden="true" size={15} /> Edit access</button>
@@ -124,7 +124,7 @@ export function MarketplaceDetailSheet(props: MarketplaceDetailSheetProps) {
             type="button"
           >
             {alreadyInstalled ? <MessageSquare aria-hidden="true" size={16} /> : <Download aria-hidden="true" size={16} />}
-            {alreadyInstalled ? "Open helper" : installingAgentId === agent.id ? "Adding…" : "Add helper"}
+            {alreadyInstalled ? "Open Agent" : installingAgentId === agent.id ? "Adding…" : "Add Agent"}
           </button>
           <button className="marketplace-sheet-secondary-action" onClick={onClose} type="button">Done</button>
         </div>

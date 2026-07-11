@@ -49,7 +49,7 @@ export function GuidedSetupPanel(props: GuidedSetupPanelProps) {
       <div className="guided-setup-head">
         <div>
           <div className="panel-title">Guided Setup</div>
-          <h2>{guidedSetupStep === 1 ? "What should your helper do?" : guidedSetupStep === 2 ? "Add one helpful private note" : "Ready to create your helper"}</h2>
+          <h2>{guidedSetupStep === 1 ? "What should your agent do?" : guidedSetupStep === 2 ? "Add one helpful private note" : "Ready to create your agent"}</h2>
         </div>
         <div className="wizard-steps" aria-label="Guided setup progress">
           {[1, 2, 3].map((step) => (
@@ -81,7 +81,7 @@ export function GuidedSetupPanel(props: GuidedSetupPanelProps) {
       {guidedSetupStep === 2 ? (
         <section className="wizard-page">
           <p className="guided-copy">
-            This stays in your Personal Info. Your new helper will still need permission before reading it.
+            This stays in your Personal Info. Your new agent will still need permission before reading it.
           </p>
           <label className="risk-field">
             <span>{guidedSchema ? `${guidedSchema.name} note` : "Private note"}</span>
@@ -98,13 +98,13 @@ export function GuidedSetupPanel(props: GuidedSetupPanelProps) {
       {guidedSetupStep === 3 ? (
         <section className="wizard-page">
           <div className="guided-review">
-            <div><strong>Helper</strong><span>{guidedAgentName}</span></div>
+            <div><strong>Agent</strong><span>{guidedAgentName}</span></div>
             <div><strong>Can request</strong><span>{guidedTemplate.requestedSchemas.join(", ") || "Nothing yet"}</span></div>
             <div><strong>Must ask before</strong><span>{guidedTemplate.highRiskActions.map(friendlyActionName).join(", ") || "No risky actions"}</span></div>
             <div><strong>First thing to try</strong><span>{guidedPrompt}</span></div>
           </div>
           <p className="guided-copy">
-            After this, review the permission request. You stay in control before the helper reads private info or continues a risky action.
+            After this, review the permission request. You stay in control before the agent reads private info or continues a risky action.
           </p>
         </section>
       ) : null}
@@ -114,7 +114,7 @@ export function GuidedSetupPanel(props: GuidedSetupPanelProps) {
         {guidedSetupStep > 1 ? <button onClick={() => setGuidedSetupStep((step: number) => step - 1)} type="button">Back</button> : null}
         {guidedSetupStep < 3 ? <button onClick={() => setGuidedSetupStep((step: number) => step + 1)} type="button">Next</button> : null}
         {guidedSetupStep === 3 ? (
-          <button disabled={isGuidedSetupSaving} type="submit"><Bot size={16} /> {isGuidedSetupSaving ? "Creating…" : "Create helper"}</button>
+          <button disabled={isGuidedSetupSaving} type="submit"><Bot size={16} /> {isGuidedSetupSaving ? "Creating…" : "Create agent"}</button>
         ) : null}
         <button onClick={() => setIsGuidedSetupOpen(false)} type="button">Cancel</button>
       </div>

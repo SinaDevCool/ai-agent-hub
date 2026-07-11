@@ -27,9 +27,9 @@ export function MarketplaceMatcher(props: MarketplaceMatcherProps) {
   } = props;
 
   return (
-    <div className="helper-match-panel" aria-label="Helper matcher">
+    <div className="agent-match-panel" aria-label="Agent matcher">
       <div>
-        <strong>Find the right helper faster</strong>
+        <strong>Find the right agent faster</strong>
         <span>Answer three simple questions. You can still change the results after.</span>
       </div>
       <label>

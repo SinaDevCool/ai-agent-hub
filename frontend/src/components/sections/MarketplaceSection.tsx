@@ -92,11 +92,11 @@ export function MarketplaceSection({ props }: { props: WorkspaceSectionsProps })
       matcherNeedId={matcherNeedId}
       matcherPrivateInfo={matcherPrivateInfo}
       onApplyMatcher={applyMarketplaceMatcher}
-      onBackToHelpers={() => scrollToSection("helpers")}
+      onBackToAgents={() => scrollToSection("helpers")}
       onClearFilters={clearMarketplaceFilters}
       onClearNeedContext={clearMarketplaceNeedContext}
       onConfirmInstall={setConfirmInstallAgent}
-      onCreateCustomHelper={openAgentWizard}
+      onCreateCustomAgent={openAgentWizard}
       onEditInstalledAgentAccess={(agentId) => {
         setSelectedAgentId(agentId);
         scrollToSection("clearance");

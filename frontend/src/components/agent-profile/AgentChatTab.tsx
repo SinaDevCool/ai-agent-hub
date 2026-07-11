@@ -23,7 +23,7 @@ type AgentChatTabProps = {
   friendlyDate: (value: string) => string;
   friendlyFallbackReason: (reason?: string) => string;
   friendlyLogText: (log: ActivityLog) => string;
-  helperNextStep: string;
+  agentNextStep: string;
   isAgentRunning: boolean;
   isConversationLoading: boolean;
   lastFailedPrompt: string;
@@ -61,7 +61,7 @@ export function AgentChatTab(props: AgentChatTabProps) {
     friendlyDate,
     friendlyFallbackReason,
     friendlyLogText,
-    helperNextStep,
+    agentNextStep,
     isAgentRunning,
     isConversationLoading,
     lastFailedPrompt,
@@ -84,11 +84,11 @@ export function AgentChatTab(props: AgentChatTabProps) {
 
   return (
     <div className={agentProfileTab === "chat" ? "agent-use-grid" : "agent-use-grid is-tab-hidden"}>
-      <section className="chat-panel agent-chat-panel" aria-label="Helper chat">
+      <section className="chat-panel agent-chat-panel" aria-label="Agent chat">
         <div className="chat-heading">
           <div>
             <strong>Ask {selectedAgent.name}</strong>
-            <p>{helperNextStep}</p>
+            <p>{agentNextStep}</p>
           </div>
           <StatusPill tone={readiness.tone}>{isConversationLoading ? "loading" : readiness.label}</StatusPill>
         </div>
@@ -120,7 +120,7 @@ export function AgentChatTab(props: AgentChatTabProps) {
             </div>
             <StatusPill tone={promptPreview.tone}>{promptPreview.label}</StatusPill>
           </div>
-          <div className="suggestion-grid" aria-label="Suggested helper requests">
+          <div className="suggestion-grid" aria-label="Suggested agent requests">
             {suggestedPrompts.slice(0, 2).map((prompt) => (
               <button className={`suggestion-card ${prompt.tone}`} key={prompt.prompt} onClick={() => setChatInput(prompt.prompt)} type="button">
                 <strong>{prompt.label}</strong>
@@ -129,15 +129,15 @@ export function AgentChatTab(props: AgentChatTabProps) {
               </button>
             ))}
           </div>
-          <div className="send-preview helper-advanced-preview">
+          <div className="send-preview agent-advanced-preview">
             <div><strong>Before It Answers</strong><span>{promptPreview.detail}</span></div>
             <div><strong>Can Read Now</strong><span>{selectedReadableInfo.length ? selectedReadableInfo.join(", ") : "No private info yet"}</span></div>
             <div><strong>Must Ask Before</strong><span>{selectedRiskyActions.length ? selectedRiskyActions.map(friendlyActionName).join(", ") : "No risky actions listed"}</span></div>
           </div>
           <form className="chat-form command-form" onSubmit={(event) => void runAgentChat(event)}>
             <input
-              aria-label="Message helper"
-              name="helper-message"
+              aria-label="Message agent"
+              name="agent-message"
               onChange={(event) => setChatInput(event.currentTarget.value)}
               placeholder="Ask what you want help with…"
               value={chatInput}
@@ -149,7 +149,7 @@ export function AgentChatTab(props: AgentChatTabProps) {
         {chatTranscript.length === 0 && !isConversationLoading ? (
           <div className="chat-empty-state">
             <strong>Ready when you are</strong>
-            <span>This helper cannot use saved info or sensitive actions unless you allow it.</span>
+            <span>This agent cannot use saved info or sensitive actions unless you allow it.</span>
           </div>
         ) : null}
 
@@ -241,7 +241,7 @@ export function AgentChatTab(props: AgentChatTabProps) {
         <div className="agent-status-card">
           <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
           <strong>{readiness.detail}</strong>
-          <small>{helperNextStep}</small>
+          <small>{agentNextStep}</small>
         </div>
         <div className="side-permission-summary">
           <div><strong>Saved Info</strong><span>{allowedPermissionCount} of {permissionReview.length} allowed</span></div>
@@ -255,7 +255,7 @@ export function AgentChatTab(props: AgentChatTabProps) {
               <span>{friendlyLogText(log)}</span>
               <small>{friendlyDate(log.createdAt)}</small>
             </div>
-          )) : <small>No activity for this helper yet.</small>}
+          )) : <small>No activity for this agent yet.</small>}
         </div>
       </aside>
     </div>

@@ -31,21 +31,21 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
 
   const firstRunTravelChoice = page.getByTestId("onboarding-need-travel");
   await expect(firstRunTravelChoice).toBeVisible();
-  await nav.getByRole("button", { name: "My Helpers", exact: true }).click();
-  await expect(page.locator("#helpers")).toContainText("No helpers yet");
+  await nav.getByRole("button", { name: "My Agents", exact: true }).click();
+  await expect(page.locator("#helpers")).toContainText("No agents yet");
   await nav.getByRole("button", { name: "Private Info", exact: true }).click();
   await expect(page.locator("#vault")).toContainText("No saved info yet");
   await nav.getByRole("button", { name: "Activity", exact: true }).click();
   await expect(page.locator("#activity")).toContainText("No activity yet");
   await nav.getByRole("button", { name: "Home", exact: true }).click();
   await firstRunTravelChoice.click();
-  await expect(nav.getByRole("button", { name: "Find Helpers", exact: true })).toHaveClass(/nav-active/);
-  await expect(page.locator(".marketplace-recommendation-banner")).toContainText("Showing helpers for Plan a trip");
+  await expect(nav.getByRole("button", { name: "Agent Pool", exact: true })).toHaveClass(/nav-active/);
+  await expect(page.locator(".marketplace-recommendation-banner")).toContainText("Showing agents for Plan a trip");
   await expect(page.getByLabel("Search marketplace agents")).toHaveValue("travel");
   await nav.getByRole("button", { name: "Home", exact: true }).click();
   await page.locator(".home-category-grid").getByRole("button", { name: /Plan a trip/ }).click();
-  await expect(nav.getByRole("button", { name: "Find Helpers", exact: true })).toHaveClass(/nav-active/);
-  await expect(page.locator(".marketplace-recommendation-banner")).toContainText("Showing helpers for Plan a trip");
+  await expect(nav.getByRole("button", { name: "Agent Pool", exact: true })).toHaveClass(/nav-active/);
+  await expect(page.locator(".marketplace-recommendation-banner")).toContainText("Showing agents for Plan a trip");
   await expect(page.getByLabel("Search marketplace agents")).toHaveValue("travel");
 
   await nav.getByRole("button", { name: "Private Info", exact: true }).click();
@@ -60,9 +60,9 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(page.locator("#settings")).toContainText("Manage your account, saved info access, and data export.");
   await expect(page.getByRole("button", { name: "Manage access" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Export my data" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Remove all helper access" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove all agent access" })).toBeVisible();
   await expect(page.locator("#settings")).toContainText("Request creator access when you are ready.");
-  await page.getByLabel("What do you want to publish?").fill("I want to publish safe travel helpers that ask before booking.");
+  await page.getByLabel("What do you want to publish?").fill("I want to publish safe travel agents that ask before booking.");
   await page.getByRole("button", { name: "Request creator access" }).click();
   await expect(page.locator("#settings")).toContainText("Creator request pending.");
   await page.getByRole("button", { name: "Manage access" }).click();
@@ -85,16 +85,16 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await addVaultForm.getByRole("button", { name: "Save info" }).click();
   await expect(page.locator("#vault").getByText(vaultTitle, { exact: true })).toBeVisible();
 
-  await nav.getByRole("button", { name: "My Helpers", exact: true }).click();
-  await expect(nav.getByRole("button", { name: "My Helpers", exact: true })).toHaveClass(/nav-active/);
-  await expect(page.locator("#helpers").getByText("My Helpers", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Search my helpers")).toBeVisible();
-  await nav.getByRole("button", { name: "Find Helpers", exact: true }).click();
-  await expect(nav.getByRole("button", { name: "Find Helpers", exact: true })).toHaveClass(/nav-active/);
-  await expect(page.locator(".marketplace-panel").getByText("Find a Helper")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Back to my helpers" })).toBeHidden();
+  await nav.getByRole("button", { name: "My Agents", exact: true }).click();
+  await expect(nav.getByRole("button", { name: "My Agents", exact: true })).toHaveClass(/nav-active/);
+  await expect(page.locator("#helpers").getByText("My Agents", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Search agents")).toBeVisible();
+  await nav.getByRole("button", { name: "Agent Pool", exact: true }).click();
+  await expect(nav.getByRole("button", { name: "Agent Pool", exact: true })).toHaveClass(/nav-active/);
+  await expect(page.locator(".marketplace-panel").getByText("Agent Pool")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Back to My Agents" })).toBeHidden();
   await page.getByRole("button", { name: "Help me choose" }).click();
-  const matcher = page.locator(".helper-match-panel");
+  const matcher = page.locator(".agent-match-panel");
   await matcher.getByLabel("I need help with").selectOption({ label: "Money" });
   await matcher.locator("fieldset").first().getByLabel("Yes").check();
   await matcher.locator("fieldset").nth(1).getByLabel("Yes, with approval").check();
@@ -104,27 +104,27 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await page.getByLabel("Search marketplace agents").fill("Budget");
   const budgetCard = page.locator(".marketplace-card").filter({ hasText: "Budget Guard" }).first();
   await expect(budgetCard).toBeVisible();
-  await budgetCard.getByRole("button", { name: "View helper" }).click();
+  await budgetCard.getByRole("button", { name: "View Agent" }).click();
   const marketplaceDetail = page.locator(".marketplace-detail-sheet");
   await expect(marketplaceDetail).toContainText("Budget Guard");
   await expect(marketplaceDetail).toContainText("Needs access to");
   await expect(marketplaceDetail).toContainText("Why this is safe");
-  const addHelperButton = marketplaceDetail.getByRole("button", { name: "Add helper" });
+  const addHelperButton = marketplaceDetail.getByRole("button", { name: "Add Agent" });
   if (await addHelperButton.count()) {
     await addHelperButton.click();
     const installDialog = page.getByRole("dialog", { name: /Add Budget Guard/ });
-    await installDialog.getByRole("button", { name: "Add helper" }).click();
+    await installDialog.getByRole("button", { name: "Add Agent" }).click();
   }
-  await expect(nav.getByRole("button", { name: "My Helpers", exact: true })).toHaveClass(/nav-active/);
+  await expect(nav.getByRole("button", { name: "My Agents", exact: true })).toHaveClass(/nav-active/);
   await expect(page.locator("#helpers")).toContainText("Budget Guard");
-  await nav.getByRole("button", { name: "Find Helpers", exact: true }).click();
+  await nav.getByRole("button", { name: "Agent Pool", exact: true }).click();
   await page.getByRole("button", { name: "More options" }).click();
-  await expect(page.getByRole("button", { name: "Create custom helper" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Import external helper" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Create custom agent" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Import external agent" })).toHaveCount(0);
   await page.getByLabel("Search marketplace agents").clear();
 
-  await nav.getByRole("button", { name: "My Helpers", exact: true }).click();
-  await page.locator(".desktop-helper-list").getByText("Budget Guard").click();
+  await nav.getByRole("button", { name: "My Agents", exact: true }).click();
+  await page.locator(".desktop-agent-list").getByText("Budget Guard").click();
   await page.locator(".agent-profile-tabs").getByRole("tab", { name: "Access" }).click();
   await expect(page.locator(".agent-tab-panel")).toContainText("0 of 1 requested categories allowed");
   await page.getByRole("button", { name: "Allow requested info" }).click();
@@ -137,8 +137,8 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await page.getByRole("button", { name: "Search info" }).click();
   await expect(page.locator(".search-results")).toContainText("Financial Preferences");
 
-  await nav.getByRole("button", { name: "My Helpers", exact: true }).click();
-  await expect(page.getByText("Use this helper")).toBeVisible();
+  await nav.getByRole("button", { name: "My Agents", exact: true }).click();
+  await expect(page.getByText("Use This Agent")).toBeVisible();
   await page.getByPlaceholder("Ask what you want help with…").fill("Find my approval threshold");
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.locator(".chat-transcript")).toContainText("Found");
@@ -178,7 +178,7 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(page.locator("#settings")).toContainText("Settings");
   await expect(page.getByRole("button", { name: "Open Creator Studio" })).toHaveCount(0);
 
-  await nav.getByRole("button", { name: "My Helpers", exact: true }).click();
+  await nav.getByRole("button", { name: "My Agents", exact: true }).click();
   await page.locator(".agent-profile-tabs").getByRole("tab", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Search personal info" }).click();
   await expect(page.locator(".hitl-panel")).toContainText(/Found|Blocked/);
@@ -197,14 +197,17 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "What do you want help with today?" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "What do you want help with?", exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "First helper setup" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "First agent setup" })).toBeVisible();
   await expect(page.locator(".mobile-home")).toBeHidden();
   const nav = page.locator(".nav-rail");
-  await expect(nav.getByRole("button", { name: "Find Helpers", exact: true }).locator(".nav-label-mobile")).toHaveText("Find");
-  await expect(nav.getByRole("button", { name: "My Helpers", exact: true }).locator(".nav-label-mobile")).toHaveText("Helpers");
+  await expect(nav.getByRole("button", { name: "Agent Pool", exact: true })).toHaveAttribute("data-mobile-label", "Pool");
+  await expect(nav.getByRole("button", { name: "My Agents", exact: true })).toHaveAttribute("data-mobile-label", "Agents");
+  await expect(nav.getByRole("button")).toHaveCount(5);
+  await expect(nav.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Plan a trip Flights, hotels, loyalty, itineraries" })).toBeVisible();
-  await nav.getByRole("button", { name: "My Helpers", exact: true }).click();
+  await nav.getByRole("button", { name: "My Agents", exact: true }).click();
   await expect(page.locator(".agent-list")).toBeVisible();
+  await expect(page.locator("#helpers")).toContainText("My Agents");
   await expect(page.locator("#vault")).toBeHidden();
 
   await nav.getByRole("button", { name: "Private Info", exact: true }).click();
@@ -220,13 +223,13 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await expect(page.locator(".add-vault-panel")).toContainText("Details");
   await expect(page.locator(".add-vault-panel select option").filter({ hasText: /safety-|creator-|marketplace-|lifecycle-|smoke|test|demo|sample|qa/i })).toHaveCount(0);
 
-  await nav.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.locator(".topbar").getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settings")).toBeVisible();
   await expect(page.locator("#settings")).toContainText("Manage your account, saved info access, and data export.");
   await expect(page.getByRole("button", { name: "Manage access" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Export my data" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Remove all helper access" })).toBeVisible();
-  await expect(page.locator("#settings")).toContainText("Want to publish helpers?");
+  await expect(page.getByRole("button", { name: "Remove all agent access" })).toBeVisible();
+  await expect(page.locator("#settings")).toContainText("Want to publish agents?");
   await expect(page.getByRole("button", { name: "Open Creator Studio" })).toHaveCount(0);
   await page.getByRole("button", { name: "Manage access" }).click();
   await expect(page.locator("#clearance")).toBeVisible();
@@ -244,27 +247,27 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await expect(page.locator(".audit-panel")).toBeVisible();
   await expect(page.locator("#clearance")).toBeHidden();
 
-  await nav.getByRole("button", { name: "Find Helpers", exact: true }).click();
-  await expect(page.locator(".marketplace-panel").getByText("Find a Helper")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Back to my helpers" })).toBeHidden();
+  await nav.getByRole("button", { name: "Agent Pool", exact: true }).click();
+  await expect(page.locator(".marketplace-panel").getByText("Agent Pool")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Back to My Agents" })).toBeHidden();
   await expect(page.getByLabel("Filter marketplace category")).toBeHidden();
   const dailyTaskCard = page.locator(".marketplace-card").filter({ hasText: "Daily Task Helper" }).first();
-  await expect(dailyTaskCard.getByRole("button", { name: "Add helper" })).toBeHidden();
-  await dailyTaskCard.getByRole("button", { name: "View helper" }).click();
+  await expect(dailyTaskCard.getByRole("button", { name: "Add Agent" })).toBeHidden();
+  await dailyTaskCard.getByRole("button", { name: "View Agent" }).click();
   const mobileSheet = page.locator(".marketplace-detail-sheet");
   await expect(mobileSheet).toContainText("Daily Task Helper");
   await expect(mobileSheet).toContainText("Good for");
   await expect(mobileSheet).toContainText("Needs access to");
   await expect(mobileSheet).toContainText("Why this is safe");
-  await expect(mobileSheet.getByRole("button", { name: "Add helper" })).toBeVisible();
-  await mobileSheet.getByRole("button", { name: "Add helper" }).click();
-  await page.getByRole("dialog", { name: "Add Daily Task Helper?" }).getByRole("button", { name: "Add helper" }).click();
-  await expect(nav.getByRole("button", { name: "My Helpers", exact: true })).toHaveClass(/nav-active/);
-  await expect(page.locator(".install-success-panel")).toContainText("Helper Added");
-  await expect(page.locator(".install-success-panel").getByRole("button", { name: "Use helper" })).toBeVisible();
+  await expect(mobileSheet.getByRole("button", { name: "Add Agent" })).toBeVisible();
+  await mobileSheet.getByRole("button", { name: "Add Agent" }).click();
+  await page.getByRole("dialog", { name: "Add Daily Task Helper?" }).getByRole("button", { name: "Add Agent" }).click();
+  await expect(nav.getByRole("button", { name: "My Agents", exact: true })).toHaveClass(/nav-active/);
+  await expect(page.locator(".install-success-panel")).toContainText("Agent Added");
+  await expect(page.locator(".install-success-panel").getByRole("button", { name: "Use agent" })).toBeVisible();
   await expect(page.locator(".agent-list")).toBeVisible();
   await expect(page.locator(".detail-panel")).toBeHidden();
-  await page.locator(".install-success-panel").getByRole("button", { name: "Use helper" }).click();
+  await page.locator(".install-success-panel").getByRole("button", { name: "Use agent" }).click();
   await expect(page.locator(".detail-panel")).toBeVisible();
   await expect(page.locator(".agent-chat-panel")).toContainText("Ask Daily Task Helper");
   await expect(page.locator(".agent-chat-panel")).toContainText("What do you need?");
@@ -285,13 +288,13 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await expect(page.locator(".audit-panel")).toContainText(/Denied\. Nothing continued\.|Nothing continues unless you allow it\./);
   await expect(page.locator(".audit-panel")).not.toContainText("pending_human_approval");
   await expect(page.locator(".audit-panel")).not.toContainText("blocked_by_policy");
-  await nav.getByRole("button", { name: "My Helpers", exact: true }).click();
+  await nav.getByRole("button", { name: "My Agents", exact: true }).click();
   await expect(page.locator(".agent-list")).toBeVisible();
   await expect(page.locator(".detail-panel")).toBeHidden();
-  await page.locator(".mobile-helper-card").filter({ hasText: "Daily Task Helper" }).getByRole("button", { name: /Daily Task Helper/ }).click();
+  await page.locator(".mobile-agent-card").filter({ hasText: "Daily Task Helper" }).getByRole("button", { name: "Chat" }).click();
   await expect(page.locator(".detail-panel")).toBeVisible();
   await expect(page.locator(".agent-list")).toBeHidden();
-  await page.getByRole("button", { name: "Back to helpers" }).click();
+  await page.getByRole("button", { name: "Back to My Agents" }).click();
   await expect(page.locator(".agent-list")).toBeVisible();
   await expect(page.locator(".detail-panel")).toBeHidden();
 });

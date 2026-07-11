@@ -19,7 +19,7 @@ export const onboardingNeeds: OnboardingNeed[] = [
     category: "Travel",
     query: "travel",
     matcherNeedId: "travel",
-    recommendation: "Recommended helpers match trips, bookings, loyalty details, and travel preferences.",
+    recommendation: "Recommended agents match trips, bookings, loyalty details, and travel preferences.",
     icon: Plane
   },
   {
@@ -29,7 +29,7 @@ export const onboardingNeeds: OnboardingNeed[] = [
     category: "Daily Tasks",
     query: "task",
     matcherNeedId: "daily",
-    recommendation: "Recommended helpers match reminders, planning, errands, and repeat life admin.",
+    recommendation: "Recommended agents match reminders, planning, errands, and repeat life admin.",
     icon: CalendarCheck
   },
   {
@@ -39,7 +39,7 @@ export const onboardingNeeds: OnboardingNeed[] = [
     category: "Work",
     query: "email",
     matcherNeedId: "work",
-    recommendation: "Recommended helpers match email drafts, follow-ups, scheduling, and work coordination.",
+    recommendation: "Recommended agents match email drafts, follow-ups, scheduling, and work coordination.",
     icon: BriefcaseBusiness
   },
   {
@@ -49,7 +49,7 @@ export const onboardingNeeds: OnboardingNeed[] = [
     category: "Money",
     query: "money",
     matcherNeedId: "money",
-    recommendation: "Recommended helpers match budgets, cards, subscriptions, payment rules, and approval guardrails.",
+    recommendation: "Recommended agents match budgets, cards, subscriptions, payment rules, and approval guardrails.",
     icon: CircleDollarSign
   },
   {
@@ -59,7 +59,7 @@ export const onboardingNeeds: OnboardingNeed[] = [
     category: "Applications",
     query: "apply jobs resume school",
     matcherNeedId: "applications",
-    recommendation: "Recommended helpers match resumes, applications, forms, and deadlines.",
+    recommendation: "Recommended agents match resumes, applications, forms, and deadlines.",
     icon: FileText
   },
   {
@@ -69,7 +69,7 @@ export const onboardingNeeds: OnboardingNeed[] = [
     category: "Family",
     query: "family admin appointment paperwork",
     matcherNeedId: "family",
-    recommendation: "Recommended helpers match appointments, family coordination, paperwork, and household follow-up.",
+    recommendation: "Recommended agents match appointments, family coordination, paperwork, and household follow-up.",
     icon: Home
   },
   {
@@ -79,7 +79,7 @@ export const onboardingNeeds: OnboardingNeed[] = [
     category: "Shopping",
     query: "shopping",
     matcherNeedId: "shopping",
-    recommendation: "Recommended helpers match product comparisons, subscriptions, preferences, and purchase approval.",
+    recommendation: "Recommended agents match product comparisons, subscriptions, preferences, and purchase approval.",
     icon: ShoppingBag
   },
   {
@@ -89,7 +89,7 @@ export const onboardingNeeds: OnboardingNeed[] = [
     category: "Health",
     query: "health",
     matcherNeedId: "health",
-    recommendation: "Recommended helpers match private notes, appointment prep, and organizing health details.",
+    recommendation: "Recommended agents match private notes, appointment prep, and organizing health details.",
     icon: HeartPulse
   }
 ];
@@ -104,14 +104,14 @@ type OnboardingPanelProps = {
 
 export function OnboardingPanel({ className, onBrowseAll, onSelectNeed }: OnboardingPanelProps) {
   return (
-    <section className={className} aria-label="First helper setup">
+    <section className={className} aria-label="First agent setup">
       <div className="onboarding-copy">
-        <div className="panel-title">Pick Your First Helper</div>
+        <div className="panel-title">Pick Your First Agent</div>
         <h2>What do you want help with first?</h2>
-        <p>Choose a normal everyday task. Helpers start restricted, and you decide what private info or actions they can use.</p>
+        <p>Choose a normal everyday task. Agents start restricted, and you decide what private info or actions they can use.</p>
       </div>
 
-      <div className="onboarding-choice-grid" aria-label="Common helper needs">
+      <div className="onboarding-choice-grid" aria-label="Common agent needs">
         {primaryOnboardingNeeds.map((need) => {
           const Icon = need.icon;
           return (
@@ -133,9 +133,9 @@ export function OnboardingPanel({ className, onBrowseAll, onSelectNeed }: Onboar
       <div className="onboarding-footer">
         <div>
           <strong>Private by default</strong>
-          <span>Helpers can suggest, organize, and draft. They cannot read private info, buy, book, send, or share without approval.</span>
+          <span>Agents can suggest, organize, and draft. They cannot read private info, buy, book, send, or share without approval.</span>
         </div>
-        <button onClick={onBrowseAll} type="button"><Search size={16} /> Browse all helpers</button>
+        <button onClick={onBrowseAll} type="button"><Search size={16} /> Browse all agents</button>
       </div>
     </section>
   );

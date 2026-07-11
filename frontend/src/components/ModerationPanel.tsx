@@ -61,7 +61,7 @@ export function ModerationPanel(props: ModerationPanelProps) {
 
   async function approveAccessRequest(request: CreatorAccessRequest) {
     const approved = await props.onApproveCreatorAccess(request.id);
-    if (approved) setNotice(`${approved.userEmail ?? "This user"} can now publish helpers.`);
+    if (approved) setNotice(`${approved.userEmail ?? "This user"} can now publish agents.`);
   }
 
   async function submitDenyAccess(event: FormEvent<HTMLFormElement>) {
@@ -80,7 +80,7 @@ export function ModerationPanel(props: ModerationPanelProps) {
       <div className="creator-panel-header">
         <div>
           <div className="panel-title">Review Queue</div>
-          <h2>Approve helpers before people can find them.</h2>
+          <h2>Approve agents before people can find them.</h2>
           <p>Review borderline listings for clear value, trust language, and user control.</p>
         </div>
         <StatusPill tone={pendingReviewCount ? "amber" : "green"}>{pendingReviewCount} waiting</StatusPill>
@@ -107,8 +107,8 @@ export function ModerationPanel(props: ModerationPanelProps) {
 
       {!props.isLoading && !pendingReviewCount ? (
         <div className="friendly-empty-state">
-          <strong>No helpers need review</strong>
-          <p>Creator requests and borderline helper submissions will appear here before they enter marketplace search.</p>
+          <strong>No agents need review</strong>
+          <p>Creator requests and borderline agent submissions will appear here before they enter marketplace search.</p>
         </div>
       ) : null}
 
@@ -116,7 +116,7 @@ export function ModerationPanel(props: ModerationPanelProps) {
         <section className="creator-access-review-list" aria-label="Creator access requests">
           <div>
             <h3>Creator access requests</h3>
-            <p>Approve only users who describe a clear helper supply use case.</p>
+            <p>Approve only users who describe a clear agent supply use case.</p>
           </div>
           {props.creatorAccessRequests.map((request) => (
             <article className="creator-agent-row" key={request.id}>
@@ -134,7 +134,7 @@ export function ModerationPanel(props: ModerationPanelProps) {
                 </button>
                 <button disabled={props.isSaving} onClick={() => {
                   setDenyAccessRequest(request);
-                  setDenyAccessNote("Please add more detail about the helpers you want to publish and how they keep users in control.");
+                  setDenyAccessNote("Please add more detail about the agents you want to publish and how they keep users in control.");
                 }} type="button">
                   <RotateCcw size={16} /> Deny
                 </button>
@@ -146,7 +146,7 @@ export function ModerationPanel(props: ModerationPanelProps) {
 
       {props.queue.length ? (
         <div className="moderation-workbench">
-          <div className="moderation-queue-list" aria-label="Helpers waiting for review">
+          <div className="moderation-queue-list" aria-label="Agents waiting for review">
             {props.queue.map((agent) => (
               <button
                 className={agent.id === selectedAgent?.id ? "moderation-queue-item selected" : "moderation-queue-item"}
@@ -156,7 +156,7 @@ export function ModerationPanel(props: ModerationPanelProps) {
                 type="button"
               >
                 <span>{agent.name}</span>
-                <small>{friendlyCategoryName(agent.category)} helper</small>
+                <small>{friendlyCategoryName(agent.category)} agent</small>
                 <small>{agent.moderationNote || "Needs closer review"}</small>
               </button>
             ))}
@@ -192,7 +192,7 @@ export function ModerationPanel(props: ModerationPanelProps) {
               {selectedManifest.sourceType && selectedManifest.sourceType !== "native" ? (
                 <div className="moderation-note">
                   <ShieldCheck size={16} />
-                  <span>External helper: verify the endpoint/spec, declared tools, private-info requests, and approval behavior before approval.</span>
+                  <span>External agent: verify the endpoint/spec, declared tools, private-info requests, and approval behavior before approval.</span>
                 </div>
               ) : null}
 

@@ -20,7 +20,7 @@ type ReceiptsPanelProps = {
   friendlyLogDetail: (log: ActivityLog) => string;
   friendlyNotificationText: (log: ActivityLog) => string;
   friendlyDate: (value: string) => string;
-  onUseHelper: () => void;
+  onUseAgent: () => void;
 };
 
 export function ReceiptsPanel(props: ReceiptsPanelProps) {
@@ -32,7 +32,7 @@ export function ReceiptsPanel(props: ReceiptsPanelProps) {
     friendlyLogDetail,
     friendlyNotificationText,
     friendlyDate,
-    onUseHelper
+    onUseAgent
   } = props;
   const [activeFilter, setActiveFilter] = useState<ReceiptFilter>("all");
   const filteredLogs = useMemo(() => recentLogs.filter((log) => {
@@ -58,7 +58,7 @@ export function ReceiptsPanel(props: ReceiptsPanelProps) {
       <div className="panel-heading-row">
         <div>
           <div className="panel-title">Activity</div>
-          <p className="mobile-section-intro">See when helpers used saved info, waited for you, or were stopped.</p>
+          <p className="mobile-section-intro">See when agents used saved info, waited for you, or were stopped.</p>
         </div>
         <StatusPill tone="blue">{logsCount} events</StatusPill>
       </div>
@@ -92,14 +92,14 @@ export function ReceiptsPanel(props: ReceiptsPanelProps) {
       {recentLogs.length > 0 && filteredLogs.length === 0 ? (
         <div className="friendly-empty-state compact-empty-state">
           <strong>No activity in this view</strong>
-          <p>Switch filters to see other helper activity.</p>
+          <p>Switch filters to see other agent activity.</p>
         </div>
       ) : null}
       {recentLogs.length === 0 ? (
         <div className="friendly-empty-state">
           <strong>No activity yet</strong>
-          <p>When a helper uses saved info or waits for your approval, it will appear here.</p>
-          <button onClick={onUseHelper} type="button"><MessageSquare size={16} /> Use a helper</button>
+          <p>When an agent uses saved info or waits for your approval, it will appear here.</p>
+          <button onClick={onUseAgent} type="button"><MessageSquare size={16} /> Use an Agent</button>
         </div>
       ) : null}
     </div>

@@ -55,7 +55,7 @@ export function MarketplaceResults(props: MarketplaceResultsProps) {
       })}
       {!isShowingMoreResults && resultSourceLength > cardMatches.length ? (
         <button className="marketplace-show-more" onClick={() => setIsShowingMoreResults(true)} type="button">
-          Show more helpers
+          Show more agents
         </button>
       ) : null}
     </div>

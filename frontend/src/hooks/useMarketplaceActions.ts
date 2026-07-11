@@ -25,7 +25,7 @@ type UseMarketplaceActionsInput = {
   setMatcherActions: (value: MatcherChoice) => void;
   setMatcherNeedId: (value: string) => void;
   setMatcherPrivateInfo: (value: MatcherChoice) => void;
-  setMobileHelperDetailOpen: (value: boolean) => void;
+  setMobileAgentDetailOpen: (value: boolean) => void;
   setSelectedAgentId: (agentId: string) => void;
   setToolResult: (value: string) => void;
 };
@@ -59,22 +59,17 @@ export function useMarketplaceActions(input: UseMarketplaceActionsInput) {
     input.setIsGuidedSetupOpen(false);
     input.setIsAddingVaultItem(false);
     input.setMarketplaceError("");
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
+    input.scrollToSection("marketplace");
   }
 
   function handleMarketplaceInstalled(install: UserAgentInstall) {
     const installedAgentId = install.agent?.id;
     if (installedAgentId) input.setSelectedAgentId(installedAgentId);
-    input.setMobileHelperDetailOpen(false);
+    input.setMobileAgentDetailOpen(false);
     setRecentInstall(recentInstallFromInstall(install));
     input.setToolResult(`${install.displayName} was added to your profile. Review its permissions before giving access.`);
     setIsOnboardingDismissed(true);
-    input.setActiveSection("helpers");
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
+    input.scrollToSection("helpers");
   }
 
   async function reviewExternalImport(importInput: ExternalAgentImportInput) {
@@ -101,15 +96,12 @@ export function useMarketplaceActions(input: UseMarketplaceActionsInput) {
       await input.refresh();
       const installedAgentId = result.install.agent?.id;
       if (installedAgentId) input.setSelectedAgentId(installedAgentId);
-      input.setMobileHelperDetailOpen(false);
+      input.setMobileAgentDetailOpen(false);
       setRecentInstall(recentInstallFromInstall(result.install));
       input.setToolResult(`${result.install.displayName} was imported and starts restricted.`);
       setExternalImportPreview(null);
       setIsOnboardingDismissed(true);
-      input.setActiveSection("helpers");
-      window.requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      });
+      input.scrollToSection("helpers");
       return true;
     } catch (error) {
       setExternalImportError(input.formatError(error));
@@ -152,7 +144,7 @@ export function useMarketplaceActions(input: UseMarketplaceActionsInput) {
     input.setSelectedAgentId(recentInstall.agentId);
     input.setAgentProfileTab("chat");
     input.setChatInput(recentInstall.firstPrompt || `Help me get started with ${recentInstall.displayName}.`);
-    input.setMobileHelperDetailOpen(true);
+    input.setMobileAgentDetailOpen(true);
     setRecentInstall(null);
     input.scrollToSection("helpers");
   }

@@ -34,7 +34,7 @@ export function AgentSettingsTab(props: AgentSettingsTabProps) {
   } = props;
 
   return (
-    <section className="agent-tab-panel" aria-label="Helper settings">
+    <section className="agent-tab-panel" aria-label="Agent settings">
       <div className="external-trust-card">
         <div>
           <strong>{sourceLabel}</strong>
@@ -47,7 +47,7 @@ export function AgentSettingsTab(props: AgentSettingsTabProps) {
             <small>Only approved private info categories can be shared.</small>
           </>
         ) : (
-          <small>This helper uses the same permission and receipt controls as the rest of your hub.</small>
+          <small>This agent uses the same permission and receipt controls as the rest of your hub.</small>
         )}
       </div>
       <div className="manifest-grid">
@@ -60,7 +60,7 @@ export function AgentSettingsTab(props: AgentSettingsTabProps) {
         <button onClick={() => void runVaultSearch()} type="button"><Database size={16} /> Search personal info</button>
         <button onClick={() => void triggerHighRiskAction()} type="button"><Zap size={16} /> Try approval flow</button>
         <button onClick={() => void revokeSelectedAgentAccess()} type="button"><KeyRound size={16} /> Remove saved info access</button>
-        <button className="danger" onClick={() => removeAgentFromProfile(selectedAgent)} type="button"><Trash2 size={16} /> Remove helper</button>
+        <button className="danger" onClick={() => removeAgentFromProfile(selectedAgent)} type="button"><Trash2 size={16} /> Remove agent</button>
       </div>
     </section>
   );

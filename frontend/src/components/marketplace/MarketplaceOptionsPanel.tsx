@@ -8,7 +8,7 @@ type MarketplaceOptionsPanelProps = {
   isImportOpen: boolean;
   marketplaceFilterLabels: Array<{ id: keyof MarketplaceFilters; label: string }>;
   marketplaceFilters: MarketplaceFilters;
-  onCreateCustomHelper: () => void;
+  onCreateCustomAgent: () => void;
   setIsImportOpen: (updater: (current: boolean) => boolean) => void;
   setMarketplaceFilters: Dispatch<SetStateAction<MarketplaceFilters>>;
 };
@@ -20,7 +20,7 @@ export function MarketplaceOptionsPanel(props: MarketplaceOptionsPanelProps) {
     isImportOpen,
     marketplaceFilterLabels,
     marketplaceFilters,
-    onCreateCustomHelper,
+    onCreateCustomAgent,
     setIsImportOpen,
     setMarketplaceFilters
   } = props;
@@ -44,11 +44,11 @@ export function MarketplaceOptionsPanel(props: MarketplaceOptionsPanelProps) {
       </div>
       {canUseCreatorTools && externalImportSlot ? (
         <button aria-expanded={isImportOpen} onClick={() => setIsImportOpen((current) => !current)} type="button">
-          <Download size={16} /> Import external helper
+          <Download size={16} /> Import external agent
         </button>
       ) : null}
-      {canUseCreatorTools ? <button onClick={onCreateCustomHelper} type="button">
-        <Pencil size={16} /> Create custom helper
+      {canUseCreatorTools ? <button onClick={onCreateCustomAgent} type="button">
+        <Pencil size={16} /> Create custom agent
       </button> : null}
     </div>
   );

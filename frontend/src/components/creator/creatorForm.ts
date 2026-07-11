@@ -110,13 +110,13 @@ export function readinessFor(form: CreatorFormState) {
       label: "Clear name",
       passed: form.name.trim().length >= 2 && !placeholderPattern.test(form.name),
       required: true,
-      guidance: "Use a real helper name people can understand."
+      guidance: "Use a real agent name people can understand."
     },
     {
       label: "Short benefit line",
       passed: form.tagline.trim().length >= 8 && !placeholderPattern.test(form.tagline),
       required: true,
-      guidance: "Write one sentence about the job this helper does."
+      guidance: "Write one sentence about the job this agent does."
     },
     {
       label: "Useful description",
@@ -128,7 +128,7 @@ export function readinessFor(form: CreatorFormState) {
       label: "Source declared",
       passed: !isExternal || form.externalEndpointUrl.trim().length >= 8,
       required: true,
-      guidance: "Imported helpers need an endpoint or spec URL."
+      guidance: "Imported agents need an endpoint or spec URL."
     },
     {
       label: "Example prompt",
@@ -168,7 +168,7 @@ export function readinessFor(form: CreatorFormState) {
       label: "External review",
       passed: !isExternal,
       required: false,
-      guidance: "Imported helpers go to review before discovery."
+      guidance: "Imported agents go to review before discovery."
     }
   ];
   const missingRequired = checks.filter((check) => check.required && !check.passed);

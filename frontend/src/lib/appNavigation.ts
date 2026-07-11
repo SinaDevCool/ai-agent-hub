@@ -18,16 +18,16 @@ export type SectionHeading = {
   description: string;
 };
 
-export const navItems: Array<{ id: SectionId; label: string; mobileLabel: string; icon: LucideIcon }> = [
+export const navItems: Array<{ id: SectionId; label: string; mobileLabel: string; icon: LucideIcon; mobileVisible?: boolean }> = [
   { id: "home", label: "Home", mobileLabel: "Home", icon: ShieldCheck },
-  { id: "marketplace", label: "Find Helpers", mobileLabel: "Find", icon: Search },
-  { id: "helpers", label: "My Helpers", mobileLabel: "Helpers", icon: Bot },
+  { id: "marketplace", label: "Agent Pool", mobileLabel: "Pool", icon: Search },
+  { id: "helpers", label: "My Agents", mobileLabel: "Agents", icon: Bot },
   { id: "moderation", label: "Review Queue", mobileLabel: "Review", icon: ClipboardCheck },
   { id: "vault", label: "Private Info", mobileLabel: "Info", icon: Database },
   { id: "clearance", label: "Access", mobileLabel: "Access", icon: KeyRound },
   { id: "activity", label: "Activity", mobileLabel: "Activity", icon: Activity },
   { id: "creator", label: "Creator Studio", mobileLabel: "Create", icon: Pencil },
-  { id: "settings", label: "Settings", mobileLabel: "Settings", icon: Settings }
+  { id: "settings", label: "Settings", mobileLabel: "Settings", icon: Settings, mobileVisible: false }
 ];
 
 export const consumerNavIds = new Set<SectionId>(["home", "marketplace", "helpers", "vault", "activity", "settings"]);
@@ -35,35 +35,35 @@ export const consumerNavIds = new Set<SectionId>(["home", "marketplace", "helper
 export const sectionHeadings: Record<SectionId, SectionHeading> = {
   home: {
     title: "What do you want help with today?",
-    description: "Find a helper, ask for help, and stay in control of what it can read or do."
+    description: "Find an agent, ask for help, and stay in control of what it can read or do."
   },
   marketplace: {
-    title: "Find Helpers",
-    description: "Search the marketplace for helpers built here or imported from trusted external platforms."
+    title: "Agent Pool",
+    description: "Search agents built here or imported from trusted external platforms."
   },
   helpers: {
-    title: "My Helpers",
-    description: "Open installed helpers, review access, and remove helpers you no longer use."
+    title: "My Agents",
+    description: "Use your installed agents, review access, and remove agents you no longer use."
   },
   creator: {
     title: "Creator Studio",
-    description: "Create, review, and publish helpers for other people to discover."
+    description: "Create, review, and publish agents for other people to discover."
   },
   moderation: {
     title: "Review Queue",
-    description: "Approve helpers that need a closer platform review before marketplace discovery."
+    description: "Approve agents that need a closer platform review before marketplace discovery."
   },
   vault: {
     title: "Private Info",
-    description: "Keep important notes in one place so approved helpers can use them safely."
+    description: "Keep important notes in one place so approved agents can use them safely."
   },
   clearance: {
     title: "Access",
-    description: "Choose exactly which private info each helper can use."
+    description: "Choose exactly which private info each agent can use."
   },
   activity: {
     title: "Activity",
-    description: "See receipts for what helpers read, asked for, and could not do."
+    description: "See receipts for what agents read, asked for, and could not do."
   },
   settings: {
     title: "Settings",
