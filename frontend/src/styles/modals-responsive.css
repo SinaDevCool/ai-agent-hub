@@ -552,6 +552,10 @@ textarea:focus-visible {
     order: 2;
   }
 
+  .workspace-grid.section-helpers > .detail-panel.mobile-agent-detail-is-open {
+    gap: 16px;
+  }
+
   .workspace-grid.section-helpers > .agent-list.mobile-agent-detail-is-open {
     display: none;
   }
@@ -604,8 +608,10 @@ textarea:focus-visible {
   .agent-profile-tabs {
     border-radius: 14px;
     display: grid;
+    gap: 8px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     overflow: visible;
+    padding: 8px;
   }
 
   .agent-profile-tabs button {
@@ -736,6 +742,7 @@ textarea:focus-visible {
   .mobile-back-to-agents {
     display: inline-flex;
     justify-content: center;
+    margin-bottom: 2px;
     min-height: 44px;
     width: 100%;
   }
@@ -1225,9 +1232,37 @@ textarea:focus-visible {
     min-height: 360px;
   }
 
+  .agent-use-shell {
+    gap: 16px;
+  }
+
+  .agent-use-header {
+    gap: 10px;
+  }
+
+  .agent-use-header .panel-title {
+    color: #c7d6e8;
+    font-size: 13px;
+    line-height: 1.25;
+    margin-bottom: 10px;
+  }
+
+  .agent-use-header h2 {
+    font-size: 23px;
+    line-height: 1.12;
+    margin-bottom: 8px;
+  }
+
+  .agent-use-header p {
+    font-size: 16px;
+    line-height: 1.48;
+  }
+
   .agent-quick-summary {
     align-items: stretch;
+    gap: 12px;
     grid-template-columns: 1fr;
+    padding: 14px;
   }
 
   .agent-summary-desktop {

@@ -243,6 +243,11 @@
   justify-content: space-between;
 }
 
+.chat-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
 .conversation-note {
   color: #91a4ba;
   font-size: 12px;
@@ -393,6 +398,11 @@
 .receipt-row small,
 .receipt-row time {
   display: block;
+}
+
+.receipt-row > div {
+  display: grid;
+  gap: 3px;
 }
 
 .receipt-row strong {

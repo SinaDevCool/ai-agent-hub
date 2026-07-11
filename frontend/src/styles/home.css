@@ -268,6 +268,11 @@
   display: block;
 }
 
+.setup-step > div {
+  display: grid;
+  gap: 3px;
+}
+
 .setup-step strong {
   color: #f5f9ff;
   font-size: 13px;
