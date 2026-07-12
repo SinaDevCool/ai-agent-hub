@@ -60,6 +60,7 @@ type AgentProfilePanelProps = {
   triggerHighRiskAction: () => void | Promise<void>;
   revokeSelectedAgentAccess: () => void | Promise<void>;
   removeAgentFromProfile: (agent: Agent) => void;
+  toolResult: string;
 };
 
 const tabs: Array<[AgentProfileTab, string]> = [
@@ -185,6 +186,7 @@ export function AgentProfilePanel(props: AgentProfilePanelProps) {
             selectedIsExternal={selectedIsExternal}
             setAgentProfileTab={setAgentProfileTab}
             sourceLabel={sourceLabel}
+            toolResult={props.toolResult}
             triggerHighRiskAction={props.triggerHighRiskAction}
             verificationLabel={verificationLabel}
           />

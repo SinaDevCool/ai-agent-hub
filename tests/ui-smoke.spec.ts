@@ -184,7 +184,20 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await nav.getByRole("button", { name: "My Agents", exact: true }).click();
   await page.locator(".agent-profile-tabs").getByRole("tab", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Search personal info" }).click();
-  await expect(page.locator(".hitl-panel")).toContainText(/Found|Blocked/);
+  await expect(page.locator(".agent-profile-tabs").getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
+  await page.locator(".agent-profile-tabs").getByRole("tab", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Try approval flow" }).click();
+  await expect(page.locator(".agent-profile-tabs").getByRole("tab", { name: "Chat" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".agent-chat-panel")).toContainText(/approval|Waiting for you/i);
+  await page.locator(".agent-profile-tabs").getByRole("tab", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Remove saved info access" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Revoke this agent's access?");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await page.locator(".agent-profile-tabs").getByRole("tab", { name: "Settings" }).click();
+  await page.locator(".agent-tab-panel").getByRole("button", { name: "Remove agent" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Remove this agent?");
+  await page.getByRole("button", { name: "Cancel" }).click();
 
   expect(consoleIssues).toEqual([]);
 });

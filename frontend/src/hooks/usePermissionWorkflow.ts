@@ -18,6 +18,7 @@ export type PermissionReviewItem = {
 
 type UsePermissionWorkflowInput = {
   agents: Agent[];
+  formatError: (error: unknown) => string;
   schemas: VaultSchema[];
   selectedAgent: Agent | undefined;
   refresh: () => Promise<unknown>;
@@ -29,7 +30,7 @@ type UsePermissionWorkflowInput = {
 const grantDuration: string = "3600000";
 
 export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
-  const { agents, schemas, selectedAgent, refresh, setConfirmation, setSelectedAgentId, setToolResult } = input;
+  const { agents, formatError, schemas, selectedAgent, refresh, setConfirmation, setSelectedAgentId, setToolResult } = input;
   const [grantingSchemaName, setGrantingSchemaName] = useState("");
 
   const permissionReview = useMemo(() => {
@@ -64,7 +65,7 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
     requestingAgents: agents.filter((agent) => (agent.capabilityManifest.requestedSchemas ?? []).includes(schema.name))
   })), [agents, schemas]);
 
-  async function togglePermission(schema: VaultSchema, enabled: boolean) {
+  async function updatePermission(schema: VaultSchema, enabled: boolean) {
     if (!selectedAgent) return;
     await apiPost("/api/permissions/clearance", {
       agentId: selectedAgent.id,
@@ -74,14 +75,32 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
       restrictionRules: { deniedPaths: [], maxRecords: 8, uiGranted: true },
       expiresAt: enabled && grantDuration !== "always" ? new Date(Date.now() + Number(grantDuration)).toISOString() : undefined
     });
-    await refresh();
+  }
+
+  async function togglePermission(schema: VaultSchema, enabled: boolean) {
+    setGrantingSchemaName(schema.name);
+    try {
+      await updatePermission(schema, enabled);
+      await refresh();
+      setToolResult(enabled
+        ? `${selectedAgent?.name ?? "This agent"} can now read ${schema.name}.`
+        : `${selectedAgent?.name ?? "This agent"} can no longer read ${schema.name}.`
+      );
+    } catch (error) {
+      setToolResult(formatError(error));
+    } finally {
+      setGrantingSchemaName("");
+    }
   }
 
   async function grantRequestedSchema(schema: VaultSchema) {
     setGrantingSchemaName(schema.name);
     try {
-      await togglePermission(schema, true);
+      await updatePermission(schema, true);
+      await refresh();
       setToolResult(`${selectedAgent?.name ?? "This agent"} can now read ${schema.name}.`);
+    } catch (error) {
+      setToolResult(formatError(error));
     } finally {
       setGrantingSchemaName("");
     }
@@ -92,9 +111,12 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
     setGrantingSchemaName("all");
     try {
       for (const item of ungrantedRequestedSchemas) {
-        if (item.schema) await togglePermission(item.schema, true);
+        if (item.schema) await updatePermission(item.schema, true);
       }
+      await refresh();
       setToolResult(`${selectedAgent?.name ?? "This agent"} can now read ${ungrantedRequestedSchemas.length} approved info categories.`);
+    } catch (error) {
+      setToolResult(formatError(error));
     } finally {
       setGrantingSchemaName("");
     }
@@ -102,15 +124,28 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
 
   async function revokeSelectedAgentAccessNow() {
     if (!selectedAgent) return;
-    const readPermissions = selectedAgent.permissions.filter((permission) => permission.vaultSchema);
-    for (const permission of readPermissions) {
-      if (permission.vaultSchema) await togglePermission(permission.vaultSchema, false);
+    const grantedSchemas = permissionReview.filter((item) => item.granted && item.schema).map((item) => item.schema!);
+    if (grantedSchemas.length === 0) {
+      setToolResult(`${selectedAgent.name} has no saved info access to remove.`);
+      return;
     }
-    setToolResult(`All readable personal info access was revoked for ${selectedAgent.name}.`);
+    try {
+      for (const schema of grantedSchemas) {
+        await updatePermission(schema, false);
+      }
+      await refresh();
+      setToolResult(`All saved info access was removed for ${selectedAgent.name}.`);
+    } catch (error) {
+      setToolResult(formatError(error));
+    }
   }
 
   function revokeSelectedAgentAccess() {
     if (!selectedAgent) return;
+    if (!permissionReview.some((item) => item.granted)) {
+      setToolResult(`${selectedAgent.name} has no saved info access to remove.`);
+      return;
+    }
     setConfirmation({
       title: "Revoke this agent's access?",
       message: `${selectedAgent.name} will lose access to every private info category you allowed.`,
@@ -121,21 +156,25 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
   }
 
   async function revokeAllAgentAccessNow() {
-    for (const agent of agents) {
-      for (const permission of agent.permissions.filter((item) => item.vaultSchema)) {
-        if (permission.vaultSchema) {
-          await apiPost("/api/permissions/clearance", {
-            agentId: agent.id,
-            vaultSchemaId: permission.vaultSchema.id,
-            permissionType: "read",
-            enabled: false,
-            restrictionRules: {}
-          });
+    try {
+      for (const agent of agents) {
+        for (const permission of agent.permissions.filter((item) => item.vaultSchema)) {
+          if (permission.vaultSchema) {
+            await apiPost("/api/permissions/clearance", {
+              agentId: agent.id,
+              vaultSchemaId: permission.vaultSchema.id,
+              permissionType: "read",
+              enabled: false,
+              restrictionRules: {}
+            });
+          }
         }
       }
+      await refresh();
+      setToolResult("All agent access to saved info was removed.");
+    } catch (error) {
+      setToolResult(formatError(error));
     }
-    await refresh();
-    setToolResult("All agent access to saved info was removed.");
   }
 
   function revokeAllAgentAccess() {

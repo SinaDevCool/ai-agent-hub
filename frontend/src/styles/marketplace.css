@@ -232,7 +232,7 @@
 
 .marketplace-need-row {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
@@ -251,6 +251,7 @@
 .marketplace-more-toggle {
   background: rgba(7, 17, 31, 0.28);
   border-style: dashed;
+  margin-bottom: 4px;
 }
 
 .marketplace-need-row button.selected {
@@ -428,7 +429,7 @@
 .marketplace-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .marketplace-card {

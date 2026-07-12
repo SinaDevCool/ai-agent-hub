@@ -450,6 +450,7 @@ export function App() {
     ungrantedRequestedSchemas
   } = usePermissionWorkflow({
     agents,
+    formatError: friendlyAppError,
     refresh,
     schemas,
     selectedAgent,
@@ -534,10 +535,15 @@ export function App() {
 
   async function triggerHighRiskAction() {
     if (!selectedAgent) return;
+    const actionName = selectedAgent.capabilityManifest.highRiskActions?.[0];
+    if (!actionName) {
+      setToolResult(`${selectedAgent.name} has no approval-only actions configured.`);
+      return;
+    }
     const result = await apiPost("/api/mcp/tool-call", {
       agentId: selectedAgent.id,
       toolName: "action.execute",
-      arguments: { actionName: "book_non_refundable_travel", amountUsd: 640, destination: "Berlin" }
+      arguments: { actionName, source: "settings_approval_test" }
     });
     setToolResult(friendlyResult(result as Record<string, unknown>));
     await refresh();

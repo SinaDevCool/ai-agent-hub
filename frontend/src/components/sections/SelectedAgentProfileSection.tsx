@@ -53,6 +53,7 @@ export function SelectedAgentProfileSection({ props }: { props: WorkspaceSection
     submitAgentPrompt,
     suggestedPrompts,
     togglePermission,
+    toolResult,
     triggerHighRiskAction,
     ungrantedRequestedSchemas
   } = props;
@@ -109,6 +110,7 @@ export function SelectedAgentProfileSection({ props }: { props: WorkspaceSection
       submitAgentPrompt={submitAgentPrompt}
       suggestedPrompts={suggestedPrompts}
       togglePermission={togglePermission}
+      toolResult={toolResult}
       triggerHighRiskAction={triggerHighRiskAction}
       ungrantedRequestedSchemas={ungrantedRequestedSchemas}
     />

@@ -15,6 +15,7 @@ type AgentSettingsTabProps = {
   selectedIsExternal: boolean;
   setAgentProfileTab: (tab: AgentProfileTab) => void;
   sourceLabel: string;
+  toolResult: string;
   triggerHighRiskAction: () => void | Promise<void>;
   verificationLabel: string;
 };
@@ -30,17 +31,27 @@ export function AgentSettingsTab(props: AgentSettingsTabProps) {
     selectedIsExternal,
     setAgentProfileTab,
     sourceLabel,
+    toolResult,
     triggerHighRiskAction,
     verificationLabel
   } = props;
   const [pendingAction, setPendingAction] = useState<"search" | "approval" | "revoke" | "">("");
+  const [actionNotice, setActionNotice] = useState("");
 
   async function runSettingAction(action: "search" | "approval" | "revoke", task: () => void | Promise<void>) {
     if (pendingAction) return;
+    setActionNotice("");
     setPendingAction(action);
     try {
       await task();
+      if (action === "search") {
+        setActionNotice("Search finished. Check Activity for the receipt.");
+        setAgentProfileTab("activity");
+      }
       if (action === "approval") setAgentProfileTab("chat");
+      if (action === "revoke") setAgentProfileTab("permissions");
+    } catch (error) {
+      setActionNotice(error instanceof Error ? error.message : "That action did not finish. Please try again.");
     } finally {
       setPendingAction("");
     }
@@ -81,6 +92,9 @@ export function AgentSettingsTab(props: AgentSettingsTabProps) {
         </button>
         <button className="danger" onClick={() => removeAgentFromProfile(selectedAgent)} type="button"><Trash2 size={16} /> Remove agent</button>
       </div>
+      {actionNotice || toolResult ? (
+        <p className="agent-settings-feedback" role="status" aria-live="polite">{actionNotice || toolResult}</p>
+      ) : null}
     </section>
   );
 }
