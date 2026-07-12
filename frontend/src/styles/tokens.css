@@ -319,6 +319,10 @@ small {
   display: none;
 }
 
+.mobile-topbar-brand {
+  display: none;
+}
+
 .connection-status {
   position: relative;
   min-height: 38px;

@@ -28,7 +28,7 @@ export function AppShell(props: {
   return (
     <main className="app-shell">
       <aside className="nav-rail">
-        <div className="brand-mark"><ShieldCheck size={22} /> AI Agent Hub</div>
+        <div className="brand-mark" role="heading" aria-level={1}><ShieldCheck size={22} /> AI Agent Hub</div>
         <nav>
           {navItems.filter((item) => consumerNavIds.has(item.id) || (item.id === "creator" && props.canUseCreatorTools) || (item.id === "moderation" && props.canModerateMarketplace)).map(({ id, label, mobileLabel, icon: Icon, mobileVisible }) => (
             <div className="nav-item-group" key={id}>
@@ -69,7 +69,11 @@ export function AppShell(props: {
 
       <section className="workspace">
         <header className="topbar">
-          <div>
+          <div className="topbar-heading">
+            <h1 className="mobile-topbar-brand" aria-label="AI Agent Hub">
+              <ShieldCheck aria-hidden="true" size={18} />
+              <span>AI Agent Hub</span>
+            </h1>
             <h1>{props.heading.title}</h1>
             <p>{props.heading.description}</p>
           </div>

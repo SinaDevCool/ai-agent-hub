@@ -1,4 +1,3 @@
-import type { Dispatch, SetStateAction } from "react";
 import { Bot, FilePlus, Search } from "lucide-react";
 import type { Agent, HitlRequest } from "../../api/types";
 import type { SectionId } from "../../lib/appNavigation";
@@ -12,6 +11,7 @@ type HomeSectionProps = {
   canUseCreatorTools: boolean;
   friendlyActionName: (action: string) => string;
   friendlyTrustLabel: (score: number) => string;
+  onAddPrivateInfo: () => void;
   onOpenGuidedSetup: () => void;
   openMarketplace: () => void;
   openMarketplaceForNeed: (need: OnboardingNeed) => void;
@@ -20,7 +20,6 @@ type HomeSectionProps = {
   runPrimarySetupAction: () => void;
   scrollToSection: (section: SectionId) => void;
   sectionClass: (section: SectionId) => string;
-  setIsAddingVaultItem: Dispatch<SetStateAction<boolean>>;
   setSelectedAgentId: (agentId: string) => void;
   setupProgress: number;
   setupSteps: SetupStep[];
@@ -37,6 +36,7 @@ export function HomeSection(props: HomeSectionProps) {
     canUseCreatorTools,
     friendlyActionName,
     friendlyTrustLabel,
+    onAddPrivateInfo,
     onOpenGuidedSetup,
     openMarketplace,
     openMarketplaceForNeed,
@@ -45,7 +45,6 @@ export function HomeSection(props: HomeSectionProps) {
     runPrimarySetupAction,
     scrollToSection,
     sectionClass,
-    setIsAddingVaultItem,
     setSelectedAgentId,
     setupProgress,
     setupSteps,
@@ -74,7 +73,7 @@ export function HomeSection(props: HomeSectionProps) {
           </div>
           <div className="mobile-quick-actions">
             <button className="primary-action" onClick={runPrimarySetupAction} type="button"><Bot size={16} /> {primarySetupLabel}</button>
-            <button onClick={() => setIsAddingVaultItem((current: boolean) => !current)} type="button"><FilePlus size={16} /> Add Private Info</button>
+            <button onClick={onAddPrivateInfo} type="button"><FilePlus size={16} /> Add Private Info</button>
           </div>
         </div>
         {pendingApproval ? (

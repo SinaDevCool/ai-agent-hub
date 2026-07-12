@@ -24,7 +24,7 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
 
   await page.goto("/");
   await expect(page).toHaveTitle("AI Agent Hub");
-  await expect(page.getByRole("heading", { name: "What do you want help with today?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AI Agent Hub" })).toBeVisible();
   await expect(page.locator(".connection-status").getByText("live", { exact: true })).toBeVisible();
   consoleIssues.length = 0;
   const nav = page.locator(".nav-rail");
@@ -198,7 +198,7 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "What do you want help with today?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AI Agent Hub" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "What do you want help with?", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "First agent setup" })).toBeVisible();
   await expect(page.locator(".mobile-home")).toBeHidden();

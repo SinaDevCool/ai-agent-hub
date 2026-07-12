@@ -89,7 +89,7 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
           <div className="panel-title">My Agents</div>
           <p className="mobile-section-intro">Use an agent, check access, or remove one.</p>
         </div>
-        <StatusPill tone="blue">{agents.length} {agents.length === 1 ? "agent" : "agents"}</StatusPill>
+        <StatusPill tone="blue">{agents.length} installed</StatusPill>
       </div>
       {(agentSummary.needsApproval || agentSummary.needsAccess) ? (
         <div className="mobile-agent-attention" aria-label="Agents that need attention">
@@ -253,8 +253,10 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
       {agents.length > 0 && visibleInstalledAgentCards.length > 0 ? (
         <div className="agent-list-footer">
           <span>
-            Showing {displayedInstalledAgentCards.length} of {visibleInstalledAgentCards.length} visible agents
-            {hiddenTestAgentCount && hideTestAgents ? `, ${hiddenTestAgentCount} hidden test/demo.` : "."}
+            {hiddenVisibleAgentCount
+              ? `${displayedInstalledAgentCards.length} shown. ${hiddenVisibleAgentCount} more agents available.`
+              : `Showing ${displayedInstalledAgentCards.length} visible agents.`}
+            {hiddenTestAgentCount && hideTestAgents ? ` ${hiddenTestAgentCount} test/demo hidden.` : ""}
           </span>
           <div>
             {hiddenTestAgentCount && hideTestAgents ? <button onClick={() => setHideTestAgents(false)} type="button">Show hidden</button> : null}

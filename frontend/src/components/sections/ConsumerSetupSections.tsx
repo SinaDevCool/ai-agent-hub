@@ -86,6 +86,10 @@ export function ConsumerSetupSections({ props }: { props: WorkspaceSectionsProps
         canUseCreatorTools={canUseCreatorTools}
         friendlyActionName={friendlyActionName}
         friendlyTrustLabel={friendlyTrustLabel}
+        onAddPrivateInfo={() => {
+          setIsAddingVaultItem(true);
+          scrollToSection("vault");
+        }}
         onOpenGuidedSetup={openGuidedSetup}
         openMarketplace={openMarketplace}
         openMarketplaceForNeed={openMarketplaceForNeed}
@@ -94,7 +98,6 @@ export function ConsumerSetupSections({ props }: { props: WorkspaceSectionsProps
         runPrimarySetupAction={runPrimarySetupAction}
         scrollToSection={scrollToSection}
         sectionClass={sectionClass}
-        setIsAddingVaultItem={setIsAddingVaultItem}
         setSelectedAgentId={setSelectedAgentId}
         setupProgress={setupProgress}
         setupSteps={setupSteps}
