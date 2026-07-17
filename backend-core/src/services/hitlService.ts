@@ -4,6 +4,7 @@ import { writeActivityLog } from "./activityLogService.js";
 import { encodeJson } from "./jsonService.js";
 import { sendApprovalNotification } from "./notificationService.js";
 import { httpError } from "../errors/httpError.js";
+import { friendlyActionName } from "./runtimeIntentService.js";
 
 function invalidApprovalError(message: string) {
   return httpError(409, message, "invalid_approval_state");
@@ -35,11 +36,19 @@ export async function createHitlRequest(input: {
     status: "pending_human_approval",
     dataAccessed: input.actionName,
     dynamicMetadata: {
+      source: "agent_runtime",
+      eventCategory: "approval",
+      userTitle: `${request.agent.name} paused before ${friendlyActionName(input.actionName)}`,
+      userSummary: "This action needs your approval before anything continues.",
+      statusLabel: "Waiting for you",
+      approvalStatus: "waiting",
+      actionName: input.actionName,
       requestId: request.id,
       notificationId: notification.notificationId,
       notificationStatus: notification.status,
       notificationProvider: notification.provider,
-      notificationReason: notification.reason
+      notificationReason: notification.reason,
+      nextStep: "Allow once or deny."
     }
   });
   realtimeHub.broadcast({ type: "hitl.requested", payload: request });
@@ -72,7 +81,19 @@ export async function decideHitlRequest(id: string, userId: string, approved: bo
     actionType: approved ? "hitl_approved" : "hitl_denied",
     status: approved ? "success" : "blocked_by_policy",
     dataAccessed: request.actionName,
-    dynamicMetadata: { requestId: id }
+    dynamicMetadata: {
+      source: "agent_runtime",
+      eventCategory: "approval",
+      userTitle: approved ? "You allowed this once" : "You denied this action",
+      userSummary: approved
+        ? `${request.agent.name} may continue ${friendlyActionName(request.actionName)} one time.`
+        : `${request.agent.name} will not continue ${friendlyActionName(request.actionName)}.`,
+      statusLabel: approved ? "Allowed once" : "Denied",
+      approvalStatus: approved ? "allowed" : "denied",
+      actionName: request.actionName,
+      requestId: id,
+      nextStep: approved ? "Continue the approved action before it expires." : "Create a new request if you change your mind."
+    }
   });
   return request;
 }

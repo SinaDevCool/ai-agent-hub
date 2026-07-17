@@ -11,7 +11,8 @@ export const capabilityManifestSchema = z.object({
   highRiskActions: z.array(z.string().trim().min(1).max(120)).max(20).default([]),
   description: z.string().trim().min(20).max(700),
   examplePrompts: z.array(z.string().trim().min(8).max(160)).min(1).max(8),
-  trustReasons: z.array(z.string().trim().min(8).max(160)).min(1).max(8)
+  trustReasons: z.array(z.string().trim().min(8).max(160)).min(1).max(8),
+  normalizedImportManifest: z.unknown().optional()
 }).superRefine((manifest, ctx) => {
   const isExternal = manifest.sourceType !== "native";
   if (isExternal && !manifest.externalEndpointUrl) {

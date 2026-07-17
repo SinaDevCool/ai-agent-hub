@@ -28,6 +28,15 @@
   margin-bottom: 16px;
 }
 
+.confirm-dialog-error {
+  background: rgba(255, 106, 106, 0.1);
+  border: 1px solid rgba(255, 106, 106, 0.2);
+  border-radius: 7px;
+  color: #ffd1d1 !important;
+  margin-top: -4px;
+  padding: 9px 10px;
+}
+
 .install-confirm-dialog {
   width: min(100%, 520px);
 }
@@ -234,6 +243,7 @@ textarea:focus-visible {
 
   .nav-item-group {
     display: block;
+    min-width: 0;
   }
 
   .nav-sublist {
@@ -250,6 +260,7 @@ textarea:focus-visible {
     font-size: 10px;
     line-height: 1.15;
     border-radius: 13px;
+    width: 100%;
   }
 
   .nav-rail .nav-mobile-hidden {
@@ -396,11 +407,11 @@ textarea:focus-visible {
 
   .mobile-home-card,
   .mobile-alert-card {
-    border: 1px solid rgba(137, 163, 196, 0.18);
-    background: linear-gradient(180deg, rgba(20, 45, 73, 0.92), rgba(9, 24, 42, 0.92));
-    border-radius: 16px;
+    background: rgba(9, 24, 42, 0.82);
+    border: 1px solid rgba(137, 163, 196, 0.14);
+    border-radius: 14px;
     padding: 14px;
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
   }
 
   .mobile-home-card {
@@ -409,8 +420,8 @@ textarea:focus-visible {
   }
 
   .mobile-home-card h2 {
-    font-size: 22px;
-    line-height: 1.1;
+    font-size: 21px;
+    line-height: 1.14;
   }
 
   .mobile-home-card p {
@@ -429,6 +440,24 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .home-how-it-works {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .home-action-row,
+  .home-setup-list {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .home-action-row button,
+  .home-setup-list li,
+  .home-view-all-agents {
+    justify-content: center;
+    width: 100%;
+  }
+
   .starter-goal-grid {
     grid-template-columns: 1fr;
   }
@@ -441,7 +470,7 @@ textarea:focus-visible {
   .mobile-panel-actions {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 9px;
+    gap: 8px;
   }
 
   .mobile-alert-card {
@@ -633,16 +662,25 @@ textarea:focus-visible {
 
   .agent-profile-tabs {
     border-radius: 14px;
-    display: grid;
-    gap: 8px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    gap: 4px;
     overflow: visible;
-    padding: 8px;
+    padding: 4px;
   }
 
   .agent-profile-tabs button {
+    font-size: 13px;
     min-height: 44px;
     min-width: 0;
+    padding: 8px 6px;
+  }
+
+  .desktop-tab-label {
+    display: none;
+  }
+
+  .mobile-tab-label {
+    display: inline;
   }
 
   .agent-list,
@@ -653,6 +691,13 @@ textarea:focus-visible {
   .vault-panel,
   .settings-panel {
     gap: 10px;
+  }
+
+  .marketplace-discovery-card,
+  .marketplace-results-section {
+    border-radius: 14px;
+    gap: 12px;
+    padding: 12px;
   }
 
   .grid,
@@ -758,6 +803,20 @@ textarea:focus-visible {
 
   .marketplace-heading-actions {
     justify-items: stretch;
+  }
+
+  .marketplace-discovery-heading,
+  .marketplace-need-header,
+  .marketplace-results-heading,
+  .marketplace-results-actions {
+    align-items: stretch;
+    display: grid;
+    gap: 8px;
+    justify-content: stretch;
+  }
+
+  .marketplace-results-actions {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .marketplace-mobile-exit {
@@ -1078,8 +1137,17 @@ textarea:focus-visible {
 
   .agent-add-toggle {
     justify-self: stretch;
-    min-height: 42px;
+    min-height: 44px;
     width: 100%;
+  }
+
+  .mobile-agent-filter-label {
+    color: #91a4ba;
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-top: 2px;
   }
 
   .mobile-agent-status-chips {
@@ -1095,16 +1163,36 @@ textarea:focus-visible {
     align-items: center;
     border-radius: 999px;
     flex: 0 0 auto;
+    gap: 7px;
     justify-content: center;
-    line-height: 1;
-    min-height: 36px;
+    line-height: 1.1;
+    min-height: 44px;
     padding: 0 12px;
     white-space: normal;
+  }
+
+  .mobile-agent-status-chips button span {
+    align-items: center;
+    background: rgba(137, 163, 196, 0.14);
+    border-radius: 999px;
+    color: #c7d7eb;
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 850;
+    justify-content: center;
+    min-height: 20px;
+    min-width: 20px;
+    padding: 0 6px;
   }
 
   .mobile-agent-status-chips button.selected {
     background: rgba(64, 156, 255, 0.14);
     border-color: rgba(64, 156, 255, 0.42);
+    color: #f5f9ff;
+  }
+
+  .mobile-agent-status-chips button.selected span {
+    background: rgba(64, 156, 255, 0.28);
     color: #f5f9ff;
   }
 
@@ -1117,8 +1205,8 @@ textarea:focus-visible {
   }
 
   .mobile-agent-card {
-    gap: 8px;
-    padding: 12px;
+    gap: 9px;
+    padding: 11px;
   }
 
   .mobile-agent-main {
@@ -1133,8 +1221,11 @@ textarea:focus-visible {
     align-items: center;
     display: inline-flex;
     justify-content: center;
-    min-height: 32px;
-    padding-block: 6px;
+    line-height: 1.15;
+    min-height: 28px;
+    overflow-wrap: normal;
+    padding: 5px 10px;
+    white-space: nowrap;
   }
 
   .external-trust-card .status-pill {
@@ -1161,7 +1252,43 @@ textarea:focus-visible {
   }
 
   .mobile-agent-actions {
-    grid-template-columns: 1.15fr 0.85fr;
+    gap: 8px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mobile-agent-actions button,
+  .agent-mobile-summary-action,
+  .permission-review-header button,
+  .permission-review-row button,
+  .button-row button,
+  .settings-primary-actions button,
+  .mobile-panel-actions button,
+  .mobile-panel-actions label,
+  .mobile-quick-actions button,
+  .vault-search button,
+  .chat-form button,
+  .privacy-actions button,
+  .confirm-dialog .button-row button {
+    align-items: center;
+    display: inline-flex;
+    gap: 8px;
+    justify-content: center;
+    line-height: 1.15;
+    min-height: 44px;
+    min-width: 0;
+    text-align: center;
+    touch-action: manipulation;
+    width: 100%;
+  }
+
+  .mobile-agent-actions button svg,
+  .agent-mobile-summary-action svg,
+  .button-row button svg,
+  .mobile-quick-actions button svg,
+  .mobile-panel-actions button svg,
+  .chat-form button svg,
+  .privacy-actions button svg {
+    flex: 0 0 auto;
   }
 
   .agent-list-footer {
@@ -1209,22 +1336,7 @@ textarea:focus-visible {
   .hitl-row,
   .chat-panel,
   .settings-grid div {
-    border-radius: 14px;
-  }
-
-  .permission-review-header button,
-  .permission-review-row button,
-  .button-row button,
-  .settings-primary-actions button,
-  .mobile-panel-actions button,
-  .mobile-panel-actions label,
-  .mobile-quick-actions button,
-  .vault-search button,
-  .chat-form button,
-  .privacy-actions button {
-    width: 100%;
-    min-height: 44px;
-    justify-content: center;
+    border-radius: 12px;
   }
 
   .vault-panel .friendly-empty-state {
@@ -1265,6 +1377,7 @@ textarea:focus-visible {
 
   .private-info-manage {
     justify-self: stretch;
+    min-height: 44px;
     width: 100%;
   }
 
@@ -1273,12 +1386,12 @@ textarea:focus-visible {
   }
 
   .mobile-permission-summary {
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(9, 24, 42, 0.72);
     border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 14px;
+    border-radius: 12px;
     display: grid;
     gap: 8px;
-    padding: 12px;
+    padding: 11px;
   }
 
   .mobile-permission-summary strong {
@@ -1295,36 +1408,37 @@ textarea:focus-visible {
   }
 
   .agent-use-shell {
-    gap: 16px;
-  }
-
-  .agent-use-header {
     gap: 10px;
   }
 
+  .agent-use-header {
+    gap: 8px;
+  }
+
   .agent-use-header .panel-title {
-    color: #c7d6e8;
-    font-size: 13px;
-    line-height: 1.25;
-    margin-bottom: 10px;
+    display: none;
   }
 
   .agent-use-header h2 {
-    font-size: 23px;
-    line-height: 1.12;
-    margin-bottom: 8px;
+    font-size: 22px;
+    line-height: 1.14;
+    margin-bottom: 4px;
   }
 
   .agent-use-header p {
-    font-size: 16px;
-    line-height: 1.48;
+    font-size: 15px;
+    line-height: 1.45;
   }
 
   .agent-quick-summary {
     align-items: stretch;
-    gap: 12px;
+    gap: 9px;
     grid-template-columns: 1fr;
-    padding: 14px;
+    padding: 11px;
+  }
+
+  .agent-quick-summary strong {
+    display: none;
   }
 
   .agent-summary-desktop {
@@ -1333,6 +1447,51 @@ textarea:focus-visible {
 
   .agent-summary-mobile {
     display: block;
+  }
+
+  .agent-summary-mobile-note {
+    color: #91a4ba;
+    display: block;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .agent-desktop-summary-action {
+    display: none;
+  }
+
+  .agent-mobile-summary-action {
+    display: inline-flex;
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .agent-quick-summary .agent-mobile-summary-action {
+    min-height: 44px;
+  }
+
+  .agent-settings-feedback,
+  .friendly-error,
+  .friendly-status,
+  .friendly-empty-state,
+  .chat-current-state-note {
+    background: rgba(9, 24, 42, 0.72);
+    border-color: rgba(137, 163, 196, 0.14);
+    border-radius: 12px;
+    padding: 11px;
+  }
+
+  .friendly-error {
+    background: rgba(55, 30, 30, 0.5);
+    border-color: rgba(255, 106, 106, 0.22);
+  }
+
+  .friendly-status,
+  .agent-settings-feedback,
+  .chat-current-state-note {
+    background: rgba(10, 47, 50, 0.34);
+    border-color: rgba(92, 226, 205, 0.18);
   }
 
   .agent-simple-summary div,
@@ -1352,6 +1511,24 @@ textarea:focus-visible {
   .chat-bubble {
     max-width: 100%;
     border-radius: 14px;
+  }
+
+  .workflow-result-card,
+  .workflow-result-item {
+    border-radius: 14px;
+  }
+
+  .workflow-result-heading,
+  .workflow-result-item,
+  .workflow-result-footer {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-result-item a,
+  .workflow-result-footer .button-link,
+  .workflow-result-footer button {
+    width: 100%;
   }
 
   .agent-tab-panel .manifest-grid {
@@ -1403,7 +1580,7 @@ textarea:focus-visible {
 
   .chat-command-center {
     gap: 10px;
-    padding: 12px;
+    padding: 11px;
   }
 
   .receipt-filter-row {
@@ -1414,6 +1591,19 @@ textarea:focus-visible {
   .settings-primary-actions {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .settings-consumer-card,
+  .settings-advanced-heading {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .settings-consumer-card .settings-primary-actions,
+  .settings-advanced-heading button,
+  .settings-consumer-card > button {
+    min-height: 44px;
+    width: 100%;
   }
 
   .receipt-filter-row button {
@@ -1436,11 +1626,12 @@ textarea:focus-visible {
   }
 
   .chat-empty-state {
-    padding: 12px;
+    padding: 11px;
   }
 
   .approval-card .button-row,
   .approval-banner-actions {
+    gap: 8px;
     display: grid;
     grid-template-columns: 1fr 1fr;
   }

@@ -5,6 +5,11 @@ import { encodeJson } from "../services/jsonService.js";
 import { writeActivityLog } from "../services/activityLogService.js";
 import { serializeAgent } from "../services/serializerService.js";
 import { removeAgentForUser } from "../services/agentLifecycleService.js";
+import {
+  activateAgentRuntime,
+  getAgentRuntimeSetup,
+  testAgentRuntimeSetup
+} from "../services/agentRuntimeActivationService.js";
 
 export const agentRoutes = Router();
 
@@ -19,6 +24,10 @@ const createAgentSchema = z.object({
   highRiskActions: z.array(z.string().trim().min(1).max(120)).max(12).default([])
 });
 
+const activateRuntimeSchema = z.object({
+  workflowId: z.string().trim().min(1).max(120).optional()
+});
+
 agentRoutes.get("/", async (req, res) => {
   const agents = await prisma.agent.findMany({
     where: { connections: { some: { userId: req.userId } } },
@@ -29,6 +38,19 @@ agentRoutes.get("/", async (req, res) => {
     orderBy: { name: "asc" }
   });
   res.json({ agents: agents.map(serializeAgent) });
+});
+
+agentRoutes.get("/:id/runtime", async (req, res) => {
+  res.json({ runtime: await getAgentRuntimeSetup({ userId: req.userId!, agentId: req.params.id }) });
+});
+
+agentRoutes.post("/:id/runtime/activate", async (req, res) => {
+  const input = activateRuntimeSchema.parse(req.body ?? {});
+  res.json({ runtime: await activateAgentRuntime({ userId: req.userId!, agentId: req.params.id, workflowId: input.workflowId }) });
+});
+
+agentRoutes.post("/:id/runtime/test", async (req, res) => {
+  res.json(await testAgentRuntimeSetup({ userId: req.userId!, agentId: req.params.id }));
 });
 
 agentRoutes.get("/:id", async (req, res) => {

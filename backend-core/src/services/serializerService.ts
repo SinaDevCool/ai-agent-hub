@@ -1,4 +1,5 @@
 import { decodeJson } from "./jsonService.js";
+import { buildRuntimeActivityDisplay } from "./runtimeActivityDisplayService.js";
 
 type WithExtraFields<T> = T & Record<string, unknown>;
 
@@ -38,6 +39,9 @@ type SerializableVaultDocument = WithExtraFields<{
 }>;
 
 type SerializableActivityLog = WithExtraFields<{
+  actionType: import("@prisma/client").ActivityActionType;
+  status: import("@prisma/client").ActivityStatus;
+  dataAccessed?: string | null;
   dynamicMetadata: string;
   agent?: SerializableAgent | null;
 }>;
@@ -108,10 +112,19 @@ export function serializeVaultDocument<T extends SerializableVaultDocument>(docu
 }
 
 export function serializeActivityLog<T extends SerializableActivityLog>(log: T) {
+  const dynamicMetadata = decodeJson<Record<string, unknown>>(log.dynamicMetadata, {});
+  const agent = log.agent ? serializeAgent(log.agent) : log.agent;
   return {
     ...log,
-    dynamicMetadata: decodeJson(log.dynamicMetadata, {}),
-    agent: log.agent ? serializeAgent(log.agent) : log.agent
+    dynamicMetadata,
+    display: buildRuntimeActivityDisplay({
+      actionType: log.actionType,
+      status: log.status,
+      dataAccessed: log.dataAccessed,
+      metadata: dynamicMetadata,
+      agentName: agent && typeof agent.name === "string" ? agent.name : undefined
+    }),
+    agent
   };
 }
 

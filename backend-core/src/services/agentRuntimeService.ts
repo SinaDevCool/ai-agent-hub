@@ -1,131 +1,61 @@
 import { prisma } from "../db/prisma.js";
-import { createHitlRequest } from "./hitlService.js";
-import { writeActivityLog } from "./activityLogService.js";
-import { decodeJson, encodeJson } from "./jsonService.js";
-import { evaluateVaultPermission, isHighRiskAction, logDecision } from "./permissionEngine.js";
-import { generateRuntimeReply } from "./openAiRuntimeService.js";
-import { serializeAgentConversation, serializeVaultDocument } from "./serializerService.js";
-import { searchVaultDocuments } from "./vaultIndexService.js";
+import type { AgentCapabilityManifest, RuntimeAgent, RuntimeResult, RuntimeStep } from "./agentRuntimeTypes.js";
+import { runActionIntent } from "./agentActionRuntimeService.js";
+import { getActiveImportedRuntimeProvider, importedRuntimeNeedsActivation } from "./agentRuntimeActivationService.js";
+import { isContinueApprovedActionMessage, runApprovalContinuation } from "./agentApprovalRuntimeService.js";
+import {
+  getOrCreateAgentConversation,
+  withPersistedConversation
+} from "./agentConversationRuntimeService.js";
+import { runConnectorToolIntent } from "./agentConnectorToolRuntimeService.js";
 import { runExternalAgentRuntime } from "./externalAgentRuntimeService.js";
-import type { AgentCapabilityManifest, RuntimeAgent, RuntimeResult } from "./agentRuntimeTypes.js";
-import { consumeApprovedHitlRequest, isContinueApprovedActionMessage } from "./runtimeApprovalService.js";
-import { friendlyActionName, getRequestedAction, getRuntimeIntent } from "./runtimeIntentService.js";
-import { getAllowedVaultSchemas } from "./runtimePermissionService.js";
+import { decodeJson } from "./jsonService.js";
+import { runProviderRuntimeIntent } from "./agentProviderRuntimeService.js";
+import { finishAgentRun, recordAgentRunStep, runtimeStatusToAgentRunStatus, startAgentRun } from "./agentRunService.js";
+import { getRuntimeIntent } from "./runtimeIntentService.js";
+import { runVaultSearchIntent } from "./agentVaultRuntimeService.js";
 
-function buildSearchReply(agent: RuntimeAgent, count: number, schemaNames: string[]) {
-  if (count === 0) {
-    return `${agent.name} checked the info it is allowed to read, but did not find a strong match.`;
-  }
-  const scope = schemaNames.length ? ` from ${schemaNames.join(", ")}` : "";
-  return `${agent.name} Found ${count} matching personal info item${count === 1 ? "" : "s"}${scope}.`;
-}
+export { getOrCreateAgentConversation };
 
-export async function getOrCreateAgentConversation(input: { userId: string; agentId: string }) {
-  const agent = await prisma.agent.findFirst({
-    where: {
-      id: input.agentId,
-      connections: { some: { userId: input.userId } }
-    }
-  });
-  if (!agent) return null;
-
-  const existing = await prisma.agentConversation.findFirst({
-    where: { userId: input.userId, agentId: input.agentId },
-    include: { messages: { orderBy: { createdAt: "asc" } }, agent: true },
-    orderBy: { updatedAt: "desc" }
-  });
-  if (existing) return serializeAgentConversation(existing);
-
-  const conversation = await prisma.agentConversation.create({
-    data: {
-      userId: input.userId,
-      agentId: input.agentId,
-      title: agent.name
-    },
-    include: { messages: { orderBy: { createdAt: "asc" } }, agent: true }
-  });
-  return serializeAgentConversation(conversation);
-}
-
-async function ensureConversation(userId: string, agent: RuntimeAgent) {
-  const existing = await prisma.agentConversation.findFirst({
-    where: { userId, agentId: agent.id },
-    orderBy: { updatedAt: "desc" }
-  });
-  if (existing) return existing;
-  return prisma.agentConversation.create({
-    data: {
-      userId,
-      agentId: agent.id,
-      title: agent.name
-    }
-  });
-}
-
-async function appendRuntimeMessages(input: {
+async function persistRuntimeResult(input: {
   userId: string;
   agent: RuntimeAgent;
-  userMessage: string;
-  result: RuntimeResult;
-}) {
-  const conversation = await ensureConversation(input.userId, input.agent);
-  await prisma.$transaction([
-    prisma.agentMessage.create({
-      data: {
-        conversationId: conversation.id,
-        role: "user",
-        content: input.userMessage,
-        metadata: "{}"
-      }
-    }),
-    prisma.agentMessage.create({
-      data: {
-        conversationId: conversation.id,
-        role: "agent",
-        content: input.result.reply,
-        status: input.result.status === "blocked" ? "blocked_by_policy" : input.result.status === "awaiting_human_approval" ? "pending_human_approval" : "success",
-        intent: input.result.intent,
-        metadata: encodeJson({
-          reason: input.result.reason,
-          runtimeState: input.result.runtimeState,
-          nextStep: input.result.nextStep,
-          missingPermissions: input.result.missingPermissions,
-          actionName: input.result.actionName,
-          requestId: input.result.requestId,
-          usedSchemas: input.result.usedSchemas,
-          documents: input.result.documents,
-          provider: input.result.provider,
-          model: input.result.model,
-          providerFallbackReason: input.result.providerFallbackReason,
-          externalRuntime: input.result.externalRuntime
-        })
-      }
-    }),
-    prisma.agentConversation.update({
-      where: { id: conversation.id },
-      data: { title: input.userMessage.slice(0, 80) || input.agent.name }
-    })
-  ]);
-  const savedConversation = await prisma.agentConversation.findUniqueOrThrow({
-    where: { id: conversation.id },
-    include: { messages: { orderBy: { createdAt: "asc" } }, agent: true }
-  });
-  return serializeAgentConversation(savedConversation);
-}
-
-async function withPersistedConversation(input: {
-  userId: string;
-  agent: RuntimeAgent;
+  agentRunId: string;
   message: string;
   result: RuntimeResult;
+  step?: RuntimeStep;
 }) {
-  const conversation = await appendRuntimeMessages({
+  if (input.step) {
+    await recordAgentRunStep({
+      agentRunId: input.agentRunId,
+      stepType: input.result.status === "awaiting_human_approval" ? "wait_for_approval" : input.result.status === "blocked" ? "request_permission" : "call_tool",
+      status: input.result.status === "ok" ? "succeeded" : input.result.status === "awaiting_human_approval" ? "waiting_for_approval" : "blocked",
+      title: input.step.title,
+      input: input.step.input,
+      output: input.step.output,
+      error: input.step.error,
+      toolRunId: input.step.toolRunId
+    });
+  }
+  await finishAgentRun({
+    agentRunId: input.agentRunId,
+    status: runtimeStatusToAgentRunStatus(input.result.status),
+    result: {
+      runtimeState: input.result.runtimeState,
+      actionName: input.result.actionName,
+      requestId: input.result.requestId,
+      provider: input.result.provider,
+      model: input.result.model,
+      providerReceiptId: input.result.providerReceipt?.id
+    },
+    error: input.result.reason
+  });
+  return withPersistedConversation({
     userId: input.userId,
     agent: input.agent,
-    userMessage: input.message,
+    message: input.message,
     result: input.result
   });
-  return { ...input.result, conversation };
 }
 
 export async function runAgentForUser(input: { userId: string; agentId: string; message: string }): Promise<RuntimeResult & { conversation?: unknown }> {
@@ -146,254 +76,135 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
       nextStep: "Add this agent to your profile before using it."
     };
   }
-
-  const manifest = decodeJson<AgentCapabilityManifest>(agent.capabilityManifest, {});
+  const runtimeAgent: RuntimeAgent = agent;
+  const manifest = decodeJson<AgentCapabilityManifest>(runtimeAgent.capabilityManifest, {});
   const tools = new Set(manifest.tools ?? []);
   const intent = getRuntimeIntent(message);
+  const activeImportedProvider = getActiveImportedRuntimeProvider(manifest);
+  const activationBlock = importedRuntimeNeedsActivation(manifest);
 
-  const externalResult = await runExternalAgentRuntime({
+  if (activationBlock) {
+    const nextStep = activationBlock.activationStatus === "blocked"
+      ? "Choose another agent or import a safe runtime endpoint."
+      : "Open this agent's setup and activate its runtime before using it.";
+    const result: RuntimeResult = {
+      status: "blocked",
+      intent: "blocked",
+      reply: `${agent.name} needs setup before it can run.`,
+      reason: activationBlock.blockers[0] || activationBlock.setupSteps[0] || "Imported runtime is not active.",
+      runtimeState: activationBlock.activationStatus === "failed" ? "failed" : "blocked",
+      nextStep
+    };
+    return withPersistedConversation({ userId: input.userId, agent: runtimeAgent, message, result });
+  }
+
+  const agentRun = await startAgentRun({
     userId: input.userId,
-    agent,
-    manifest,
-    tools,
+    agentId: agent.id,
     intent,
-    message
+    userGoal: message,
+    plan: {
+      source: "agent_runtime",
+      tools: manifest.tools ?? [],
+      requestedSchemas: manifest.requestedSchemas ?? [],
+      highRiskActions: manifest.highRiskActions ?? []
+    }
   });
-  if (externalResult) {
-    return withPersistedConversation({ userId: input.userId, agent, message, result: externalResult });
+
+  const persist = (result: RuntimeResult, step?: RuntimeStep) =>
+    persistRuntimeResult({
+      userId: input.userId,
+      agent: runtimeAgent,
+      agentRunId: agentRun.id,
+      message,
+      result,
+      step
+    });
+
+  if (!activeImportedProvider) {
+    const externalResult = await runExternalAgentRuntime({
+      userId: input.userId,
+      agent: runtimeAgent,
+      manifest,
+      tools,
+      intent,
+      message
+    });
+    if (externalResult) {
+      return persist(externalResult, {
+        title: "External agent runtime",
+        input: { message, sourceType: manifest.sourceType },
+        output: { status: externalResult.status, externalRuntime: externalResult.externalRuntime },
+        error: externalResult.reason
+      });
+    }
   }
 
   if (isContinueApprovedActionMessage(message)) {
-    const continuation = await consumeApprovedHitlRequest({
+    const branch = await runApprovalContinuation({
       userId: input.userId,
-      agentId: agent.id,
-      missingReply: `${agent.name} could not find an approved action to continue.`,
-      missingReason: "No unused, unexpired approval request was found for this agent.",
-      usedReply: `${agent.name} could not continue that approval because it was already used or expired.`
+      agent: runtimeAgent,
+      agentRunId: agentRun.id,
+      message
     });
-    if (continuation.status === "blocked") {
-      return withPersistedConversation({
-        userId: input.userId,
-        agent,
-        message,
-        result: continuation.result
-      });
-    }
-    const approvedRequest = continuation.request;
-    await writeActivityLog({
-      userId: input.userId,
-      agentId: agent.id,
-      actionType: "execution_triggered",
-      status: "success",
-      dataAccessed: approvedRequest.actionName,
-      dynamicMetadata: {
-        requestId: approvedRequest.id,
-        source: "approved_hitl_continuation"
-      }
-    });
-    return withPersistedConversation({
-      userId: input.userId,
-      agent,
-      message,
-      result: {
-        status: "ok" as const,
-        intent: "action" as const,
-        reply: `${agent.name} completed the approved action: ${friendlyActionName(approvedRequest.actionName)}.`,
-        actionName: approvedRequest.actionName,
-        requestId: approvedRequest.id,
-        runtimeState: "ready" as const,
-        nextStep: "The action is recorded in Receipts."
-      }
-    });
+    return persist(branch.result, branch.step);
   }
 
+  const connectorBranch = await runConnectorToolIntent({
+    userId: input.userId,
+    agent: runtimeAgent,
+    agentRunId: agentRun.id,
+    intent,
+    message,
+    tools
+  });
+  if (connectorBranch) return persist(connectorBranch.result, connectorBranch.step);
+
+  const providerBranch = await runProviderRuntimeIntent({
+    userId: input.userId,
+    agent: runtimeAgent,
+    agentRunId: agentRun.id,
+    message,
+    tools,
+    activeImportedProvider
+  });
+  if (providerBranch) return persist(providerBranch.result, providerBranch.step);
+
   if (intent === "search") {
-    if (!tools.has("vault.search")) {
-      return withPersistedConversation({
-        userId: input.userId,
-        agent,
-        message,
-        result: {
-        status: "blocked" as const,
-        intent,
-        reply: `${agent.name} cannot search personal info because that tool is not enabled.`,
-        reason: "vault.search is not enabled for this agent.",
-        runtimeState: "blocked" as const,
-        nextStep: "Choose an agent that can read personal info, or add vault.search to this agent."
-        }
-      });
-    }
-
-    const allowedSchemas = await getAllowedVaultSchemas({
+    const branch = await runVaultSearchIntent({
       userId: input.userId,
-      agentId: agent.id,
-      requestedSchemas: manifest.requestedSchemas ?? []
-    });
-    if (!allowedSchemas.length) {
-      const decision = await evaluateVaultPermission({
-        userId: input.userId,
-        agentId: agent.id,
-        permissionType: "read"
-      });
-      await logDecision({
-        userId: input.userId,
-        agentId: agent.id,
-        actionType: "vault_read",
-        decision,
-        dataAccessed: "agent-runtime-search",
-        metadata: { message }
-      });
-      return withPersistedConversation({
-        userId: input.userId,
-        agent,
-        message,
-        result: {
-        status: "blocked" as const,
-        intent,
-        reply: `${agent.name} needs permission before it can use your personal info.`,
-        reason: decision.reason,
-        runtimeState: "needs_permission" as const,
-        nextStep: "Review and allow the requested private info for this agent.",
-        missingPermissions: manifest.requestedSchemas ?? []
-        }
-      });
-    }
-
-    const documents = (await Promise.all(
-      allowedSchemas.map((schema) => searchVaultDocuments(input.userId, message, schema.id))
-    ))
-      .flat()
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-
-    await logDecision({
-      userId: input.userId,
-      agentId: agent.id,
-      actionType: "vault_read",
-      decision: { allowed: true, reason: "Agent runtime used only granted personal info categories." },
-      dataAccessed: "agent-runtime-search",
-      metadata: { message, schemaIds: allowedSchemas.map((schema) => schema.id) }
-    });
-
-    const serializedDocuments = documents.map(serializeVaultDocument);
-    const schemaNames = allowedSchemas.map((schema) => schema.name);
-    const fallbackReply = buildSearchReply(agent, documents.length, schemaNames);
-    const generated = await generateRuntimeReply({
-      agentName: agent.name,
-      agentDescription: manifest.description,
-      userMessage: message,
-      status: "ok",
-      intent,
-      fallbackReply,
-      documents: serializedDocuments,
-      usedSchemas: schemaNames
-    });
-
-    return withPersistedConversation({
-      userId: input.userId,
-      agent,
+      agent: runtimeAgent,
+      agentRunId: agentRun.id,
       message,
-      result: {
-      status: "ok" as const,
-      intent,
-      reply: generated.reply,
-      documents: serializedDocuments,
-      usedSchemas: schemaNames,
-      provider: generated.provider,
-      providerFallbackReason: generated.fallbackReason,
-      model: generated.model,
-      runtimeState: "ready" as const,
-      nextStep: documents.length ? "Review the answer and ask a follow-up if needed." : "Try a more specific question or add more private info."
-      }
+      manifest,
+      tools
     });
+    return persist(branch.result, branch.step);
   }
 
   if (intent === "action") {
-    if (!tools.has("action.execute")) {
-      return withPersistedConversation({
-        userId: input.userId,
-        agent,
-        message,
-        result: {
-        status: "blocked" as const,
-        intent,
-        reply: `${agent.name} cannot take actions. It can only help with information lookup.`,
-        reason: "action.execute is not enabled for this agent.",
-        runtimeState: "blocked" as const,
-        nextStep: "Use this agent for questions only, or add an action-capable agent."
-        }
-      });
-    }
-
-    const actionName = getRequestedAction(message, manifest.highRiskActions ?? []);
-    if (isHighRiskAction(actionName) || (manifest.highRiskActions ?? []).includes(actionName)) {
-      const request = await createHitlRequest({
-        userId: input.userId,
-        agentId: agent.id,
-        actionName,
-        payload: { message, source: "agent_runtime" }
-      });
-      return withPersistedConversation({
-        userId: input.userId,
-        agent,
-        message,
-        result: {
-        status: "awaiting_human_approval" as const,
-        intent,
-        reply: `${agent.name} paused this action and sent it to you for approval.`,
-        runtimeState: "needs_approval" as const,
-        nextStep: "Approve or deny this action before the agent continues.",
-        actionName,
-        requestId: request.id
-        }
-      });
-    }
-
-    const decision = await evaluateVaultPermission({
+    const branch = await runActionIntent({
       userId: input.userId,
-      agentId: agent.id,
-      permissionType: "execute_action"
+      agent: runtimeAgent,
+      agentRunId: agentRun.id,
+      message,
+      manifest,
+      tools
     });
-    await logDecision({
-      userId: input.userId,
-      agentId: agent.id,
-      actionType: "execution_triggered",
-      decision,
-      dataAccessed: actionName,
-      metadata: { message, source: "agent_runtime" }
-    });
-    const result = decision.allowed
-      ? {
-        status: "ok" as const,
-        intent,
-        reply: `${agent.name} completed the allowed action: ${actionName.replace(/_/g, " ")}.`,
-        actionName,
-        runtimeState: "ready" as const,
-        nextStep: "Check the activity log for the recorded action."
-      }
-      : {
-        status: "blocked" as const,
-        intent,
-        reply: `${agent.name} is not allowed to do that yet.`,
-        reason: decision.reason,
-        actionName,
-        runtimeState: "blocked" as const,
-        nextStep: "Review this agent's action permissions before trying again."
-      };
-    return withPersistedConversation({ userId: input.userId, agent, message, result });
+    return persist(branch.result, branch.step);
   }
 
-  return withPersistedConversation({
-    userId: input.userId,
-    agent,
-    message,
-    result: {
-    status: "blocked" as const,
+  const result: RuntimeResult = {
+    status: "blocked",
     intent,
     reply: "Please ask a clear question or action.",
     reason: "Empty message.",
-    runtimeState: "blocked" as const,
+    runtimeState: "blocked",
     nextStep: "Type a question or an action request for this agent."
-    }
+  };
+  return persist(result, {
+    title: "Classify request",
+    input: { message },
+    error: "No supported intent found."
   });
 }

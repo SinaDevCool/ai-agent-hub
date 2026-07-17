@@ -1,8 +1,11 @@
 export function friendlyToolName(tool: string) {
   const labels: Record<string, string> = {
     "action.execute": "Take actions",
+    "calendar.find_free_time": "Find free calendar time",
     "calendar.read": "Read calendar",
     "email.draft": "Draft email",
+    "email.draft_reply": "Create Gmail draft",
+    "email.search": "Search Gmail",
     "vault.search": "Read personal info",
     "web.fetch": "Browse the web"
   };

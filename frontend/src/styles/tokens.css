@@ -232,8 +232,8 @@ button.danger {
   gap: 2px;
   height: auto;
   justify-items: start;
-  min-height: 30px;
-  padding: 5px 8px;
+  min-height: 38px;
+  padding: 7px 8px;
 }
 
 .nav-sublist button:hover {

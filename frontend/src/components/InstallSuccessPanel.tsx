@@ -29,9 +29,9 @@ export function InstallSuccessPanel({ install, onDismiss, onFindAnother, onRevie
   return (
     <section className="panel install-success-panel" aria-label={`${install.displayName} next steps`} aria-live="polite">
       <div className="install-success-copy">
-        <div className="panel-title">Agent Added</div>
+        <div className="panel-title">Agent added</div>
         <h2><Bot aria-hidden="true" size={20} /> {install.displayName}</h2>
-        <p>{hasPrivateInfo ? "It is ready. You decide which private info it can use." : "It is ready to use now."}</p>
+        <p>{hasPrivateInfo ? "It is in My Agents. You decide which private info it can use." : "It is ready to use now."}</p>
       </div>
 
       <div className="install-success-summary" aria-label="Agent access summary">

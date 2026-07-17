@@ -11,7 +11,6 @@ type NavShortcut = {
 export function AppShell(props: {
   activeSection: SectionId;
   agentPoolShortcuts?: NavShortcut[];
-  agentShortcuts?: NavShortcut[];
   canUseCreatorTools: boolean;
   canModerateMarketplace: boolean;
   children: ReactNode;
@@ -19,7 +18,6 @@ export function AppShell(props: {
   heading: SectionHeading;
   onAddPrivateInfo: () => void;
   onOpenAgentPoolNeed?: (needId: string) => void;
-  onOpenAgentShortcut?: (agentId: string) => void;
   onOpenAgentPool: () => void;
   onNavigate: (section: SectionId) => void;
   onSignOut?: () => void;
@@ -52,16 +50,6 @@ export function AppShell(props: {
                   ))}
                 </div>
               ) : null}
-              {id === "helpers" && props.agentShortcuts?.length ? (
-                <div className="nav-sublist" aria-label="My Agents shortcuts">
-                  {props.agentShortcuts.slice(0, 5).map((item) => (
-                    <button key={item.id} onClick={() => props.onOpenAgentShortcut?.(item.id)} type="button">
-                      <span>{item.label}</span>
-                      {item.meta ? <small>{item.meta}</small> : null}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
             </div>
           ))}
         </nav>
@@ -84,7 +72,7 @@ export function AppShell(props: {
             </span>
             {props.userEmail ? <span className="user-chip">{props.userEmail}</span> : null}
             {props.activeSection !== "marketplace" && props.activeSection !== "vault" ? (
-              <button className="topbar-primary" onClick={props.onOpenAgentPool} type="button"><Bot size={16} /> Agent Pool</button>
+              <button aria-label="Open Agent Pool" className="topbar-primary" onClick={props.onOpenAgentPool} type="button"><Bot size={16} /> Agent Pool</button>
             ) : null}
             {props.activeSection === "vault" ? (
               <button className="topbar-primary" onClick={props.onAddPrivateInfo} type="button"><FilePlus size={16} /> Add Private Info</button>

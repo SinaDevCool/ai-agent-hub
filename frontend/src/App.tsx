@@ -10,6 +10,7 @@ import { useAgentChat, type AgentProfileTab } from "./hooks/useAgentChat";
 import { useAgentWizard } from "./hooks/useAgentWizard";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { useCreator } from "./hooks/useCreator";
+import { useConnectors } from "./hooks/useConnectors";
 import { useCreatorAccess } from "./hooks/useCreatorAccess";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { useGuidedSetup } from "./hooks/useGuidedSetup";
@@ -19,6 +20,7 @@ import { useMarketplaceActions } from "./hooks/useMarketplaceActions";
 import { useModeration } from "./hooks/useModeration";
 import { usePermissionWorkflow } from "./hooks/usePermissionWorkflow";
 import { useVaultWorkflow } from "./hooks/useVaultWorkflow";
+import { useWorkflows } from "./hooks/useWorkflows";
 import { useWorkspaceData } from "./hooks/useWorkspaceData";
 import {
   agentCannotDo,
@@ -79,6 +81,7 @@ export function App() {
     schemas,
     documents,
     logs,
+    providerReceipts,
     hitl,
     isRefreshing,
     refreshError,
@@ -88,6 +91,8 @@ export function App() {
   const creatorAccess = useCreatorAccess({ formatError: friendlyAppError });
   const currentUser = useCurrentUser({ formatError: friendlyAppError });
   const moderation = useModeration({ formatError: friendlyAppError });
+  const connectors = useConnectors({ formatError: friendlyAppError });
+  const workflows = useWorkflows({ formatError: friendlyAppError });
   const {
     agentSearch,
     agentStatusFilter,
@@ -148,6 +153,7 @@ export function App() {
     setToolResult
   });
   const [confirmation, setConfirmation] = useState<ConfirmationDialog | null>(null);
+  const [confirmationError, setConfirmationError] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
   const [isMobileAgentDetailOpen, setIsMobileAgentDetailOpen] = useState(false);
   const [startupRetryMessage, setStartupRetryMessage] = useState("");
@@ -275,6 +281,8 @@ export function App() {
     void refreshWithRetry();
     void currentUser.refreshCurrentUser();
     void creatorAccess.refreshMyCreatorAccess();
+    void connectors.refreshConnectors();
+    void workflows.refreshWorkflows();
     let socket: WebSocket | null = null;
     let reconnectTimer: number | null = null;
     let reconnectAttempt = 0;
@@ -305,6 +313,19 @@ export function App() {
       socket?.close();
     };
   }, [auth.isAuthConfigured, auth.session]);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.includes("connector=")) return;
+    const queryText = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : hash.replace(/^#/, "");
+    const params = new URLSearchParams(queryText);
+    const status = params.get("connector");
+    const message = params.get("message");
+    if (message) connectors.setMessage(decodeURIComponent(message));
+    if (status === "success") void connectors.refreshConnectors();
+    window.history.replaceState(null, "", window.location.pathname + window.location.search + "#settings");
+    scrollToSection("settings");
+  }, []);
 
   useEffect(() => {
     if (!canUseCreatorTools) return;
@@ -478,9 +499,14 @@ export function App() {
     () => logs.filter((log) => log.agent?.id === selectedAgent?.id).slice(0, 8),
     [logs, selectedAgent?.id]
   );
+  const selectedAgentProviderReceipts = useMemo(
+    () => providerReceipts.filter((receipt) => receipt.agentId === selectedAgent?.id).slice(0, 4),
+    [providerReceipts, selectedAgent?.id]
+  );
   const visibleApprovals = hitl.slice(0, 3);
   const visibleDocuments = documents.slice(0, 5);
   const recentLogs = logs.slice(0, 6);
+  const recentProviderReceipts = providerReceipts.slice(0, 6);
   const setupSteps = [
     {
       label: "Pick an agent",
@@ -556,10 +582,15 @@ export function App() {
 
   async function runConfirmation() {
     if (!confirmation) return;
+    setConfirmationError("");
     setIsConfirming(true);
     try {
       await confirmation.onConfirm();
       setConfirmation(null);
+    } catch (error) {
+      const message = friendlyAppError(error);
+      setConfirmationError(message);
+      setToolResult(message);
     } finally {
       setIsConfirming(false);
     }
@@ -585,27 +616,20 @@ export function App() {
     <AppShell
       activeSection={activeSection}
       agentPoolShortcuts={marketplaceNeedOptions.slice(0, 5).map((need) => ({ id: need.id, label: need.title }))}
-      agentShortcuts={visibleInstalledAgentCards.slice(0, 5).map(({ agent, readiness: agentReadinessState }) => ({
-        id: agent.id,
-        label: agent.name,
-        meta: agentReadinessState.label
-      }))}
       canModerateMarketplace={canModerateMarketplace}
       canUseCreatorTools={canUseCreatorTools}
       connectionState={connectionState}
       heading={heading}
-      onAddPrivateInfo={() => setIsAddingVaultItem((current) => !current)}
+      onAddPrivateInfo={() => {
+        setIsAddingVaultItem(true);
+        scrollToSection("vault");
+      }}
       onOpenAgentPoolNeed={(needId) => {
         const need = marketplaceNeedOptions.find((item) => item.id === needId);
         clearMarketplaceNeedContext();
         setMarketplaceCategory(need?.category ?? "All");
         setMarketplaceSearch(need?.query ?? "");
         scrollToSection("marketplace");
-      }}
-      onOpenAgentShortcut={(agentId) => {
-        setSelectedAgentId(agentId);
-        setAgentProfileTab("chat");
-        scrollToSection("helpers");
       }}
       onOpenAgentPool={() => openMarketplace()}
       onNavigate={scrollToSection}
@@ -647,7 +671,9 @@ export function App() {
             createVaultItem,
             createVaultItemError,
             creator,
+            connectors,
             creatorAccess,
+            workflows,
             decidingApprovalId,
             decideHitl,
             deleteVaultItem,
@@ -734,12 +760,14 @@ export function App() {
             permissionReview,
             pinnedAgentIds,
             primarySetupLabel,
+            providerReceipts,
             prioritizedMarketplaceAgents,
             prioritizedMarketplaceMatches,
             promptPreview,
             readiness,
             recentInstall,
             recentLogs,
+            recentProviderReceipts,
             refresh,
             refreshError,
             refreshWithRetry,
@@ -764,6 +792,7 @@ export function App() {
             selectedAgent,
             selectedAgentApprovals,
             selectedAgentLogs,
+            selectedAgentProviderReceipts,
             selectedCannotDoLabel,
             selectedAgentToolsLabel,
             selectedMarketplaceAgent,
@@ -827,6 +856,7 @@ export function App() {
         />
         <AppDialogs
           confirmation={confirmation}
+          confirmationError={confirmationError}
           confirmInstallAgent={confirmInstallAgent}
           confirmMarketplaceInstall={confirmMarketplaceInstall}
           friendlyActionName={friendlyActionName}
@@ -843,7 +873,10 @@ export function App() {
           scrollToSection={scrollToSection}
           setAgentProfileTab={setAgentProfileTab}
           setConfirmInstallAgent={setConfirmInstallAgent}
-          setConfirmation={setConfirmation}
+          setConfirmation={(nextConfirmation) => {
+            setConfirmationError("");
+            setConfirmation(nextConfirmation);
+          }}
           setMarketplaceDetailAgent={setMarketplaceDetailAgent}
           setSelectedAgentId={setSelectedAgentId}
         />    </AppShell>

@@ -447,7 +447,8 @@ test("expired approvals cannot be decided and approved actions cannot be continu
     agentId: agent.id,
     message: "continue approved action: transfer funds"
   });
-  assert.equal(firstContinuation.status, "ok");
+  assert.equal(firstContinuation.status, "blocked");
+  assert.match(firstContinuation.reason ?? "", /cannot be continued safely/i);
 
   const secondContinuation = await runAgentForUser({
     userId: user.id,

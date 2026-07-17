@@ -18,7 +18,7 @@
 
 .installed-agent-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .agent-list-controls {
@@ -28,6 +28,7 @@
 
 .mobile-copy,
 .mobile-agent-attention,
+.mobile-agent-filter-label,
 .mobile-agent-status-chips {
   display: none;
 }
@@ -133,8 +134,8 @@
   border: 1px solid rgba(137, 163, 196, 0.1);
   border-radius: 7px;
   display: grid;
-  gap: 8px;
-  padding: 9px;
+  gap: 10px;
+  padding: 11px;
   min-width: 0;
 }
 
@@ -159,12 +160,17 @@
   text-align: left;
 }
 
+.installed-agent-card .agent-row:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
 .pin-button {
   border-radius: 999px;
-  height: 32px;
-  min-height: 32px;
+  height: 36px;
+  min-height: 36px;
   padding: 0;
-  width: 32px;
+  width: 36px;
 }
 
 .pin-button.selected {
@@ -182,7 +188,7 @@
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 9px;
 }
 
 .installed-agent-status small {
@@ -216,7 +222,7 @@
 }
 
 .agent-list-footer button {
-  min-height: 32px;
+  min-height: 36px;
   padding-inline: 10px;
 }
 
@@ -305,7 +311,7 @@
 
 .agent-use-shell {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .agent-use-header {
@@ -313,6 +319,11 @@
   display: flex;
   gap: 16px;
   justify-content: space-between;
+}
+
+.agent-use-header > div {
+  display: grid;
+  gap: 5px;
 }
 
 .agent-use-header p,
@@ -332,11 +343,18 @@
 }
 
 .agent-profile-tabs button {
+  align-items: center;
   background: transparent;
   border-color: transparent;
   color: #a9bbcf;
+  display: inline-flex;
   flex: 1;
+  justify-content: center;
   min-height: 38px;
+}
+
+.mobile-tab-label {
+  display: none;
 }
 
 .agent-profile-tabs button.active,
@@ -384,9 +402,20 @@
   border: 1px solid rgba(137, 163, 196, 0.1);
   border-radius: 7px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
   grid-template-columns: minmax(0, 1fr) auto;
-  padding: 10px;
+  padding: 12px;
+}
+
+.agent-quick-summary div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agent-quick-summary strong {
+  color: #f5f9ff;
+  font-size: 13px;
 }
 
 .agent-quick-summary span {
@@ -397,6 +426,11 @@
 }
 
 .agent-summary-mobile {
+  display: none;
+}
+
+.agent-summary-mobile-note,
+.agent-mobile-summary-action {
   display: none;
 }
 
@@ -412,7 +446,7 @@
   align-items: start;
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.38fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .agent-use-grid.is-tab-hidden {
@@ -433,8 +467,7 @@
 }
 
 .agent-side-panel {
-  display: grid;
-  gap: 12px;
+  display: none;
 }
 
 .agent-status-card,
@@ -757,11 +790,7 @@
 
 @media (min-width: 901px) {
   .agent-use-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.28fr);
-  }
-
-  .agent-side-panel .agent-activity-card {
-    display: none;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .agent-chat-panel {
@@ -769,8 +798,8 @@
   }
 
   .installed-agent-card {
-    gap: 7px;
-    padding: 8px;
+    gap: 10px;
+    padding: 11px;
   }
 
   .installed-agent-status small {

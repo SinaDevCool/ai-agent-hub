@@ -12,9 +12,9 @@ export function InstallConfirmDialog(props: {
   return (
     <div className="confirm-backdrop" role="presentation">
       <section aria-describedby="install-dialog-copy" aria-labelledby="install-dialog-title" aria-modal="true" className="confirm-dialog install-confirm-dialog" role="dialog">
-        <div className="panel-title">Add Agent</div>
+        <div className="panel-title">Add to My Agents</div>
         <h2 id="install-dialog-title">Add {props.agent.name}?</h2>
-        <p id="install-dialog-copy">This agent will be added to your profile. It cannot read private info until you allow it.</p>
+        <p id="install-dialog-copy">This agent will appear in My Agents. It cannot read private info until you allow it.</p>
         <div className="install-review-grid">
           <div><strong>Best for</strong><span>{props.agent.tagline || props.agent.description}</span></div>
           <div><strong>Needs access to</strong><span>{manifest?.requestedSchemas?.join(", ") || "No private info"}</span></div>

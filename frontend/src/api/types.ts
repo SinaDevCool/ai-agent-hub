@@ -207,10 +207,23 @@ export type ActivityLog = {
   status: string;
   dataAccessed?: string;
   dynamicMetadata?: Record<string, unknown>;
+  display?: RuntimeActivityDisplay;
   hash: string;
   previousHash?: string;
   createdAt: string;
   agent?: Agent | null;
+};
+
+export type RuntimeActivityDisplay = {
+  title: string;
+  summary: string;
+  badge: string;
+  category: "private_info" | "approval" | "provider" | "agent_management" | "system";
+  nextStep?: string;
+  agentName?: string;
+  privateInfoUsed: string[];
+  externalService?: string;
+  approvalStatus?: "waiting" | "allowed" | "denied";
 };
 
 export type HitlRequest = {
@@ -228,8 +241,21 @@ export type AgentMessage = {
   content: string;
   status?: "success" | "blocked_by_policy" | "pending_human_approval" | "error" | null;
   intent?: string | null;
-  metadata: Record<string, unknown>;
+  metadata: AgentMessageMetadata;
   createdAt: string;
+};
+
+export type AgentMessageMetadata = Record<string, unknown> & {
+  display?: ChatMessageDisplay;
+};
+
+export type ChatMessageDisplay = {
+  title: string;
+  body: string;
+  badge: string;
+  tone: "blue" | "amber" | "green" | "red";
+  category: "answer" | "permission" | "approval" | "provider" | "workflow" | "system";
+  nextStep?: string;
 };
 
 export type AgentConversation = {
@@ -243,8 +269,9 @@ export type AgentConversation = {
 
 export type AgentRunResult = {
   status: "ok" | "blocked" | "awaiting_human_approval";
-  intent: "search" | "action" | "blocked";
+  intent: "search" | "action" | "workflow" | "email_search" | "email_draft" | "calendar_free_time" | "blocked";
   reply: string;
+  display?: ChatMessageDisplay;
   reason?: string;
   runtimeState?: "ready" | "needs_permission" | "needs_approval" | "blocked" | "failed";
   nextStep?: string;
@@ -254,9 +281,11 @@ export type AgentRunResult = {
   usedSchemas?: string[];
   documents?: VaultDocument[];
   conversation?: AgentConversation;
-  provider?: "openai" | "local";
+  provider?: "openai" | "local" | "workflow";
   model?: string;
   providerFallbackReason?: string;
+  workflowResult?: WorkflowResultCard;
+  providerReceipt?: ProviderReceipt;
   externalRuntime?: {
     source: "external_agent_runtime";
     sourceType: "mcp_server" | "openapi_endpoint";
@@ -266,3 +295,156 @@ export type AgentRunResult = {
     blockedReason?: string;
   };
 };
+
+export type WorkflowResultItem = {
+  title: string;
+  subtitle?: string;
+  detail?: string;
+  price?: string;
+  url?: string;
+  metadata?: Record<string, string>;
+};
+
+export type WorkflowResultAction = {
+  label: string;
+  url?: string;
+  value?: string;
+};
+
+export type WorkflowResultCard = {
+  status: "ok" | "failed";
+  quality: "complete" | "partial" | "empty" | "malformed";
+  title: string;
+  summary: string;
+  items: WorkflowResultItem[];
+  nextActions: WorkflowResultAction[];
+  receipt: {
+    workflowConnectionId: string;
+    workflowName: string;
+    capabilityKey: string;
+    capabilityLabel: string;
+    provider: string;
+    endpointHost: string;
+    providerStatus?: number;
+    externalRequestId?: string;
+  };
+};
+
+export type ProviderReceiptDisplay = {
+  title: string;
+  summary: string;
+  badge: string;
+  category: "provider";
+  agentName: string;
+  externalService: string;
+  nextStep?: string | null;
+  itemCount?: number;
+};
+
+export type ProviderReceipt = {
+  id: string;
+  agentId: string;
+  agentName: string;
+  providerId: string;
+  providerLabel: string;
+  capabilityKey: string;
+  capabilityLabel: string;
+  action: string;
+  status: "succeeded" | "blocked" | "waiting_for_approval";
+  approvalRequired: boolean;
+  hitlRequestId: string | null;
+  resultQuality: string | null;
+  userMessage: string;
+  retryable: boolean;
+  nextAction: string | null;
+  itemCount: number;
+  externalRequestId: string | null;
+  endpointHost: string | null;
+  metadata: Record<string, unknown>;
+  display?: ProviderReceiptDisplay;
+  createdAt: string;
+};
+
+export type ConnectedAccount = {
+  id: string;
+  provider: string;
+  accountLabel: string;
+  scopes: string[];
+  expiresAt: string | null;
+  status: "active" | "expired" | "revoked" | "error";
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ConnectorStartResponse = {
+  status: "ready" | "not_configured" | "unsupported";
+  provider: string;
+  authorizationUrl: string | null;
+  scopes?: string[];
+  missing?: string[];
+  message: string;
+};
+
+export type WorkflowConnectionStatus = "draft" | "active" | "failed" | "disabled";
+
+export type WorkflowProvider = "n8n" | "make" | "zapier" | "custom";
+
+export type WorkflowConnection = {
+  id: string;
+  userId: string;
+  agentId: string | null;
+  toolName: string;
+  capabilityKey: string;
+  capability: WorkflowCapability | null;
+  description: string;
+  name: string;
+  provider: WorkflowProvider;
+  endpointUrl: string;
+  status: WorkflowConnectionStatus;
+  lastTestedAt: string | null;
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastFailureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WorkflowConnectionInput = {
+  name: string;
+  provider: WorkflowProvider;
+  endpointUrl: string;
+  agentId?: string | null;
+  toolName?: string;
+  capabilityKey?: string;
+  description?: string;
+};
+
+export type WorkflowCapability = {
+  key: string;
+  label: string;
+  category: string;
+  description: string;
+  contract: {
+    receives: Record<string, unknown>;
+    returns: Record<string, unknown>;
+    requiredFields: string[];
+    optionalFields: string[];
+    outputKeys: string[];
+    tips: string[];
+  };
+};
+
+export type WorkflowCreateResponse = {
+  workflow: WorkflowConnection;
+  signingSecret: string;
+  setup: {
+    signatureHeader: string;
+    timestampHeader: string;
+    workflowIdHeader: string;
+  };
+};
+
+export type WorkflowTestResponse =
+  | { ok: true; workflow: WorkflowConnection | null; result: Record<string, unknown> & { workflowResult?: WorkflowResultCard } }
+  | { ok: false; workflow: WorkflowConnection | null; reason: string };

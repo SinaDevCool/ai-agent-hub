@@ -32,6 +32,7 @@ export function MarketplaceAgentCard(props: MarketplaceAgentCardProps) {
     selectedMarketplaceAgent
   } = props;
   const installedAgent = install?.agent ?? undefined;
+  const primarySafetyBadge = safetyBadges(agent)[0] ?? "Starts restricted";
 
   return (
     <article className={agent.id === selectedMarketplaceAgent?.id ? "marketplace-card selected" : `marketplace-card${alreadyInstalled ? " installed" : ""}`} key={agent.id}>
@@ -44,15 +45,13 @@ export function MarketplaceAgentCard(props: MarketplaceAgentCardProps) {
       </div>
       <p>{agentValueLine(agent)}</p>
       <div className="match-summary-row" aria-label={`${agent.name} match summary`}>
-        <strong>{alreadyInstalled ? "Ready to use" : matchLabel(match, index)}</strong>
-        <span>{alreadyInstalled ? "This agent is already set up in My Agents." : agentDecisionReason(match, index)}</span>
-      </div>
-      <div className="marketplace-safety-badges" aria-label={`${agent.name} safety summary`}>
-        {safetyBadges(agent).slice(0, 2).map((badge) => <span key={badge}>{badge}</span>)}
+        <strong>{primarySafetyBadge}</strong>
+        <span>{alreadyInstalled ? "Already added to My Agents." : agentDecisionReason(match, index)}</span>
       </div>
       <div className="marketplace-card-actions">
-        <button className="marketplace-card-detail-action" onClick={() => onOpenDetails(agent)} type="button">View Agent</button>
+        <button aria-label={`View details for ${agent.name}`} className="marketplace-card-detail-action" onClick={() => onOpenDetails(agent)} type="button">View details</button>
         <button
+          aria-label={alreadyInstalled ? `Open ${agent.name}` : `Add ${agent.name}`}
           className="primary-action marketplace-card-install-action"
           disabled={(alreadyInstalled && !installedAgent) || installingAgentId === agent.id}
           onClick={() => {
@@ -65,7 +64,7 @@ export function MarketplaceAgentCard(props: MarketplaceAgentCardProps) {
           type="button"
         >
           {alreadyInstalled ? <MessageSquare size={16} /> : <Download size={16} />}
-          {alreadyInstalled ? "Open Agent" : installingAgentId === agent.id ? "Adding…" : "Add Agent"}
+          {alreadyInstalled ? "Open agent" : installingAgentId === agent.id ? "Adding…" : "Add Agent"}
         </button>
       </div>
     </article>

@@ -15,6 +15,10 @@ export function friendlyTrustLabel(score: number) {
   return "Safety reviewed";
 }
 
+export function agentDisplayName(name: string) {
+  return name.replace(/\bHelpers\b/g, "Agents").replace(/\bHelper\b/g, "Agent").replace(/\bhelpers\b/g, "agents").replace(/\bhelper\b/g, "agent");
+}
+
 export function approvalReason(action: string) {
   const lower = action.toLowerCase();
   if (/book|reserve|travel/.test(lower)) return "This may spend money or create a non-refundable booking.";
@@ -34,7 +38,7 @@ export function agentCannotDo(agent: Agent | undefined) {
   if (agent.capabilityManifest.highRiskActions?.length) {
     rules.push("Continue risky actions until you approve them");
   }
-  if (!agent.capabilityManifest.tools?.includes("email.draft")) {
+  if (!agent.capabilityManifest.tools?.some((tool) => tool === "email.draft" || tool === "email.draft_reply")) {
     rules.push("Send emails from your account");
   }
   if (!agent.capabilityManifest.tools?.includes("action.execute")) {
@@ -78,6 +82,12 @@ export function agentReadiness(agent: Agent | undefined, missingCount: number, p
 
 export function promptSuggestions(agent: Agent | undefined): HelperPrompt[] {
   const category = agent?.category.toLowerCase() ?? "";
+  const tools = agent?.capabilityManifest.tools ?? [];
+  if (tools.includes("email.search") || tools.includes("email.draft_reply") || tools.includes("email.draft")) return [
+    { label: "Search inbox", prompt: "Find recent emails about travel", detail: "Uses Gmail if connected.", tone: "info" },
+    { label: "Draft safely", prompt: "Draft an email to name@example.com saying I will follow up tomorrow", detail: "Creates a draft only.", tone: "safe" },
+    { label: "Check schedule", prompt: "When am I free this week?", detail: "Checks calendar if enabled.", tone: "info" }
+  ];
   if (category.includes("travel")) return [
     { label: "Check my preferences", prompt: "What travel preferences do you know about me?", detail: "Reads only approved travel notes.", tone: "info" },
     { label: "Plan safely", prompt: "Plan a weekend trip using my saved preferences", detail: "Uses saved info, no booking yet.", tone: "safe" },

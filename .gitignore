@@ -13,6 +13,7 @@ coverage
 test-results
 playwright-report
 logs
+.codex-run-logs/
 *.log
 *.tsbuildinfo
 dashboard-*.png

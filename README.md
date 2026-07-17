@@ -54,6 +54,12 @@ To create a new committed PostgreSQL migration after changing the production sch
 npm --workspace backend-core run db:migration:create:postgres
 ```
 
+Backend tests use the already-generated Prisma client so Windows does not try to rewrite the Prisma engine DLL during every test run. After changing a Prisma schema, regenerate explicitly before testing:
+
+```bash
+npm --workspace backend-core run test:with-generate
+```
+
 Marketplace seed data should be run manually and deliberately:
 
 ```bash

@@ -91,6 +91,8 @@ test("serializeVaultDocument decodes frontmatter, embedding, and nested schema",
 test("serializeActivityLog and serializeHitlRequest decode nested runtime payloads", () => {
   const activity = serializeActivityLog({
     id: "activity-1",
+    actionType: "hitl_requested",
+    status: "pending_human_approval",
     dynamicMetadata: encodeJson({ requestId: "request-1" }),
     agent: {
       id: "agent-1",

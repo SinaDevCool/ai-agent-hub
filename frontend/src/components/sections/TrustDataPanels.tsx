@@ -14,7 +14,9 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
     auth,
     beginEditVaultItem,
     canUseCreatorTools,
+    connectors,
     creatorAccess,
+    workflows,
     decidingApprovalId,
     decideHitl,
     deleteVaultItem,
@@ -28,7 +30,9 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
     isSearchingVault,
     logs,
     permissionCenterRows,
+    providerReceipts,
     recentLogs,
+    recentProviderReceipts,
     reindexVault,
     revokeAllAgentAccess,
     schemas,
@@ -56,7 +60,10 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         allowedPermissionCount={props.allowedPermissionCount}
         approvalCount={hitl.length}
         className={`panel clearance-panel mobile-section desktop-section ${activeMobileClass("clearance")} ${sectionClass("clearance")}`}
-        onAddPrivateInfo={() => setIsAddingVaultItem(true)}
+        onAddPrivateInfo={() => {
+          setIsAddingVaultItem(true);
+          scrollToSection("vault");
+        }}
         onTogglePermission={togglePermission}
         permissionCenterRows={permissionCenterRows}
         selectedAgent={selectedAgent}
@@ -89,8 +96,9 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         friendlyLogDetail={friendlyLogDetail}
         friendlyLogText={friendlyLogText}
         friendlyNotificationText={friendlyNotificationText}
-        logsCount={logs.length}
+        logsCount={logs.length + providerReceipts.length}
         onUseAgent={() => scrollToSection("helpers")}
+        providerReceipts={recentProviderReceipts}
         recentLogs={recentLogs}
       />
 
@@ -134,9 +142,15 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         creatorAccessError={creatorAccess.error}
         creatorAccessReason={creatorAccess.reason}
         creatorAccessRequest={creatorAccess.request}
+        connectedAccounts={connectors.accounts}
+        connectorError={connectors.error}
+        connectorMessage={connectors.message}
         agentCount={agents.length}
+        isConnectorSaving={connectors.isSaving}
         isCreatorAccessSaving={creatorAccess.isSaving}
+        onConnectGoogle={connectors.connectGoogle}
         onCreatorAccessReasonChange={creatorAccess.setReason}
+        onDisconnectConnector={connectors.disconnectAccount}
         onExportData={exportMyData}
         onManageAccess={() => scrollToSection("clearance")}
         onOpenCreator={() => scrollToSection("creator")}
@@ -145,6 +159,8 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         onSignOut={auth.session ? () => void auth.signOut() : undefined}
         privateInfoCount={documents.length}
         userEmail={auth.session?.user.email ?? "Local development user"}
+        visibleAgents={agents}
+        workflows={workflows}
       />
     </>
   );

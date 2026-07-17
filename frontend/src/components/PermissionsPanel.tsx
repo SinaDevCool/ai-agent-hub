@@ -61,6 +61,13 @@ export function PermissionsPanel(props: PermissionsPanelProps) {
           <small>{allowedSummary}</small>
           {requestSummary ? <small>{requestSummary}</small> : null}
         </div>
+        <button
+          aria-label={`${granted ? "Remove access to" : "Allow access to"} ${schema.name} for ${selectedAgent?.name ?? "this agent"}`}
+          onClick={() => void onTogglePermission(schema, !granted)}
+          type="button"
+        >
+          {granted ? "Remove access" : selectedRequestsThis ? "Allow access" : "Allow"}
+        </button>
       </div>
     );
   }

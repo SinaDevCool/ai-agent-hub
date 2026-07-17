@@ -41,6 +41,7 @@ export function SelectedAgentProfileSection({ props }: { props: WorkspaceSection
     selectedAgent,
     selectedAgentApprovals,
     selectedAgentLogs,
+    selectedAgentProviderReceipts,
     selectedCannotDoLabel,
     selectedAgentToolsLabel,
     selectedReadableInfo,
@@ -99,6 +100,7 @@ export function SelectedAgentProfileSection({ props }: { props: WorkspaceSection
       selectedAgent={selectedAgent}
       selectedAgentApprovals={selectedAgentApprovals}
       selectedAgentLogs={selectedAgentLogs}
+      selectedAgentProviderReceipts={selectedAgentProviderReceipts}
       selectedCannotDoLabel={selectedCannotDoLabel}
       selectedAgentToolsLabel={selectedAgentToolsLabel}
       selectedReadableInfo={selectedReadableInfo}

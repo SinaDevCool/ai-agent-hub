@@ -83,33 +83,80 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
   const resultSource = hasDiscoveryResults ? discoveryMarketplaceMatches : installedMarketplaceMatches;
   const defaultResultLimit = props.marketplaceSearch.trim() || props.marketplaceCategory !== "All" ? 6 : 3;
   const cardMatches = resultSource.slice(0, isShowingMoreResults ? 6 : defaultResultLimit);
+  const hasActiveSearch = Boolean(props.marketplaceSearch.trim());
+  const resultHeading = hasActiveSearch
+    ? `Recommended for "${props.marketplaceSearch.trim()}"`
+    : props.marketplaceCategory !== "All"
+      ? `Recommended for ${props.marketplaceCategory}`
+      : "Recommended Agents";
+  const resultContext = hasDiscoveryResults ? "Agents you have not added yet." : "Agents already in your hub.";
+  const resultCountLabel = `${resultSource.length} ${resultSource.length === 1 ? "result" : "results"}`;
 
   return (
     <div className={props.className}>
       <div className="panel-heading-row">
         <div>
-          <div className="panel-title">Agent Pool</div>
+          <div className="panel-title">Find agents</div>
           <p className="mobile-section-intro">Choose what you need. Agents start restricted, and you decide what private info they can read.</p>
         </div>
         <div className="marketplace-heading-actions">
-          <StatusPill tone="blue">{props.installedCount} installed</StatusPill>
+          <StatusPill tone="blue">{props.installedCount} {props.installedCount === 1 ? "agent" : "agents"} added</StatusPill>
           <button className="marketplace-mobile-exit" onClick={props.onBackToAgents} type="button">Back to My Agents</button>
         </div>
       </div>
 
       <MarketplaceNeedBanner selectedNeedContext={props.selectedNeedContext} onClearNeedContext={props.onClearNeedContext} />
 
-      <MarketplaceSearchControls
-        isMoreNeedsOpen={isMoreNeedsOpen}
-        marketplaceCategory={props.marketplaceCategory}
-        marketplaceCategoryOptions={props.marketplaceCategoryOptions}
-        marketplaceNeedOptions={props.marketplaceNeedOptions}
-        marketplaceSearch={props.marketplaceSearch}
-        setIsMoreNeedsOpen={setIsMoreNeedsOpen}
-        setMarketplaceCategory={props.setMarketplaceCategory}
-        setMarketplaceSearch={props.setMarketplaceSearch}
-        setMatcherNeedId={props.setMatcherNeedId}
-      />
+      <section className="marketplace-discovery-card" aria-label="Find agents">
+        <MarketplaceSearchControls
+          isMoreNeedsOpen={isMoreNeedsOpen}
+          marketplaceCategory={props.marketplaceCategory}
+          marketplaceCategoryOptions={props.marketplaceCategoryOptions}
+          marketplaceNeedOptions={props.marketplaceNeedOptions}
+          marketplaceSearch={props.marketplaceSearch}
+          setIsMoreNeedsOpen={setIsMoreNeedsOpen}
+          setMarketplaceCategory={props.setMarketplaceCategory}
+          setMarketplaceSearch={props.setMarketplaceSearch}
+          setMatcherNeedId={props.setMatcherNeedId}
+        />
+
+        <div className="marketplace-assist-row" aria-label="Agent pool tools">
+          <button aria-expanded={isMatcherOpen} onClick={() => setIsMatcherOpen((current) => !current)} type="button">
+            <Search size={16} /> Help me choose
+          </button>
+          <button className="secondary-subtle-action" aria-expanded={isMoreOptionsOpen} onClick={() => setIsMoreOptionsOpen((current) => !current)} type="button">
+            <SlidersHorizontal size={16} /> More filters
+          </button>
+        </div>
+
+        {isMatcherOpen ? (
+          <MarketplaceMatcher
+            matcherActions={props.matcherActions}
+            matcherNeedId={props.matcherNeedId}
+            matcherPrivateInfo={props.matcherPrivateInfo}
+            marketplaceNeedOptions={props.marketplaceNeedOptions}
+            onApplyMatcher={props.onApplyMatcher}
+            setMatcherActions={props.setMatcherActions}
+            setMatcherNeedId={props.setMatcherNeedId}
+            setMatcherPrivateInfo={props.setMatcherPrivateInfo}
+          />
+        ) : null}
+
+        {isMoreOptionsOpen ? (
+          <MarketplaceOptionsPanel
+            canUseCreatorTools={props.canUseCreatorTools}
+            externalImportSlot={props.canUseCreatorTools ? props.externalImportSlot : undefined}
+            isImportOpen={isImportOpen}
+            marketplaceFilterLabels={props.marketplaceFilterLabels}
+            marketplaceFilters={props.marketplaceFilters}
+            onCreateCustomAgent={props.onCreateCustomAgent}
+            setIsImportOpen={setIsImportOpen}
+            setMarketplaceFilters={props.setMarketplaceFilters}
+          />
+        ) : null}
+      </section>
+
+      {props.canUseCreatorTools && isMoreOptionsOpen && isImportOpen ? props.externalImportSlot : null}
 
       <MarketplaceStatusStates
         formatError={props.formatError}
@@ -128,73 +175,47 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
         visibleMarketplaceCount={props.visibleMarketplaceCount}
       />
 
-      {installedMarketplaceMatches.length ? (
-        <button className="marketplace-added-toggle" onClick={() => setIsAddedAgentsOpen((current) => !current)} type="button">
-          {installedMarketplaceMatches.length} already added
-        </button>
-      ) : null}
+      <section className="marketplace-results-section" aria-label="Recommended agents">
+        <div className="marketplace-results-heading">
+          <div>
+            <strong>{resultHeading}</strong>
+            <span>{resultContext}</span>
+          </div>
+          <div className="marketplace-results-actions">
+            <StatusPill tone="blue">{resultCountLabel}</StatusPill>
+            {installedMarketplaceMatches.length ? (
+              <button className="marketplace-added-toggle" onClick={() => setIsAddedAgentsOpen((current) => !current)} type="button">
+                {isAddedAgentsOpen ? "Hide agents I added" : "Show agents I added"}
+              </button>
+            ) : null}
+          </div>
+        </div>
 
-      {shouldShowInstalledStrip ? (
-        <MarketplaceInstalledStrip
-          discoveryMarketplaceMatchesLength={discoveryMarketplaceMatches.length}
+        {shouldShowInstalledStrip ? (
+          <MarketplaceInstalledStrip
+            discoveryMarketplaceMatchesLength={discoveryMarketplaceMatches.length}
+            installedByDefinitionId={props.installedByDefinitionId}
+            installedMarketplaceMatches={installedMarketplaceMatches}
+            onCreateCustomAgent={props.onCreateCustomAgent}
+            canUseCreatorTools={props.canUseCreatorTools}
+            onOpenInstalledAgent={props.onOpenInstalledAgent}
+          />
+        ) : null}
+
+        <MarketplaceResults
+          cardMatches={cardMatches}
           installedByDefinitionId={props.installedByDefinitionId}
-          installedMarketplaceMatches={installedMarketplaceMatches}
-          onCreateCustomAgent={props.onCreateCustomAgent}
-          canUseCreatorTools={props.canUseCreatorTools}
+          installedDefinitionIds={props.installedDefinitionIds}
+          installingAgentId={props.installingAgentId}
+          isShowingMoreResults={isShowingMoreResults}
+          onConfirmInstall={props.onConfirmInstall}
+          onOpenDetails={props.onOpenDetails}
           onOpenInstalledAgent={props.onOpenInstalledAgent}
+          resultSourceLength={resultSource.length}
+          selectedMarketplaceAgent={props.selectedMarketplaceAgent}
+          setIsShowingMoreResults={setIsShowingMoreResults}
         />
-      ) : null}
-
-      <MarketplaceResults
-        cardMatches={cardMatches}
-        installedByDefinitionId={props.installedByDefinitionId}
-        installedDefinitionIds={props.installedDefinitionIds}
-        installingAgentId={props.installingAgentId}
-        isShowingMoreResults={isShowingMoreResults}
-        onConfirmInstall={props.onConfirmInstall}
-        onOpenDetails={props.onOpenDetails}
-        onOpenInstalledAgent={props.onOpenInstalledAgent}
-        resultSourceLength={resultSource.length}
-        selectedMarketplaceAgent={props.selectedMarketplaceAgent}
-        setIsShowingMoreResults={setIsShowingMoreResults}
-      />
-
-      <div className="marketplace-assist-row" aria-label="Agent pool tools">
-        <button aria-expanded={isMatcherOpen} onClick={() => setIsMatcherOpen((current) => !current)} type="button">
-          <Search size={16} /> Help me choose
-        </button>
-        <button className="secondary-subtle-action" aria-expanded={isMoreOptionsOpen} onClick={() => setIsMoreOptionsOpen((current) => !current)} type="button">
-          <SlidersHorizontal size={16} /> More options
-        </button>
-      </div>
-
-      {isMatcherOpen ? (
-        <MarketplaceMatcher
-          matcherActions={props.matcherActions}
-          matcherNeedId={props.matcherNeedId}
-          matcherPrivateInfo={props.matcherPrivateInfo}
-          marketplaceNeedOptions={props.marketplaceNeedOptions}
-          onApplyMatcher={props.onApplyMatcher}
-          setMatcherActions={props.setMatcherActions}
-          setMatcherNeedId={props.setMatcherNeedId}
-          setMatcherPrivateInfo={props.setMatcherPrivateInfo}
-        />
-      ) : null}
-
-      {isMoreOptionsOpen ? (
-        <MarketplaceOptionsPanel
-          canUseCreatorTools={props.canUseCreatorTools}
-          externalImportSlot={props.canUseCreatorTools ? props.externalImportSlot : undefined}
-          isImportOpen={isImportOpen}
-          marketplaceFilterLabels={props.marketplaceFilterLabels}
-          marketplaceFilters={props.marketplaceFilters}
-          onCreateCustomAgent={props.onCreateCustomAgent}
-          setIsImportOpen={setIsImportOpen}
-          setMarketplaceFilters={props.setMarketplaceFilters}
-        />
-      ) : null}
-
-      {props.canUseCreatorTools && isMoreOptionsOpen && isImportOpen ? props.externalImportSlot : null}
+      </section>
     </div>
   );
 }

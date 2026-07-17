@@ -30,9 +30,16 @@ export function MarketplaceSearchControls(props: MarketplaceSearchControlsProps)
 
   return (
     <>
+      <div className="marketplace-discovery-heading">
+        <div>
+          <strong>Find an agent</strong>
+          <span>Search by task, or pick one common need.</span>
+        </div>
+      </div>
+
       <div className="marketplace-controls">
         <label>
-          <span>What do you need help with?</span>
+          <span>Search Agents</span>
           <div className="search-input-wrap">
             <Search size={16} />
             <input
@@ -40,17 +47,22 @@ export function MarketplaceSearchControls(props: MarketplaceSearchControlsProps)
               autoComplete="off"
               name="marketplace-search"
               onChange={(event) => setMarketplaceSearch(event.currentTarget.value)}
-              placeholder="Try: I need help applying for jobs…"
+              placeholder={"Try: apply for jobs\u2026"}
               value={marketplaceSearch}
             />
           </div>
         </label>
         <label className="marketplace-category-control">
-          <span>Browse by need</span>
+          <span>Browse By Need</span>
           <select aria-label="Filter marketplace category" autoComplete="off" name="marketplace-category" onChange={(event) => setMarketplaceCategory(event.currentTarget.value)} value={marketplaceCategory}>
             {marketplaceCategoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
           </select>
         </label>
+      </div>
+
+      <div className="marketplace-need-header">
+        <strong>Popular Needs</strong>
+        <span>{isMoreNeedsOpen ? "Showing all needs." : "Start broad, then refine."}</span>
       </div>
 
       <div className="marketplace-need-row" aria-label="Common agent needs">

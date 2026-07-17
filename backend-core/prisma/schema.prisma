@@ -99,6 +99,60 @@ enum CreatorAccessRequestStatus {
   denied
 }
 
+enum ToolRunStatus {
+  queued
+  running
+  waiting_for_approval
+  succeeded
+  failed
+  blocked
+  cancelled
+}
+
+enum AgentRunStatus {
+  planning
+  running
+  waiting_for_permission
+  waiting_for_approval
+  succeeded
+  failed
+  blocked
+  cancelled
+}
+
+enum AgentRunStepType {
+  think
+  ask_user
+  request_permission
+  call_tool
+  wait_for_approval
+  summarize
+}
+
+enum ConnectedAccountStatus {
+  active
+  expired
+  revoked
+  error
+}
+
+enum WorkflowConnectionStatus {
+  draft
+  active
+  failed
+  disabled
+}
+
+enum ProviderConnectionStatus {
+  active
+  refreshing
+  expired
+  reconnect_required
+  revoked
+  error
+  disabled
+}
+
 model User {
   id                  String           @id @default(cuid())
   email               String           @unique
@@ -115,10 +169,54 @@ model User {
   hitlRequests        HitlRequest[]
   notifications       Notification[]
   conversations       AgentConversation[]
+  agentRuns           AgentRun[]
+  toolRuns            ToolRun[]
+  providerReceipts    ProviderReceipt[]
+  providerConnections ProviderConnection[]
+  providerDefinitions ProviderDefinition[]
+  connectedAccounts   ConnectedAccount[]
+  workflowConnections WorkflowConnection[]
+  agentTraces         AgentTrace[]
   creatorAccessRequests CreatorAccessRequest[] @relation("CreatorAccessRequestUser")
   reviewedCreatorAccessRequests CreatorAccessRequest[] @relation("CreatorAccessRequestReviewer")
 
   @@map("users")
+}
+
+model ProviderDefinition {
+  id                       String   @id @default(cuid())
+  providerId               String   @unique @map("provider_id")
+  label                    String
+  kind                     String
+  toolName                 String   @map("tool_name")
+  description              String   @default("")
+  capabilitiesJson         String   @default("[]") @map("capabilities_json")
+  actionsJson              String   @default("[]") @map("actions_json")
+  actionSchemasJson        String   @default("[]") @map("action_schemas_json")
+  runtimeConfigJson        String   @default("{}") @map("runtime_config_json")
+  credentialType           String   @default("none") @map("credential_type")
+  credentialFieldsJson     String   @default("[]") @map("credential_fields_json")
+  oauthConfigJson          String   @default("{}") @map("oauth_config_json")
+  authType                 String   @default("none") @map("auth_type")
+  riskLevel                String   @default("medium") @map("risk_level")
+  requiresConnectedAccount Boolean  @default(false) @map("requires_connected_account")
+  supportsHealthCheck      Boolean  @default(false) @map("supports_health_check")
+  healthStatus             String   @default("unknown") @map("health_status")
+  healthFailureCode        String?  @map("health_failure_code")
+  healthFailureMessage     String?  @map("health_failure_message")
+  healthCheckedAt          DateTime? @map("health_checked_at")
+  healthLastSuccessAt      DateTime? @map("health_last_success_at")
+  healthLastFailureAt      DateTime? @map("health_last_failure_at")
+  status                   String   @default("draft")
+  createdByUserId          String?  @map("created_by_user_id")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+  createdBy                User?    @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, kind])
+  @@index([healthStatus, healthCheckedAt])
+  @@index([createdByUserId, status])
+  @@map("provider_definitions")
 }
 
 model CreatorAccessRequest {
@@ -230,6 +328,11 @@ model Agent {
   activityLogs       ActivityLog[]
   hitlRequests       HitlRequest[]
   conversations      AgentConversation[]
+  agentRuns          AgentRun[]
+  toolRuns           ToolRun[]
+  providerReceipts   ProviderReceipt[]
+  workflowConnections WorkflowConnection[]
+  agentTraces        AgentTrace[]
 
   @@index([name])
   @@map("agents")
@@ -263,6 +366,217 @@ model AgentMessage {
 
   @@index([conversationId, createdAt])
   @@map("agent_messages")
+}
+
+model AgentRun {
+  id             String           @id @default(cuid())
+  userId         String           @map("user_id")
+  agentId        String           @map("agent_id")
+  conversationId String?          @map("conversation_id")
+  status         AgentRunStatus   @default(planning)
+  intent         String
+  userGoal       String           @map("user_goal")
+  plan           String           @default("{}")
+  result         String           @default("{}")
+  error          String?
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  completedAt    DateTime?        @map("completed_at")
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent          Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  steps          AgentRunStep[]
+  toolRuns       ToolRun[]
+  providerReceipts ProviderReceipt[]
+  traces         AgentTrace[]
+
+  @@index([userId, agentId, createdAt])
+  @@index([status, createdAt])
+  @@map("agent_runs")
+}
+
+model AgentRunStep {
+  id          String           @id @default(cuid())
+  agentRunId  String           @map("agent_run_id")
+  stepType    AgentRunStepType @map("step_type")
+  status      ToolRunStatus    @default(queued)
+  title       String
+  input       String           @default("{}")
+  output      String           @default("{}")
+  error       String?
+  toolRunId   String?          @map("tool_run_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  completedAt DateTime?        @map("completed_at")
+  agentRun    AgentRun         @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+
+  @@index([agentRunId, createdAt])
+  @@map("agent_run_steps")
+}
+
+model ToolRun {
+  id               String        @id @default(cuid())
+  userId           String        @map("user_id")
+  agentId          String        @map("agent_id")
+  agentRunId       String?       @map("agent_run_id")
+  toolName         String        @map("tool_name")
+  input            String        @default("{}")
+  status           ToolRunStatus @default(queued)
+  result           String        @default("{}")
+  error            String?
+  riskLevel        RiskLevel     @default(low) @map("risk_level")
+  requiresApproval Boolean       @default(false) @map("requires_approval")
+  hitlRequestId    String?       @map("hitl_request_id")
+  idempotencyKey   String?       @map("idempotency_key")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  startedAt        DateTime?     @map("started_at")
+  completedAt      DateTime?     @map("completed_at")
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent            Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentRun         AgentRun?     @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+  providerReceipts ProviderReceipt[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, agentId, createdAt])
+  @@index([status, createdAt])
+  @@index([toolName, createdAt])
+  @@map("tool_runs")
+}
+
+model ProviderReceipt {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  agentId           String   @map("agent_id")
+  agentRunId        String?  @map("agent_run_id")
+  toolRunId         String?  @map("tool_run_id")
+  providerId        String   @map("provider_id")
+  providerLabel     String   @map("provider_label")
+  capabilityKey     String   @map("capability_key")
+  capabilityLabel   String   @map("capability_label")
+  action            String
+  status            String
+  approvalRequired  Boolean  @default(false) @map("approval_required")
+  hitlRequestId     String?  @map("hitl_request_id")
+  resultQuality     String?  @map("result_quality")
+  userMessage       String   @map("user_message")
+  technicalMessage  String?  @map("technical_message")
+  retryable         Boolean  @default(false)
+  nextAction        String?  @map("next_action")
+  itemCount         Int      @default(0) @map("item_count")
+  externalRequestId String?  @map("external_request_id")
+  endpointHost      String?  @map("endpoint_host")
+  metadata          String   @default("{}")
+  createdAt         DateTime @default(now()) @map("created_at")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent             Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentRun          AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+  toolRun           ToolRun? @relation(fields: [toolRunId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([userId, agentId, createdAt])
+  @@index([userId, capabilityKey, createdAt])
+  @@index([toolRunId])
+  @@map("provider_receipts")
+}
+
+model ConnectedAccount {
+  id                    String                 @id @default(cuid())
+  userId                String                 @map("user_id")
+  provider              String
+  accountLabel          String                 @default("") @map("account_label")
+  scopes                String                 @default("[]")
+  encryptedAccessToken  String?                @map("encrypted_access_token")
+  encryptedRefreshToken String?                @map("encrypted_refresh_token")
+  expiresAt             DateTime?              @map("expires_at")
+  status                ConnectedAccountStatus @default(active)
+  lastError             String?                @map("last_error")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, accountLabel])
+  @@index([userId, provider, status])
+  @@map("connected_accounts")
+}
+
+model ProviderConnection {
+  id                     String                   @id @default(cuid())
+  userId                 String                   @map("user_id")
+  providerId             String                   @map("provider_id")
+  providerKind           String                   @map("provider_kind")
+  authType               String                   @map("auth_type")
+  status                 ProviderConnectionStatus @default(active)
+  displayName            String                   @default("") @map("display_name")
+  encryptedCredentials   String                   @map("encrypted_credentials")
+  credentialFingerprint  String                   @map("credential_fingerprint")
+  expiresAt              DateTime?                @map("expires_at")
+  refreshAfter           DateTime?                @map("refresh_after")
+  externalAccountId      String?                  @map("external_account_id")
+  externalAccountLabel   String?                  @map("external_account_label")
+  scopes                 String                   @default("[]")
+  metadata               String                   @default("{}")
+  lastValidatedAt        DateTime?                @map("last_validated_at")
+  lastSuccessAt          DateTime?                @map("last_success_at")
+  lastFailureAt          DateTime?                @map("last_failure_at")
+  lastFailureReason      String?                  @map("last_failure_reason")
+  createdAt              DateTime                 @default(now()) @map("created_at")
+  updatedAt              DateTime                 @updatedAt @map("updated_at")
+  user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, providerId])
+  @@index([userId, status])
+  @@map("provider_connections")
+}
+
+model WorkflowConnection {
+  id                 String                   @id @default(cuid())
+  userId             String                   @map("user_id")
+  agentId            String?                  @map("agent_id")
+  toolName           String                   @default("workflow.run") @map("tool_name")
+  capabilityKey      String                   @default("general.research") @map("capability_key")
+  description        String                   @default("")
+  name               String
+  provider           String                   @default("custom")
+  endpointUrl        String                   @map("endpoint_url")
+  encryptedSecret    String                   @map("encrypted_secret")
+  status             WorkflowConnectionStatus @default(draft)
+  lastTestedAt       DateTime?                @map("last_tested_at")
+  lastSuccessAt      DateTime?                @map("last_success_at")
+  lastFailureAt      DateTime?                @map("last_failure_at")
+  lastFailureReason  String?                  @map("last_failure_reason")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent              Agent?                   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([userId, agentId, toolName])
+  @@index([userId, capabilityKey, status])
+  @@index([userId, agentId, capabilityKey])
+  @@map("workflow_connections")
+}
+
+model AgentTrace {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  agentId        String    @map("agent_id")
+  agentRunId     String?   @map("agent_run_id")
+  provider       String
+  model          String
+  promptVersion  String    @default("runtime-v1") @map("prompt_version")
+  inputSummary   String    @default("") @map("input_summary")
+  outputSummary  String    @default("") @map("output_summary")
+  toolCalls      String    @default("[]") @map("tool_calls")
+  latencyMs      Int       @default(0) @map("latency_ms")
+  tokenUsage     String    @default("{}") @map("token_usage")
+  costUsd        Float     @default(0) @map("cost_usd")
+  failureReason  String?   @map("failure_reason")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent          Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentRun       AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+
+  @@index([userId, agentId, createdAt])
+  @@index([agentRunId])
+  @@map("agent_traces")
 }
 
 model VaultSchema {

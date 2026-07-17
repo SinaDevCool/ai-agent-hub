@@ -96,8 +96,7 @@ export function HomeSection(props: HomeSectionProps) {
       {!shouldShowOnboarding ? (
         <section className={`home-dashboard desktop-section ${sectionClass("home")}`} id="home">
           <div className="panel home-card home-primary-card">
-            <div className="panel-title">{agents.length ? "Choose Your Next Agent" : "Pick Your First Agent"}</div>
-            <h2>What do you want help with?</h2>
+            <div className="panel-title">Choose a task</div>
             <p>Pick a real-life need first. The agent pool will show agents that match the task and explain what each one may read or do.</p>
             <div className="home-category-grid starter-goal-grid" aria-label="Choose an agent need">
               {primaryOnboardingNeeds.map((need) => {
@@ -112,26 +111,23 @@ export function HomeSection(props: HomeSectionProps) {
                 );
               })}
             </div>
-            {showSetupProgress ? (
-              <>
-                <div className="setup-progress-line">
+            {showSetupProgress && agents.length === 0 ? (
+              <div className="home-how-it-works" aria-label="How AI Agent Hub works">
+                <div>
+                  <strong>How it works</strong>
                   <span>{setupProgress} of {setupSteps.length} steps complete</span>
-                  <div aria-hidden="true"><span style={{ width: `${(setupProgress / setupSteps.length) * 100}%` }} /></div>
                 </div>
-                <div className="setup-roadmap" aria-label="Setup progress">
+                <ol className="home-setup-list">
                   {setupSteps.map((step, index) => (
-                    <div className={step.done ? "setup-step done" : "setup-step"} key={step.label}>
+                    <li className={step.done ? "done" : ""} key={step.label}>
                       <span>{index + 1}</span>
-                      <div>
-                        <strong>{step.label}</strong>
-                        <small>{step.detail}</small>
-                      </div>
-                    </div>
+                      <strong>{step.label}</strong>
+                    </li>
                   ))}
-                </div>
-              </>
+                </ol>
+              </div>
             ) : null}
-            <div className="button-row">
+            <div className="home-action-row">
               <button className="primary-action" onClick={runPrimarySetupAction} type="button"><Bot size={16} /> {primarySetupLabel}</button>
               <button onClick={() => openMarketplace()} type="button"><Search size={16} /> Browse Agents</button>
               {canUseCreatorTools ? <button onClick={() => onOpenGuidedSetup()} type="button"><Bot size={16} /> Create custom agent</button> : null}
@@ -141,10 +137,10 @@ export function HomeSection(props: HomeSectionProps) {
           <div className="panel home-card home-agents-card">
             <div className="panel-heading-row">
               <div>
-                <div className="panel-title">My Agents</div>
-                <p className="home-card-intro">Open an agent you already use, or browse the pool for a better match.</p>
+                <div className="panel-title">Agents you use</div>
+                <p className="home-card-intro">Open an agent you already use.</p>
               </div>
-              {agents.length ? <span className="home-agent-count">{agents.length}</span> : null}
+              {agents.length ? <span className="home-agent-count">{agents.length} added</span> : null}
             </div>
             {visibleAgents.slice(0, 3).map((agent) => (
               <button
@@ -164,6 +160,7 @@ export function HomeSection(props: HomeSectionProps) {
               </button>
             ))}
             {agents.length === 0 ? <p className="empty">Find your first agent to get started.</p> : null}
+            {agents.length > 3 ? <button className="home-view-all-agents" onClick={() => scrollToSection("helpers")} type="button">View all {agents.length} agents</button> : null}
           </div>
 
           {pendingApproval ? (

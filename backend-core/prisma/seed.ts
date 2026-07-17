@@ -166,7 +166,7 @@ const agents: SeedAgent[] = [
     averageRating: 4.7,
     capabilityManifest: {
       protocol: "MCP",
-      tools: ["vault.search", "email.draft"],
+      tools: ["vault.search", "email.search", "email.draft_reply"],
       requestedSchemas: ["Career Profile", "Personal Identity Profile"],
       highRiskActions: ["submit_job_application", "share_personal_info", "send_email"],
       description: "Helps tailor resumes, cover letters, and application follow-ups.",
@@ -184,7 +184,7 @@ const agents: SeedAgent[] = [
     averageRating: 4.4,
     capabilityManifest: {
       protocol: "MCP",
-      tools: ["vault.search", "email.draft"],
+      tools: ["vault.search", "email.search", "email.draft_reply", "calendar.find_free_time"],
       requestedSchemas: ["Personal Identity Profile", "Career Profile"],
       highRiskActions: ["send_email", "share_personal_info"],
       description: "Drafts replies and follow-ups in your preferred tone.",
@@ -241,15 +241,17 @@ function slugify(value: string) {
 async function main() {
   const sampleUser = includeSampleUser
     ? await prisma.user.upsert({
-      where: { email: "sample.user@local.ai" },
+      where: { email: "local.user@local.ai" },
       update: { vaultLocalPath: vaultPath },
       create: {
-        email: "sample.user@local.ai",
+        id: "local-clean-user",
+        email: "local.user@local.ai",
         vaultLocalPath: vaultPath,
         vaultEncryptionSalt: createVaultSalt()
       }
     })
     : null;
+  const sampleAgents = new Map<string, string>();
 
   const schemaRecords = new Map<string, string>();
   for (const schema of schemas) {
@@ -354,6 +356,7 @@ async function main() {
         connectionStatus: agent.name === "The Curator" ? "restricted" : "active"
       }
     });
+    sampleAgents.set(agent.name, agent.id);
     const requestedSchemas = agentData.capabilityManifest.requestedSchemas as string[];
     for (const schemaName of requestedSchemas) {
       await ensurePermission({
@@ -376,7 +379,128 @@ async function main() {
   }
 
   if (sampleUser) {
+    await seedSampleProviderReceipts(sampleUser.id, sampleAgents);
     await reindexVault(sampleUser.id);
+  }
+}
+
+async function seedSampleProviderReceipts(userId: string, sampleAgents: Map<string, string>) {
+  const now = Date.now();
+  const receipts = [
+    {
+      agentName: "Trip Companion",
+      providerId: "sample-booking-workflow",
+      providerLabel: "Travel booking workflow",
+      capabilityKey: "travel.search_hotels",
+      capabilityLabel: "Find hotels",
+      action: "search",
+      status: "succeeded",
+      approvalRequired: false,
+      resultQuality: "complete",
+      userMessage: "Trip Companion compared hotel options near transit and found three strong matches.",
+      technicalMessage: null,
+      retryable: false,
+      nextAction: "review_options",
+      itemCount: 3,
+      externalRequestId: "sample-travel-hotels-1",
+      endpointHost: "booking-workflow.example.test",
+      metadata: { destination: "Lisbon", nights: 4, resultCount: 3 },
+      createdAt: new Date(now - 6 * 60 * 60 * 1000)
+    },
+    {
+      agentName: "Trip Companion",
+      providerId: "sample-booking-workflow",
+      providerLabel: "Travel booking workflow",
+      capabilityKey: "travel.book_hotel",
+      capabilityLabel: "Book hotel",
+      action: "execute_action",
+      status: "waiting_for_approval",
+      approvalRequired: true,
+      resultQuality: null,
+      userMessage: "Trip Companion paused before booking a non-refundable hotel. Nothing was booked.",
+      technicalMessage: null,
+      retryable: false,
+      nextAction: "review_approval",
+      itemCount: 1,
+      externalRequestId: "sample-booking-approval-1",
+      endpointHost: "booking-workflow.example.test",
+      metadata: { destination: "Lisbon", estimatedTotal: 420 },
+      createdAt: new Date(now - 5 * 60 * 60 * 1000)
+    },
+    {
+      agentName: "Budget Guard",
+      providerId: "sample-finance-workflow",
+      providerLabel: "Budget workflow",
+      capabilityKey: "money.compare_payment",
+      capabilityLabel: "Compare payment options",
+      action: "search",
+      status: "blocked",
+      approvalRequired: false,
+      resultQuality: "blocked",
+      userMessage: "Budget Guard did not continue because the finance workflow needs a connected account.",
+      technicalMessage: "Sample blocked receipt for missing provider account.",
+      retryable: true,
+      nextAction: "connect_account",
+      itemCount: 0,
+      externalRequestId: "sample-finance-blocked-1",
+      endpointHost: "finance-workflow.example.test",
+      metadata: { category: "finance", retryable: true },
+      createdAt: new Date(now - 4 * 60 * 60 * 1000)
+    },
+    {
+      agentName: "Health Notes Organizer",
+      providerId: "sample-health-workflow",
+      providerLabel: "Health notes workflow",
+      capabilityKey: "health.summarize_notes",
+      capabilityLabel: "Summarize health notes",
+      action: "search",
+      status: "succeeded",
+      approvalRequired: false,
+      resultQuality: "partial",
+      userMessage: "Health Notes Organizer summarized approved health notes without sharing medical records externally.",
+      technicalMessage: null,
+      retryable: false,
+      nextAction: "ask_follow_up",
+      itemCount: 2,
+      externalRequestId: "sample-health-summary-1",
+      endpointHost: "health-workflow.example.test",
+      metadata: { usedApprovedInfoOnly: true, resultCount: 2 },
+      createdAt: new Date(now - 3 * 60 * 60 * 1000)
+    }
+  ];
+  const sampleProviderIds = receipts.map((receipt) => receipt.providerId);
+  await prisma.providerReceipt.deleteMany({
+    where: {
+      userId,
+      providerId: { in: sampleProviderIds }
+    }
+  });
+  for (const receipt of receipts) {
+    const agentId = sampleAgents.get(receipt.agentName);
+    if (!agentId) continue;
+    await prisma.providerReceipt.create({
+      data: {
+        userId,
+        agentId,
+        providerId: receipt.providerId,
+        providerLabel: receipt.providerLabel,
+        capabilityKey: receipt.capabilityKey,
+        capabilityLabel: receipt.capabilityLabel,
+        action: receipt.action,
+        status: receipt.status,
+        approvalRequired: receipt.approvalRequired,
+        resultQuality: receipt.resultQuality,
+        userMessage: receipt.userMessage,
+        technicalMessage: receipt.technicalMessage,
+        retryable: receipt.retryable,
+        nextAction: receipt.nextAction,
+        itemCount: receipt.itemCount,
+        externalRequestId: receipt.externalRequestId,
+        endpointHost: receipt.endpointHost,
+        metadata: encodeJson(receipt.metadata),
+        createdAt: receipt.createdAt
+      }
+    });
   }
 }
 

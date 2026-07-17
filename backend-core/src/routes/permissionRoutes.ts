@@ -26,6 +26,9 @@ permissionRoutes.post("/clearance", async (req, res) => {
   if (!connection) return res.status(404).json({ error: { message: "Agent not connected to this user" } });
 
   if (!input.enabled) {
+    const schema = input.vaultSchemaId
+      ? await prisma.vaultSchema.findUnique({ where: { id: input.vaultSchemaId }, select: { name: true } })
+      : null;
     await prisma.agentPermission.deleteMany({
       where: {
         userId,
@@ -39,11 +42,18 @@ permissionRoutes.post("/clearance", async (req, res) => {
       agentId: input.agentId,
       actionType: "permission_requested",
       status: "blocked_by_policy",
-      dataAccessed: input.vaultSchemaId,
+      dataAccessed: schema?.name ?? input.permissionType,
       dynamicMetadata: {
+        source: "agent_runtime",
+        eventCategory: "private_info",
+        userTitle: "Private info access removed",
+        userSummary: "This agent can no longer use this private info.",
+        statusLabel: "Removed",
+        privateInfoUsed: schema?.name ? [schema.name] : [],
         decision: "revoked",
         permissionType: input.permissionType,
-        vaultSchemaId: input.vaultSchemaId
+        vaultSchemaId: input.vaultSchemaId,
+        nextStep: "Allow access again if you want this agent to use it later."
       }
     });
     return res.json({ permission: null });
@@ -77,10 +87,17 @@ permissionRoutes.post("/clearance", async (req, res) => {
     status: "success",
     dataAccessed: schema?.name ?? input.permissionType,
     dynamicMetadata: {
+      source: "agent_runtime",
+      eventCategory: "private_info",
+      userTitle: "Private info access allowed",
+      userSummary: "This agent can now use this private info when needed.",
+      statusLabel: "Allowed",
+      privateInfoUsed: schema?.name ? [schema.name] : [],
       decision: "granted",
       permissionType: input.permissionType,
       vaultSchemaId: input.vaultSchemaId,
-      restrictionRules: input.restrictionRules
+      restrictionRules: input.restrictionRules,
+      nextStep: "Ask the agent again."
     }
   });
   res.json({ permission });

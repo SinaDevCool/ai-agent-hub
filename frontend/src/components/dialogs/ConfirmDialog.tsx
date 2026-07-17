@@ -7,6 +7,7 @@ export type ConfirmDialogModel = {
 
 export function ConfirmDialog(props: {
   confirmation: ConfirmDialogModel;
+  error?: string;
   isConfirming: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -17,6 +18,7 @@ export function ConfirmDialog(props: {
         <div className="panel-title">Please Confirm</div>
         <h2 id="confirm-dialog-title">{props.confirmation.title}</h2>
         <p id="confirm-dialog-copy">{props.confirmation.message}</p>
+        {props.error ? <p className="confirm-dialog-error" role="alert">{props.error}</p> : null}
         <div className="button-row">
           <button
             className={props.confirmation.tone === "danger" ? "danger" : ""}

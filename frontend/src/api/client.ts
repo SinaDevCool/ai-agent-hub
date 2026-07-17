@@ -1,7 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 let accessToken = "";
 
-type ApiMethod = "GET" | "POST" | "PUT" | "DELETE";
+type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 type ApiErrorPayload = {
   message?: string;
@@ -112,6 +112,10 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
 
 export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>("PUT", path, body);
+}
+
+export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  return apiRequest<T>("PATCH", path, body);
 }
 
 export async function apiDelete<T>(path: string): Promise<T> {

@@ -1,5 +1,6 @@
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
+import type { RuntimeIntent } from "./agentRuntimeTypes.js";
 
 type RuntimeDocument = {
   title?: string;
@@ -14,7 +15,7 @@ type OpenAiRuntimeInput = {
   agentDescription?: string;
   userMessage: string;
   status: "ok" | "blocked" | "awaiting_human_approval";
-  intent: "search" | "action" | "blocked";
+  intent: RuntimeIntent;
   fallbackReply: string;
   documents?: RuntimeDocument[];
   usedSchemas?: string[];

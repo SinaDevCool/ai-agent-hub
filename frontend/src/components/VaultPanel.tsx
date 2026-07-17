@@ -60,7 +60,7 @@ export function VaultPanel(props: VaultPanelProps) {
     <div className={className} id="vault">
       <div className="panel-heading-row">
         <div>
-          <div className="panel-title">Private Info</div>
+          <div className="panel-title">Saved info</div>
           <p className="mobile-section-intro">Save useful details like preferences, rules, and notes. Agents can only use them when you allow it.</p>
         </div>
         <span className="status-pill blue">{documents.length} saved</span>
@@ -92,13 +92,14 @@ export function VaultPanel(props: VaultPanelProps) {
         <form className="vault-search" onSubmit={(event) => void onSearchVault(event)}>
           <input
             aria-label="Search private info"
+            autoComplete="off"
             name="private-info-search"
             onChange={(event) => setSearchQuery(event.currentTarget.value)}
             placeholder="Search saved info…"
             required
             value={searchQuery}
           />
-          <select aria-label="Filter private info category" onChange={(event) => setSearchSchemaId(event.currentTarget.value)} value={searchSchemaId}>
+          <select aria-label="Filter private info category" autoComplete="off" name="private-info-category" onChange={(event) => setSearchSchemaId(event.currentTarget.value)} value={searchSchemaId}>
             <option value="">All categories</option>
             {publicSchemas.map((schema) => <option key={schema.id} value={schema.id}>{schema.name}</option>)}
           </select>
@@ -137,11 +138,11 @@ export function VaultPanel(props: VaultPanelProps) {
             <span>{document.vaultSchema?.name ?? "Uncategorized"}</span>
           </div>
           <p>{document.excerpt}</p>
-          <button className="private-info-manage" aria-expanded={managedDocumentId === document.id} onClick={() => setManagedDocumentId((current) => current === document.id ? "" : document.id)} type="button">Manage</button>
+          <button className="private-info-manage" aria-expanded={managedDocumentId === document.id} aria-label={`Manage ${document.title}`} onClick={() => setManagedDocumentId((current) => current === document.id ? "" : document.id)} type="button">Manage</button>
           {managedDocumentId === document.id ? (
             <div className="button-row compact-row">
-              <button onClick={() => onEditDocument(document)} type="button"><Pencil aria-hidden="true" size={15} /> Edit</button>
-              <button className="danger" onClick={() => onDeleteDocument(document)} type="button"><Trash2 aria-hidden="true" size={15} /> Delete</button>
+              <button aria-label={`Edit ${document.title}`} onClick={() => onEditDocument(document)} type="button"><Pencil aria-hidden="true" size={15} /> Edit</button>
+              <button aria-label={`Delete ${document.title}`} className="danger" onClick={() => onDeleteDocument(document)} type="button"><Trash2 aria-hidden="true" size={15} /> Delete</button>
             </div>
           ) : null}
         </article>

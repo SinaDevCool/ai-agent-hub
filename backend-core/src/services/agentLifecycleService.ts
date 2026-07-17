@@ -43,9 +43,15 @@ export async function removeAgentForUser(input: { userId: string; agentId: strin
     status: "success",
     dataAccessed: result.agentName,
     dynamicMetadata: {
+      source: "agent_runtime",
+      eventCategory: "agent_management",
+      userTitle: "Agent removed",
+      userSummary: `${result.agentName} was removed from your profile.`,
+      statusLabel: "Done",
       userManaged: true,
       removedAgentId: result.agentId,
-      deletedAgent: result.deletedAgent
+      deletedAgent: result.deletedAgent,
+      nextStep: "Add it again from Agent Pool if you need it later."
     }
   });
 

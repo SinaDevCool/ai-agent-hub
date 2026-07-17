@@ -25,15 +25,22 @@ export function AgentPermissionsTab(props: AgentPermissionsTabProps) {
     togglePermission,
     ungrantedRequestedSchemas
   } = props;
+  const isChangingAccess = Boolean(grantingSchemaName);
+  const changingAccessLabel = grantingSchemaName === "all"
+    ? "Allowing requested info…"
+    : grantingSchemaName
+      ? `Updating ${grantingSchemaName}…`
+      : "";
 
   return (
     <section className="agent-tab-panel" aria-label="Agent permissions">
+      {isChangingAccess ? <p className="agent-settings-feedback" role="status" aria-live="polite">{changingAccessLabel}</p> : null}
       {permissionReview.length ? (
         <div className="mobile-permission-summary">
           <strong>This agent wants {permissionReview.length} saved info categor{permissionReview.length === 1 ? "y" : "ies"}.</strong>
           <span>{ungrantedRequestedSchemas.length ? `${ungrantedRequestedSchemas.length} still need access.` : "All requested saved info is allowed."}</span>
           <button disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"} onClick={() => void grantAllRequestedSchemas()} type="button">
-            <KeyRound aria-hidden="true" size={16} /> Allow requested info
+            <KeyRound aria-hidden="true" size={16} /> {grantingSchemaName === "all" ? "Allowing…" : "Allow requested info"}
           </button>
         </div>
       ) : null}
@@ -43,7 +50,7 @@ export function AgentPermissionsTab(props: AgentPermissionsTabProps) {
           <span>{selectedIsExternal ? "Only approved snippets can be shared through AI Agent Hub safety." : `${allowedPermissionCount} of ${permissionReview.length} requested categories allowed`}</span>
         </div>
         <button disabled={ungrantedRequestedSchemas.length === 0 || grantingSchemaName === "all"} onClick={() => void grantAllRequestedSchemas()} type="button">
-          <KeyRound aria-hidden="true" size={16} /> Allow requested info
+          <KeyRound aria-hidden="true" size={16} /> {grantingSchemaName === "all" ? "Allowing…" : "Allow requested info"}
         </button>
       </div>
       {permissionReview.length === 0 ? (
@@ -56,10 +63,12 @@ export function AgentPermissionsTab(props: AgentPermissionsTabProps) {
           </div>
           <StatusPill tone={item.granted ? "green" : item.schema ? "amber" : "red"}>{item.granted ? "allowed" : item.schema ? "needs access" : "missing"}</StatusPill>
           {item.schema && item.granted ? (
-            <button onClick={() => void togglePermission(item.schema!, false)} type="button">Remove access</button>
+            <button disabled={grantingSchemaName === item.schemaName || grantingSchemaName === "all"} onClick={() => void togglePermission(item.schema!, false)} type="button">
+              {grantingSchemaName === item.schemaName ? "Removing…" : "Remove access"}
+            </button>
           ) : (
             <button disabled={!item.schema || grantingSchemaName === item.schemaName || grantingSchemaName === "all"} onClick={() => item.schema ? void grantRequestedSchema(item.schema) : undefined} type="button">
-              {selectedIsExternal ? "Allow snippets" : "Allow"}
+              {grantingSchemaName === item.schemaName ? "Allowing…" : selectedIsExternal ? "Allow snippets" : "Allow"}
             </button>
           )}
         </div>

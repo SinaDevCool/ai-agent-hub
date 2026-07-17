@@ -129,6 +129,7 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
       setToolResult(`${selectedAgent.name} has no saved info access to remove.`);
       return;
     }
+    setGrantingSchemaName("all");
     try {
       for (const schema of grantedSchemas) {
         await updatePermission(schema, false);
@@ -137,14 +138,16 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
       setToolResult(`All saved info access was removed for ${selectedAgent.name}.`);
     } catch (error) {
       setToolResult(formatError(error));
+    } finally {
+      setGrantingSchemaName("");
     }
   }
 
   function revokeSelectedAgentAccess() {
-    if (!selectedAgent) return;
+    if (!selectedAgent) return "none";
     if (!permissionReview.some((item) => item.granted)) {
       setToolResult(`${selectedAgent.name} has no saved info access to remove.`);
-      return;
+      return "none";
     }
     setConfirmation({
       title: "Revoke this agent's access?",
@@ -153,9 +156,11 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
       tone: "danger",
       onConfirm: revokeSelectedAgentAccessNow
     });
+    return "confirm";
   }
 
   async function revokeAllAgentAccessNow() {
+    setGrantingSchemaName("all");
     try {
       for (const agent of agents) {
         for (const permission of agent.permissions.filter((item) => item.vaultSchema)) {
@@ -174,6 +179,8 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
       setToolResult("All agent access to saved info was removed.");
     } catch (error) {
       setToolResult(formatError(error));
+    } finally {
+      setGrantingSchemaName("");
     }
   }
 

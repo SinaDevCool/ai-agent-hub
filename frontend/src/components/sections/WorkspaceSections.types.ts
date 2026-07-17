@@ -8,6 +8,7 @@ import type {
   ExternalAgentImportPreview,
   HitlRequest,
   MarketplaceAgent,
+  ProviderReceipt,
   UserAgentInstall,
   VaultDocument,
   VaultSchema
@@ -18,8 +19,10 @@ import type { AgentDraft, AgentTemplate } from "../../hooks/useAgentWizard";
 import type { AgentProfileTab, ChatTranscriptItem } from "../../hooks/useAgentChat";
 import type { AgentStatusFilter } from "../../hooks/useInstalledAgents";
 import type { useCreator } from "../../hooks/useCreator";
+import type { useConnectors } from "../../hooks/useConnectors";
 import type { useCreatorAccess } from "../../hooks/useCreatorAccess";
 import type { useModeration } from "../../hooks/useModeration";
+import type { useWorkflows } from "../../hooks/useWorkflows";
 import type { SectionId } from "../../lib/appNavigation";
 import type { MatcherChoice, MarketplaceFilters, MarketplaceMatch, MarketplaceNeed } from "../../lib/marketplaceMatching";
 import type { HelperPrompt, PermissionReviewItem, ToneState } from "../agent-profile/agentProfileTypes";
@@ -71,7 +74,9 @@ export type WorkspaceSectionsProps = {
   createVaultItem: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   createVaultItemError: string;
   creator: ReturnType<typeof useCreator>;
+  connectors: ReturnType<typeof useConnectors>;
   creatorAccess: ReturnType<typeof useCreatorAccess>;
+  workflows: ReturnType<typeof useWorkflows>;
   decidingApprovalId: string;
   decideHitl: (requestId: string, approved: boolean) => void | Promise<void>;
   deleteVaultItem: (document: VaultDocument) => void;
@@ -158,12 +163,14 @@ export type WorkspaceSectionsProps = {
   permissionReview: PermissionReviewItem[];
   pinnedAgentIds: string[];
   primarySetupLabel: string;
+  providerReceipts: ProviderReceipt[];
   prioritizedMarketplaceAgents: MarketplaceAgent[];
   prioritizedMarketplaceMatches: MarketplaceMatch[];
   promptPreview: ToneState;
   readiness: ToneState;
   recentInstall: RecentInstallSummary | null;
   recentLogs: ActivityLog[];
+  recentProviderReceipts: ProviderReceipt[];
   refresh: () => Promise<unknown>;
   refreshError: string;
   refreshWithRetry: () => Promise<unknown>;
@@ -172,7 +179,7 @@ export type WorkspaceSectionsProps = {
   reviewExternalImport: (input: ExternalAgentImportInput) => Promise<ExternalAgentImportPreview | null>;
   reviewRecentInstallAccess: () => void;
   revokeAllAgentAccess: () => void;
-  revokeSelectedAgentAccess: () => void;
+  revokeSelectedAgentAccess: () => "confirm" | "none" | void | Promise<"confirm" | "none" | void>;
   runAgentChat: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   runPrimarySetupAction: () => void;
   runSummary: string | null;
@@ -188,6 +195,7 @@ export type WorkspaceSectionsProps = {
   selectedAgent: Agent | undefined;
   selectedAgentApprovals: HitlRequest[];
   selectedAgentLogs: ActivityLog[];
+  selectedAgentProviderReceipts: ProviderReceipt[];
   selectedCannotDoLabel: string;
   selectedAgentToolsLabel: string;
   selectedMarketplaceAgent: MarketplaceAgent | undefined;

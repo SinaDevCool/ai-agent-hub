@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { apiGet, apiPost } from "../api/client";
-import type { Agent, AgentConversation, AgentRunResult, HitlRequest, VaultDocument } from "../api/types";
+import type { Agent, AgentConversation, AgentRunResult, ChatMessageDisplay, HitlRequest, ProviderReceipt, VaultDocument, WorkflowResultCard } from "../api/types";
 import { friendlyActionName } from "../lib/display";
 
 type AgentMessageStatus = "success" | "blocked_by_policy" | "pending_human_approval" | "error" | null;
@@ -21,6 +21,9 @@ export type ChatTranscriptItem = {
   usedSchemas?: string[];
   documents?: VaultDocument[];
   externalRuntime?: AgentRunResult["externalRuntime"];
+  workflowResult?: WorkflowResultCard;
+  providerReceipt?: ProviderReceipt;
+  display?: ChatMessageDisplay;
 };
 
 function stringArrayFromMetadata(value: unknown) {
@@ -31,12 +34,99 @@ function vaultDocumentsFromMetadata(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is VaultDocument => Boolean(item && typeof item === "object" && "id" in item)) : [];
 }
 
+function workflowResultFromMetadata(value: unknown): WorkflowResultCard | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Partial<WorkflowResultCard>;
+  if ((record.status === "ok" || record.status === "failed") && typeof record.title === "string" && typeof record.summary === "string") {
+    return {
+      status: record.status,
+      quality: record.quality === "complete" || record.quality === "partial" || record.quality === "empty" || record.quality === "malformed"
+        ? record.quality
+        : record.status === "failed" ? "malformed" : "partial",
+      title: record.title,
+      summary: record.summary,
+      items: Array.isArray(record.items) ? record.items : [],
+      nextActions: Array.isArray(record.nextActions) ? record.nextActions : [],
+      receipt: record.receipt ?? {
+        workflowConnectionId: "",
+        workflowName: "Connected workflow",
+        capabilityKey: "",
+        capabilityLabel: "Workflow",
+        provider: "workflow",
+        endpointHost: ""
+      }
+    };
+  }
+  return undefined;
+}
+
+function providerReceiptFromMetadata(value: unknown): ProviderReceipt | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Partial<ProviderReceipt>;
+  if (typeof record.id !== "string" || typeof record.agentId !== "string" || typeof record.providerLabel !== "string") return undefined;
+  if (record.status !== "succeeded" && record.status !== "blocked" && record.status !== "waiting_for_approval") return undefined;
+  return {
+    id: record.id,
+    agentId: record.agentId,
+    agentName: typeof record.agentName === "string" ? record.agentName : "Agent",
+    providerId: typeof record.providerId === "string" ? record.providerId : "provider",
+    providerLabel: record.providerLabel,
+    capabilityKey: typeof record.capabilityKey === "string" ? record.capabilityKey : "",
+    capabilityLabel: typeof record.capabilityLabel === "string" ? record.capabilityLabel : "Provider task",
+    action: typeof record.action === "string" ? record.action : "search",
+    status: record.status,
+    approvalRequired: Boolean(record.approvalRequired),
+    hitlRequestId: typeof record.hitlRequestId === "string" ? record.hitlRequestId : null,
+    resultQuality: typeof record.resultQuality === "string" ? record.resultQuality : null,
+    userMessage: typeof record.userMessage === "string" ? record.userMessage : "Provider task recorded.",
+    retryable: Boolean(record.retryable),
+    nextAction: typeof record.nextAction === "string" ? record.nextAction : null,
+    itemCount: typeof record.itemCount === "number" ? record.itemCount : 0,
+    externalRequestId: typeof record.externalRequestId === "string" ? record.externalRequestId : null,
+    endpointHost: typeof record.endpointHost === "string" ? record.endpointHost : null,
+    metadata: record.metadata && typeof record.metadata === "object" ? record.metadata : {},
+    display: record.display,
+    createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date().toISOString()
+  };
+}
+
+function chatDisplayFromMetadata(value: unknown): ChatMessageDisplay | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Partial<ChatMessageDisplay>;
+  if (typeof record.title !== "string" || typeof record.body !== "string" || typeof record.badge !== "string") return undefined;
+  const tone = record.tone === "blue" || record.tone === "amber" || record.tone === "green" || record.tone === "red" ? record.tone : "blue";
+  const category = record.category === "answer"
+    || record.category === "permission"
+    || record.category === "approval"
+    || record.category === "provider"
+    || record.category === "workflow"
+    || record.category === "system"
+    ? record.category
+    : "system";
+  return {
+    title: record.title,
+    body: record.body,
+    badge: record.badge,
+    tone,
+    category,
+    nextStep: typeof record.nextStep === "string" ? record.nextStep : undefined
+  };
+}
+
 function friendlyChatError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   if (/internal server error|status 500|server/i.test(message)) return "The agent could not finish that request. Please try again in a moment.";
   if (/failed to fetch|network|connection/i.test(message)) return "The agent service is not reachable right now. Check the connection and try again.";
   if (/permission|access/i.test(message)) return "The agent needs your permission before it can continue.";
   return message || "The agent could not finish that request. Please try again.";
+}
+
+const rawActionPattern = /\b[a-z]+(?:_[a-z0-9]+){1,}\b/g;
+
+function sanitizeRuntimeText(value: string | undefined, fallback: string) {
+  const text = (value ?? "").trim() || fallback;
+  if (/internal server error|status 500|something went wrong|provider_error|workflow failed/i.test(text)) return fallback;
+  return text.replace(rawActionPattern, (match) => friendlyActionName(match));
 }
 
 function displayUserMessage(content: string) {
@@ -49,25 +139,30 @@ function displayAgentMessage(content: string, agentName: string) {
   const escapedAgentName = agentName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const completedMatch = content.match(new RegExp(`^${escapedAgentName} completed the approved action:\\s*(.+)\\.$`, "i"));
   if (completedMatch) return `Approved action completed: ${friendlyActionName(completedMatch[1].trim())}.`;
-  return content;
+  return sanitizeRuntimeText(content, "The agent could not finish that request. Please try again in a moment.");
 }
 
 function chatItemFromMessage(message: AgentConversation["messages"][number], agentName = ""): ChatTranscriptItem {
   const metadata = message.metadata ?? {};
   const rawContent = message.content;
+  const display = chatDisplayFromMetadata(metadata.display);
   return {
     role: message.role === "user" ? "user" : "agent",
-    content: message.role === "user" ? displayUserMessage(rawContent) : displayAgentMessage(rawContent, agentName),
+    content: display?.body ?? (message.role === "user" ? displayUserMessage(rawContent) : displayAgentMessage(rawContent, agentName)),
+    display,
     status: typeof metadata.status === "string" ? metadata.status as AgentMessageStatus : null,
     requestId: typeof metadata.requestId === "string" ? metadata.requestId : undefined,
     actionName: typeof metadata.actionName === "string" ? metadata.actionName : undefined,
-    provider: metadata.provider === "openai" || metadata.provider === "local" ? metadata.provider : undefined,
+    provider: metadata.provider === "openai" || metadata.provider === "local" || metadata.provider === "workflow" ? metadata.provider : undefined,
     model: typeof metadata.model === "string" ? metadata.model : undefined,
     providerFallbackReason: typeof metadata.providerFallbackReason === "string" ? metadata.providerFallbackReason : undefined,
     runtimeState: typeof metadata.runtimeState === "string" ? metadata.runtimeState as AgentRunResult["runtimeState"] : undefined,
-    nextStep: typeof metadata.nextStep === "string" ? metadata.nextStep : undefined,
+    nextStep: display?.nextStep ?? (typeof metadata.nextStep === "string" ? metadata.nextStep : undefined),
     usedSchemas: stringArrayFromMetadata(metadata.usedSchemas),
-    documents: vaultDocumentsFromMetadata(metadata.documents)
+    documents: vaultDocumentsFromMetadata(metadata.documents),
+    externalRuntime: metadata.externalRuntime && typeof metadata.externalRuntime === "object" ? metadata.externalRuntime as AgentRunResult["externalRuntime"] : undefined,
+    workflowResult: workflowResultFromMetadata(metadata.workflowResult),
+    providerReceipt: providerReceiptFromMetadata(metadata.providerReceipt)
   };
 }
 
@@ -91,6 +186,8 @@ export function useAgentChat(input: {
   const decidingApprovalRef = useRef("");
 
   function applyAgentRunResult(result: AgentRunResult) {
+    const display = chatDisplayFromMetadata(result.display);
+    const content = display?.body ?? displayAgentMessage(result.reply, input.selectedAgent?.name ?? "");
     setAgentRunResult(result);
     if (result.conversation) {
       setAgentConversation(result.conversation);
@@ -102,7 +199,8 @@ export function useAgentChat(input: {
     } else {
       setChatTranscript((current) => [...current, {
         role: "agent",
-        content: displayAgentMessage(result.reply, input.selectedAgent?.name ?? ""),
+        content,
+        display,
         status: result.status,
         requestId: result.requestId,
         actionName: result.actionName,
@@ -110,10 +208,12 @@ export function useAgentChat(input: {
         model: result.model,
         providerFallbackReason: result.providerFallbackReason,
         runtimeState: result.runtimeState,
-        nextStep: result.nextStep,
+        nextStep: display?.nextStep ?? sanitizeRuntimeText(result.nextStep, ""),
         usedSchemas: result.usedSchemas,
         documents: result.documents,
-        externalRuntime: result.externalRuntime
+        externalRuntime: result.externalRuntime,
+        workflowResult: result.workflowResult,
+        providerReceipt: result.providerReceipt
       }]);
     }
     input.setToolResult(result.reply);

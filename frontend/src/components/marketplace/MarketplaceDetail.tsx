@@ -132,7 +132,7 @@ export function MarketplaceDetail(props: {
           <span>{installedPermissions.allowed} of {installedPermissions.requested} info categories allowed</span>
           <span>{pendingApprovals ? `${pendingApprovals} waiting for you` : "Nothing waiting"}</span>
           <div>
-            {installedAgent ? <button onClick={() => onOpenInstalledAgent(installedAgent.id)} type="button"><MessageSquare size={15} /> Open Agent</button> : null}
+            {installedAgent ? <button onClick={() => onOpenInstalledAgent(installedAgent.id)} type="button"><MessageSquare size={15} /> Open agent</button> : null}
             {installedAgent ? <button onClick={() => onEditInstalledAgentAccess(installedAgent.id)} type="button"><KeyRound size={15} /> Edit access</button> : null}
           </div>
         </div>
@@ -168,7 +168,7 @@ export function MarketplaceDetail(props: {
         type="button"
       >
         {alreadyInstalled ? <MessageSquare size={16} /> : <Download size={16} />}
-        {alreadyInstalled ? "Open Agent" : installingAgentId === agent.id ? "Adding…" : "Add Agent"}
+        {alreadyInstalled ? "Open agent" : installingAgentId === agent.id ? "Adding…" : "Add Agent"}
       </button>
       <p className="marketplace-confidence">You can review and revoke access after adding this agent.</p>
     </aside>

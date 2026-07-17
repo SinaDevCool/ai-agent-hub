@@ -2,6 +2,14 @@ import type { ApiProtocol, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
 import { httpError } from "../errors/httpError.js";
+import {
+  buildLegacyCapabilityManifest,
+  defaultHighRiskActionsForSource,
+  defaultToolsForSource,
+  protocolForLegacySource
+} from "./agentImportManifestService.js";
+import { reviewAgentImportManifest } from "./agentImportSafetyReviewService.js";
+import { attachRuntimeBindingToManifest, bindAgentRuntime } from "./agentRuntimeBindingService.js";
 import { sha256 } from "./cryptoService.js";
 import { validateExternalRuntimeUrl } from "./externalRuntimeProxyService.js";
 import { encodeJson } from "./jsonService.js";
@@ -49,15 +57,15 @@ function sourceLabel(sourceType: ExternalImportSourceType) {
 }
 
 function protocolForSource(sourceType: ExternalImportSourceType): ApiProtocol {
-  return sourceType === "mcp_server" ? "MCP" : "OpenAPI";
+  return protocolForLegacySource(sourceType);
 }
 
 function defaultTools(sourceType: ExternalImportSourceType) {
-  return sourceType === "mcp_server" ? ["vault.search"] : ["action.execute"];
+  return defaultToolsForSource(sourceType);
 }
 
 function defaultHighRiskActions(sourceType: ExternalImportSourceType) {
-  return sourceType === "openapi_endpoint" ? ["share_personal_info"] : [];
+  return defaultHighRiskActionsForSource(sourceType);
 }
 
 function titleFromHost(host: string) {
@@ -70,6 +78,10 @@ function titleFromHost(host: string) {
     .join(" ");
 }
 
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
 function importSlug(sourceType: ExternalImportSourceType, endpointUrl: string) {
   const hash = sha256(`${sourceType}:${endpointUrl.trim().toLowerCase()}`).slice(0, 12);
   return `external-import-${sourceType.replace("_", "-")}-${hash}`;
@@ -78,6 +90,25 @@ function importSlug(sourceType: ExternalImportSourceType, endpointUrl: string) {
 function buildPreview(input: z.output<typeof externalImportSchema>) {
   const urlDecision = validateExternalRuntimeUrl(input.endpointUrl);
   if (!urlDecision.allowed) {
+    const capabilityManifest = buildLegacyCapabilityManifest({
+      sourceType: input.sourceType,
+      name: input.displayName?.trim() || "External helper",
+      description: "This external helper could not pass the endpoint safety check.",
+      category: input.category,
+      endpointUrl: input.endpointUrl,
+      tools: defaultTools(input.sourceType),
+      highRiskActions: defaultHighRiskActions(input.sourceType),
+      verificationStatus: "blocked",
+      verificationSummary: [urlDecision.reason],
+      examplePrompts: ["Try again with a public HTTPS endpoint."],
+      trustReasons: ["AI Agent Hub blocks unsafe local, private-network, and non-HTTPS endpoints."]
+    });
+    const safetyReview = reviewAgentImportManifest(capabilityManifest.normalizedImportManifest);
+    const runtimeBinding = bindAgentRuntime({ manifest: capabilityManifest.normalizedImportManifest, safetyReview });
+    capabilityManifest.normalizedImportManifest = attachRuntimeBindingToManifest({
+      manifest: capabilityManifest.normalizedImportManifest,
+      runtimeBinding
+    });
     return {
       sourceType: input.sourceType,
       sourceLabel: sourceLabel(input.sourceType),
@@ -87,26 +118,45 @@ function buildPreview(input: z.output<typeof externalImportSchema>) {
       protocol: protocolForSource(input.sourceType),
       verificationStatus: "blocked" as const,
       canInstall: false,
-      blockers: [urlDecision.reason],
+      blockers: uniqueStrings([urlDecision.reason, ...runtimeBinding.blockers]),
       warnings: [],
-      capabilityManifest: {
-        protocol: protocolForSource(input.sourceType),
-        sourceType: input.sourceType,
-        verificationStatus: "blocked" as const,
-        verificationSummary: [urlDecision.reason],
-        tools: defaultTools(input.sourceType),
-        requestedSchemas: [],
-        highRiskActions: defaultHighRiskActions(input.sourceType),
-        description: "This external helper could not pass the endpoint safety check.",
-        examplePrompts: ["Try again with a public HTTPS endpoint."],
-        trustReasons: ["AI Agent Hub blocks unsafe local, private-network, and non-HTTPS endpoints."]
-      }
+      capabilityManifest,
+      safetyReview,
+      runtimeBinding
     };
   }
 
   const host = urlDecision.url.hostname.toLowerCase();
   const displayName = input.displayName?.trim() || `${titleFromHost(host)} Helper`;
   const highRiskActions = defaultHighRiskActions(input.sourceType);
+  const description = `Personal external helper imported from ${host}. AI Agent Hub keeps it restricted and routes requests through the safety proxy.`;
+  const verificationSummary = [
+    "Endpoint passed AI Agent Hub's URL safety review for a personal import.",
+    "The full endpoint path is hidden from normal receipts; the host remains visible."
+  ];
+  const capabilityManifest = buildLegacyCapabilityManifest({
+    sourceType: input.sourceType,
+    name: displayName,
+    description,
+    category: input.category,
+    endpointUrl: urlDecision.url.toString(),
+    tools: defaultTools(input.sourceType),
+    highRiskActions,
+    verificationStatus: "verified",
+    verificationSummary,
+    examplePrompts: [`Ask ${displayName} what it can help with.`],
+    trustReasons: [
+      "Runs through AI Agent Hub's external safety proxy.",
+      "Starts restricted until you approve any private info or sensitive action."
+    ]
+  });
+  const safetyReview = reviewAgentImportManifest(capabilityManifest.normalizedImportManifest);
+  const runtimeBinding = bindAgentRuntime({ manifest: capabilityManifest.normalizedImportManifest, safetyReview });
+  capabilityManifest.normalizedImportManifest = attachRuntimeBindingToManifest({
+    manifest: capabilityManifest.normalizedImportManifest,
+    runtimeBinding
+  });
+
   return {
     sourceType: input.sourceType,
     sourceLabel: sourceLabel(input.sourceType),
@@ -115,28 +165,15 @@ function buildPreview(input: z.output<typeof externalImportSchema>) {
     category: input.category,
     protocol: protocolForSource(input.sourceType),
     verificationStatus: "verified" as const,
-    canInstall: true,
-    blockers: [],
-    warnings: highRiskActions.length ? ["This helper may prepare outside actions. AI Agent Hub will ask before anything sensitive continues."] : [],
-    capabilityManifest: {
-      protocol: protocolForSource(input.sourceType),
-      sourceType: input.sourceType,
-      externalEndpointUrl: urlDecision.url.toString(),
-      verificationStatus: "verified" as const,
-      verificationSummary: [
-        "Endpoint passed AI Agent Hub's URL safety review for a personal import.",
-        "The full endpoint path is hidden from normal receipts; the host remains visible."
-      ],
-      tools: defaultTools(input.sourceType),
-      requestedSchemas: [],
-      highRiskActions,
-      description: `Personal external helper imported from ${host}. AI Agent Hub keeps it restricted and routes requests through the safety proxy.`,
-      examplePrompts: [`Ask ${displayName} what it can help with.`],
-      trustReasons: [
-        "Runs through AI Agent Hub's external safety proxy.",
-        "Starts restricted until you approve any private info or sensitive action."
-      ]
-    }
+    canInstall: safetyReview.status !== "blocked" && runtimeBinding.status !== "blocked",
+    blockers: uniqueStrings([...safetyReview.blockers, ...runtimeBinding.blockers]),
+    warnings: uniqueStrings([
+      ...(highRiskActions.length ? ["This helper may prepare outside actions. AI Agent Hub will ask before anything sensitive continues."] : []),
+      ...safetyReview.warnings
+    ]),
+    capabilityManifest,
+    safetyReview,
+    runtimeBinding
   };
 }
 

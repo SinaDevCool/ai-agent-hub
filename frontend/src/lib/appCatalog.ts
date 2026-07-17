@@ -16,7 +16,7 @@ export const marketplaceNeedOptions: MarketplaceNeed[] = [
   { id: "work", title: "Work", detail: "Email, follow-ups, scheduling", category: "Work", query: "email" }
 ];
 
-export const toolOptions = ["vault.search", "action.execute", "calendar.read", "email.draft", "web.fetch"];
+export const toolOptions = ["vault.search", "action.execute", "email.search", "email.draft_reply", "calendar.find_free_time", "web.fetch"];
 
 export const marketplaceFilterLabels: Array<{ id: keyof MarketplaceFilters; label: string }> = [
   { id: "usesPrivateInfo", label: "Uses private info" },
@@ -55,7 +55,7 @@ export const agentTemplates: AgentTemplate[] = [
     category: "Executive",
     starterName: "My Inbox Assistant",
     description: "Drafts replies and helps summarize tasks while asking before anything is sent.",
-    tools: ["vault.search", "email.draft"],
+    tools: ["vault.search", "email.search", "email.draft_reply", "calendar.find_free_time"],
     requestedSchemas: ["Personal Identity Profile"],
     highRiskActions: ["send_email", "share_personal_info"],
     summary: "Good for email drafts, follow-ups, and contact context."
@@ -66,7 +66,7 @@ export const agentTemplates: AgentTemplate[] = [
     category: "Executive",
     starterName: "My Application Agent",
     description: "Helps organize resumes, applications, deadlines, and drafts while asking before anything is submitted.",
-    tools: ["vault.search", "email.draft"],
+    tools: ["vault.search", "email.search", "email.draft_reply"],
     requestedSchemas: ["Personal Identity Profile"],
     highRiskActions: ["submit_application", "share_personal_info"],
     summary: "Good for jobs, school applications, forms, resumes, and deadline tracking."

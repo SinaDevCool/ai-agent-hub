@@ -1,11 +1,79 @@
 import type { FormEvent } from "react";
-import { KeyRound, MessageSquare, Zap } from "lucide-react";
-import type { ActivityLog, Agent, AgentConversation, AgentRunResult, HitlRequest } from "../../api/types";
+import { ExternalLink, MessageSquare, RotateCw, Zap } from "lucide-react";
+import type { Agent, AgentConversation, AgentRunResult, HitlRequest, ProviderReceipt, WorkflowResultCard as WorkflowResultCardType } from "../../api/types";
+import { providerReceiptBadge, providerReceiptDetail, providerReceiptTitle, providerReceiptTone } from "../../lib/appText";
 import { friendlyActionName } from "../../lib/display";
 import { externalRuntimeDetail, externalRuntimeSummary } from "../../lib/externalRuntimeDisplay";
 import type { AgentProfileTab, ChatTranscriptItem } from "../../hooks/useAgentChat";
 import { StatusPill } from "../StatusPill";
 import type { HelperPrompt, PermissionReviewItem, ToneState } from "./agentProfileTypes";
+
+function WorkflowResultCard(props: {
+  result: WorkflowResultCardType;
+  isAgentRunning: boolean;
+  lastFailedPrompt: string;
+  submitAgentPrompt: (prompt: string) => void | Promise<void>;
+}) {
+  const { result, isAgentRunning, lastFailedPrompt, submitAgentPrompt } = props;
+  const visibleItems = result.items.slice(0, 4);
+  return (
+    <div className={`workflow-result-card ${result.status === "failed" ? "is-failed" : ""}`}>
+      <div className="workflow-result-heading">
+        <StatusPill tone={result.status === "failed" ? "red" : "green"}>{result.status === "failed" ? "Needs attention" : result.receipt.capabilityLabel}</StatusPill>
+        <div>
+          <strong>{result.title}</strong>
+          <span>{result.summary}</span>
+        </div>
+      </div>
+      {visibleItems.length ? (
+        <div className="workflow-result-list">
+          {visibleItems.map((item, index) => (
+            <div className="workflow-result-item" key={`${item.title}-${index}`}>
+              <div>
+                <strong>{item.title}</strong>
+                {item.subtitle ? <span>{item.subtitle}</span> : null}
+                {item.detail ? <small>{item.detail}</small> : null}
+              </div>
+              {item.price ? <span className="workflow-price">{item.price}</span> : null}
+              {item.url ? (
+                <a href={item.url} rel="noreferrer" target="_blank" aria-label={`Open ${item.title}`}>
+                  <ExternalLink size={15} />
+                </a>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className="workflow-result-footer">
+        <small>{result.receipt.workflowName}{result.receipt.endpointHost ? ` via ${result.receipt.endpointHost}` : ""}</small>
+        {result.status === "failed" ? (
+          <button disabled={!lastFailedPrompt || isAgentRunning} onClick={() => void submitAgentPrompt(lastFailedPrompt)} type="button">
+            <RotateCw size={15} /> Retry
+          </button>
+        ) : result.nextActions[0]?.url ? (
+          <a className="button-link" href={result.nextActions[0].url} rel="noreferrer" target="_blank">
+            <ExternalLink size={15} /> Open result
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export function ProviderReceiptCard({ receipt }: { receipt: ProviderReceipt }) {
+  return (
+    <div className={`provider-receipt-card provider-receipt-${receipt.status}`}>
+      <div className="provider-receipt-heading">
+        <StatusPill tone={providerReceiptTone(receipt)}>{providerReceiptBadge(receipt)}</StatusPill>
+        <div>
+          <strong>{providerReceiptTitle(receipt)}</strong>
+          <span>{receipt.display?.externalService ?? receipt.providerLabel}</span>
+        </div>
+      </div>
+      <p>{providerReceiptDetail(receipt)}</p>
+    </div>
+  );
+}
 
 type AgentChatTabProps = {
   agentConversation: AgentConversation | null;
@@ -20,8 +88,6 @@ type AgentChatTabProps = {
   continueApprovedAction: (actionName: string) => void | Promise<void>;
   decideHitl: (requestId: string, approved: boolean) => void | Promise<void>;
   decidingApprovalId: string;
-  friendlyDate: (value: string) => string;
-  friendlyLogText: (log: ActivityLog) => string;
   agentNextStep: string;
   isAgentRunning: boolean;
   isConversationLoading: boolean;
@@ -34,10 +100,8 @@ type AgentChatTabProps = {
   scrollToClearance: () => void;
   selectedAgent: Agent;
   selectedAgentApprovals: HitlRequest[];
-  selectedAgentLogs: ActivityLog[];
   selectedReadableInfo: string[];
   selectedRiskyActions: string[];
-  setAgentProfileTab: (tab: AgentProfileTab) => void;
   setChatInput: (value: string) => void;
   submitAgentPrompt: (prompt: string) => void | Promise<void>;
   suggestedPrompts: HelperPrompt[];
@@ -57,24 +121,19 @@ export function AgentChatTab(props: AgentChatTabProps) {
     continueApprovedAction,
     decideHitl,
     decidingApprovalId,
-    friendlyDate,
-    friendlyLogText,
     agentNextStep,
     isAgentRunning,
     isConversationLoading,
     lastFailedPrompt,
     permissionReview,
     promptPreview,
-    readiness,
     runAgentChat,
     runSummary,
     scrollToClearance,
     selectedAgent,
     selectedAgentApprovals,
-    selectedAgentLogs,
     selectedReadableInfo,
     selectedRiskyActions,
-    setAgentProfileTab,
     setChatInput,
     submitAgentPrompt,
     suggestedPrompts
@@ -99,7 +158,7 @@ export function AgentChatTab(props: AgentChatTabProps) {
             <strong>Ask {selectedAgent.name}</strong>
             <p>{agentNextStep}</p>
           </div>
-          <StatusPill tone={readiness.tone}>{isConversationLoading ? "loading" : readiness.label}</StatusPill>
+          {isConversationLoading ? <StatusPill tone="blue">Loading…</StatusPill> : null}
         </div>
         {agentConversation ? <p className="conversation-note">Conversation: {agentConversation.title}</p> : null}
 
@@ -150,6 +209,7 @@ export function AgentChatTab(props: AgentChatTabProps) {
           <form className="chat-form command-form" onSubmit={(event) => void runAgentChat(event)}>
             <input
               aria-label="Message agent"
+              autoComplete="off"
               name="agent-message"
               onChange={(event) => setChatInput(event.currentTarget.value)}
               placeholder="Ask what you want help with…"
@@ -195,6 +255,12 @@ export function AgentChatTab(props: AgentChatTabProps) {
               return (
                 <div className={message.role === "user" ? "chat-bubble chat-user" : "chat-bubble chat-agent"} key={`${message.role}-${message.requestId ?? index}-${message.content.slice(0, 20)}`}>
                   <span>{message.role === "user" ? "You" : selectedAgent.name}</span>
+                  {message.display ? (
+                    <div className="chat-display-heading">
+                      <StatusPill tone={message.display.tone}>{message.display.badge}</StatusPill>
+                      <strong>{message.display.title}</strong>
+                    </div>
+                  ) : null}
                   <p>{message.content}</p>
                   {message.role === "agent" && externalSummary ? (
                     <div className="external-runtime-note">
@@ -203,7 +269,16 @@ export function AgentChatTab(props: AgentChatTabProps) {
                       {externalDetail ? <small>{externalDetail}</small> : null}
                     </div>
                   ) : null}
-                  {message.provider ? <small>Answered safely with the information this agent can use.</small> : null}
+                  {message.role === "agent" && message.workflowResult ? (
+                    <WorkflowResultCard
+                      result={message.workflowResult}
+                      isAgentRunning={isAgentRunning}
+                      lastFailedPrompt={lastFailedPrompt}
+                      submitAgentPrompt={submitAgentPrompt}
+                    />
+                  ) : null}
+                  {message.role === "agent" && message.providerReceipt ? <ProviderReceiptCard receipt={message.providerReceipt} /> : null}
+                  {message.provider && message.provider !== "workflow" ? <small>Answered safely with the information this agent can use.</small> : null}
                   {message.role === "agent" && message.usedSchemas?.length ? (
                     <div className="info-receipt">
                       <strong>Private info used</strong>
@@ -260,28 +335,6 @@ export function AgentChatTab(props: AgentChatTabProps) {
           </div>
         ) : null}
       </section>
-
-      <aside className="agent-side-panel">
-        <div className="agent-status-card">
-          <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
-          <strong>{readiness.detail}</strong>
-          <small>{agentNextStep}</small>
-        </div>
-        <div className="side-permission-summary">
-          <div><strong>Saved Info</strong><span>{allowedPermissionCount} of {permissionReview.length} allowed</span></div>
-          <button onClick={() => setAgentProfileTab("permissions")} type="button"><KeyRound aria-hidden="true" size={15} /> Edit access</button>
-        </div>
-        <div className="agent-activity-card">
-          <strong>Recent activity</strong>
-          {selectedAgentLogs.length ? selectedAgentLogs.slice(0, 3).map((log) => (
-            <div className="mini-log-row" key={log.id}>
-              <StatusPill tone={log.status === "success" ? "green" : log.status === "pending_human_approval" ? "amber" : "red"}>{log.status.replace(/_/g, " ")}</StatusPill>
-              <span>{friendlyLogText(log)}</span>
-              <small>{friendlyDate(log.createdAt)}</small>
-            </div>
-          )) : <small>No activity for this agent yet.</small>}
-        </div>
-      </aside>
     </div>
   );
 }

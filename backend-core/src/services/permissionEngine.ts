@@ -3,6 +3,7 @@ import { prisma } from "../db/prisma.js";
 import type { GatekeeperDecision } from "../types/api.js";
 import { writeActivityLog } from "./activityLogService.js";
 import { decodeJson } from "./jsonService.js";
+import { friendlyActionName } from "./runtimeIntentService.js";
 
 const highRiskActions = new Set([
   "open_credit_card",
@@ -62,12 +63,32 @@ export async function logDecision(input: {
   dataAccessed?: string;
   metadata?: Record<string, unknown>;
 }) {
+  const allowed = input.decision.allowed;
+  const privateInfoUsed = input.actionType === "vault_read" && input.dataAccessed && input.dataAccessed !== "semantic-search"
+    ? [input.dataAccessed]
+    : [];
+  const actionName = input.actionType === "execution_triggered" ? input.dataAccessed : undefined;
   return writeActivityLog({
     userId: input.userId,
     agentId: input.agentId,
     actionType: input.actionType,
     status: input.decision.allowed ? "success" : input.decision.status,
     dataAccessed: input.dataAccessed,
-    dynamicMetadata: { reason: input.decision.reason, ...input.metadata }
+    dynamicMetadata: {
+      source: "agent_runtime",
+      eventCategory: input.actionType === "vault_read" ? "private_info" : "provider",
+      statusLabel: allowed ? "Done" : "Blocked",
+      userTitle: input.actionType === "vault_read"
+        ? allowed ? "Private info read" : "Private info blocked"
+        : allowed ? `Action completed: ${friendlyActionName(actionName ?? "action_requested")}` : "Action blocked",
+      userSummary: input.actionType === "vault_read"
+        ? allowed ? "The agent used only private info you allowed." : "The agent needs permission before it can use that private info."
+        : allowed ? "The action is recorded in your activity history." : input.decision.reason,
+      privateInfoUsed,
+      actionName,
+      reason: input.decision.reason,
+      nextStep: allowed ? "Review Activity if you want the details." : "Review access or try again.",
+      ...input.metadata
+    }
   });
 }

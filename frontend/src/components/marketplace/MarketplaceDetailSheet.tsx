@@ -96,7 +96,7 @@ export function MarketplaceDetailSheet(props: MarketplaceDetailSheetProps) {
             <span>{pendingApprovals ? `${pendingApprovals} waiting for you` : "Nothing waiting"}</span>
             <div>
               {installedAgent ? (
-                <button onClick={() => onOpenInstalledAgent(installedAgent.id)} type="button"><MessageSquare aria-hidden="true" size={15} /> Open Agent</button>
+                <button onClick={() => onOpenInstalledAgent(installedAgent.id)} type="button"><MessageSquare aria-hidden="true" size={15} /> Open agent</button>
               ) : null}
               {installedAgent ? (
                 <button onClick={() => onEditInstalledAgentAccess(installedAgent.id)} type="button"><KeyRound aria-hidden="true" size={15} /> Edit access</button>
@@ -124,7 +124,7 @@ export function MarketplaceDetailSheet(props: MarketplaceDetailSheetProps) {
             type="button"
           >
             {alreadyInstalled ? <MessageSquare aria-hidden="true" size={16} /> : <Download aria-hidden="true" size={16} />}
-            {alreadyInstalled ? "Open Agent" : installingAgentId === agent.id ? "Adding…" : "Add Agent"}
+            {alreadyInstalled ? "Open agent" : installingAgentId === agent.id ? "Adding…" : "Add Agent"}
           </button>
           <button className="marketplace-sheet-secondary-action" onClick={onClose} type="button">Done</button>
         </div>

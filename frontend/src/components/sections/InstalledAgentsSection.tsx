@@ -3,6 +3,7 @@ import { Bot, KeyRound, MessageSquare, Pencil, Pin, Plus, Search } from "lucide-
 import type { Agent } from "../../api/types";
 import type { AgentProfileTab } from "../../hooks/useAgentChat";
 import type { AgentStatusFilter } from "../../hooks/useInstalledAgents";
+import { agentListEmptyState } from "../../lib/agentListEmptyState";
 import type { SectionId } from "../../lib/appNavigation";
 import { friendlyCategoryName } from "../../lib/display";
 import { StatusPill } from "../StatusPill";
@@ -77,6 +78,18 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
     [isAgentListExpanded, visibleInstalledAgentCards]
   );
   const hiddenVisibleAgentCount = Math.max(visibleInstalledAgentCards.length - displayedInstalledAgentCards.length, 0);
+  const mobileFilterCounts: Record<AgentStatusFilter, number> = {
+    all: agents.length,
+    ready: agentSummary.ready,
+    needs_access: agentSummary.needsAccess,
+    needs_approval: agentSummary.needsApproval
+  };
+  const emptyAgentList = agentListEmptyState({
+    agentSearch,
+    agentStatusFilter,
+    hiddenTestAgentCount,
+    hideTestAgents
+  });
 
   useEffect(() => {
     setIsAgentListExpanded(false);
@@ -86,10 +99,10 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
     <div className={`panel agent-list mobile-section desktop-section ${activeMobileClass("helpers")} ${sectionClass("helpers")} ${isMobileAgentDetailOpen ? "mobile-agent-detail-is-open" : ""}`} id="helpers">
       <div className="panel-heading-row">
         <div>
-          <div className="panel-title">My Agents</div>
+          <div className="panel-title">Your agents</div>
           <p className="mobile-section-intro">Use an agent, check access, or remove one.</p>
         </div>
-        <StatusPill tone="blue">{agents.length} installed</StatusPill>
+        <StatusPill tone="blue">{agents.length} {agents.length === 1 ? "agent" : "agents"} added</StatusPill>
       </div>
       {(agentSummary.needsApproval || agentSummary.needsAccess) ? (
         <div className="mobile-agent-attention" aria-label="Agents that need attention">
@@ -104,6 +117,8 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
             <Search size={16} />
             <input
               aria-label="Search agents"
+              autoComplete="off"
+              name="agent-search"
               onChange={(event) => setAgentSearch(event.currentTarget.value)}
               placeholder="Search by name, task, or info…"
               value={agentSearch}
@@ -115,15 +130,19 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
           <button className="agent-add-toggle" aria-expanded={isAgentAddOpen} onClick={() => setIsAgentAddOpen((current: boolean) => !current)} type="button"><Plus size={16} /> Add Agent</button>
         </div>
       </div>
+      <div className="mobile-agent-filter-label">View agents</div>
       <div className="mobile-agent-status-chips" aria-label="Filter agents by status">
         {agentStatusFilters.map((filter) => (
           <button
+            aria-label={`${filter.label}, ${mobileFilterCounts[filter.id]} ${mobileFilterCounts[filter.id] === 1 ? "agent" : "agents"}`}
             className={agentStatusFilter === filter.id ? "selected" : ""}
             key={`mobile-${filter.id}`}
             onClick={() => setAgentStatusFilter(filter.id)}
             type="button"
           >
             {filter.label}
+            {" "}
+            <span>{mobileFilterCounts[filter.id]}</span>
           </button>
         ))}
       </div>
@@ -170,7 +189,7 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
       ) : null}
       {isAgentAddOpen ? (
         <div className="agent-add-panel">
-          <button className="primary-action" onClick={() => openMarketplace()} type="button"><Bot size={16} /> Find an Agent</button>
+          <button className="primary-action" onClick={() => openMarketplace()} type="button"><Bot size={16} /> Find an agent</button>
           {canUseCreatorTools ? <button onClick={openAgentWizard} type="button"><Pencil size={16} /> Create custom</button> : null}
         </div>
       ) : null}
@@ -192,14 +211,19 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
                 <small>{permissions.requested ? `${permissions.allowed} of ${permissions.requested} private info categories allowed` : "No private info needed"}</small>
                 {pendingApprovals ? <small>{pendingApprovals} waiting for you</small> : null}
                 <div className="mobile-agent-actions">
-                  <button className="primary-action" onClick={() => {
+                  <button className="primary-action" aria-label={`Chat with ${agent.name}`} onClick={() => {
                     setSelectedAgentId(agent.id);
                     setAgentProfileTab("chat");
                     setMobileAgentDetailOpen(true);
                   }} type="button"><MessageSquare aria-hidden="true" size={15} /> Chat</button>
-                  <button onClick={() => {
+                  <button aria-label={`Review access for ${agent.name}`} onClick={() => {
                     setSelectedAgentId(agent.id);
-                    scrollToSection("clearance");
+                    if (pendingApprovals) {
+                      scrollToSection("clearance");
+                      return;
+                    }
+                    setAgentProfileTab("permissions");
+                    setMobileAgentDetailOpen(true);
                   }} type="button"><KeyRound aria-hidden="true" size={15} /> {accessActionLabel}</button>
                 </div>
               </div>
@@ -236,12 +260,15 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
                 <small>{pendingApprovals ? `${pendingApprovals} waiting for you` : permissions.missing ? `${permissions.missing} info category ${permissions.missing === 1 ? "needs" : "need"} access` : agent.capabilityManifest.description}</small>
               </div>
               <div className="installed-agent-actions">
-                <button className={pendingApprovals || permissions.missing ? "" : "primary-action"} onClick={() => {
+                <button
+                  aria-label={`${cardActionLabel} for ${agent.name}`}
+                  className={pendingApprovals || permissions.missing ? "" : "primary-action"}
+                  onClick={() => {
                   setSelectedAgentId(agent.id);
-                  if (pendingApprovals || permissions.missing) {
+                  if (pendingApprovals) {
                     scrollToSection("clearance");
                   } else {
-                    setAgentProfileTab("chat");
+                    setAgentProfileTab(permissions.missing ? "permissions" : "chat");
                     scrollToSection("helpers");
                   }
                 }} type="button">{pendingApprovals || permissions.missing ? <KeyRound size={15} /> : <MessageSquare size={15} />} {cardActionLabel}</button>
@@ -254,14 +281,14 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
         <div className="agent-list-footer">
           <span>
             {hiddenVisibleAgentCount
-              ? `${displayedInstalledAgentCards.length} shown. ${hiddenVisibleAgentCount} more agents available.`
-              : `Showing ${displayedInstalledAgentCards.length} visible agents.`}
+              ? `${displayedInstalledAgentCards.length} shown. ${hiddenVisibleAgentCount} more ${hiddenVisibleAgentCount === 1 ? "agent is" : "agents are"} available.`
+              : `Showing all ${displayedInstalledAgentCards.length} ${displayedInstalledAgentCards.length === 1 ? "agent" : "agents"}.`}
             {hiddenTestAgentCount && hideTestAgents ? ` ${hiddenTestAgentCount} test/demo hidden.` : ""}
           </span>
           <div>
             {hiddenTestAgentCount && hideTestAgents ? <button onClick={() => setHideTestAgents(false)} type="button">Show hidden</button> : null}
             {hiddenVisibleAgentCount ? (
-              <button onClick={() => setIsAgentListExpanded(true)} type="button">Show all</button>
+              <button onClick={() => setIsAgentListExpanded(true)} type="button">Show all {visibleInstalledAgentCards.length} agents</button>
             ) : isAgentListExpanded && visibleInstalledAgentCards.length > 5 ? (
               <button onClick={() => setIsAgentListExpanded(false)} type="button">Show fewer</button>
             ) : null}
@@ -270,20 +297,20 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
       ) : null}
       {agents.length > 0 && visibleInstalledAgentCards.length === 0 ? (
         <div className="friendly-empty-state">
-          <strong>No agents match this view</strong>
-          <p>Clear search, switch back to All, or show test agents if you are checking old smoke data.</p>
+          <strong>{emptyAgentList.title}</strong>
+          <p>{emptyAgentList.body}</p>
           <button onClick={() => {
             setAgentSearch("");
             setAgentStatusFilter("all");
             setHideTestAgents(false);
-          }} type="button">Show all agents</button>
+          }} type="button">{emptyAgentList.actionLabel}</button>
         </div>
       ) : null}
       {agents.length === 0 ? (
         <div className="friendly-empty-state">
           <strong>No agents yet</strong>
           <p>Start with one agent for a real task like travel, money, schedule, or personal notes.</p>
-          <button onClick={() => openMarketplace()} type="button"><Bot size={16} /> Find an Agent</button>
+          <button onClick={() => openMarketplace()} type="button"><Bot size={16} /> Find an agent</button>
         </div>
       ) : null}
     </div>

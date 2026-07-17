@@ -54,11 +54,17 @@ export function useVaultWorkflow(input: {
 
   async function runVaultSearch() {
     if (!input.selectedAgent) return;
+    const requestedSchema = input.selectedAgent.capabilityManifest.requestedSchemas?.[0];
+    const query = requestedSchema
+      ? `${requestedSchema} notes and preferences`
+      : `${input.selectedAgent.category} preferences and saved info`;
     const result = await apiPost("/api/mcp/tool-call", {
       agentId: input.selectedAgent.id,
       toolName: "vault.search",
-      arguments: { query: "travel preferences and approval thresholds", schema: input.selectedAgent.capabilityManifest.requestedSchemas?.[0] }
+      arguments: { query, schema: requestedSchema }
     });
+    const documents = (result as { documents?: VaultDocument[] }).documents;
+    if (documents) setSearchResults(documents);
     input.setToolResult(input.friendlyResult(result as Record<string, unknown>));
     await input.refresh();
   }

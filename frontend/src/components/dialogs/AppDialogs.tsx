@@ -16,6 +16,7 @@ type ConfirmationDialog = {
 
 type AppDialogsProps = {
   confirmation: ConfirmationDialog | null;
+  confirmationError: string;
   confirmInstallAgent: MarketplaceAgent | null;
   confirmMarketplaceInstall: () => void | Promise<void>;
   friendlyActionName: (action: string) => string;
@@ -40,6 +41,7 @@ type AppDialogsProps = {
 export function AppDialogs(props: AppDialogsProps) {
   const {
     confirmation,
+    confirmationError,
     confirmInstallAgent,
     friendlyActionName,
     hitl,
@@ -66,6 +68,7 @@ export function AppDialogs(props: AppDialogsProps) {
       {confirmation ? (
         <ConfirmDialog
           confirmation={confirmation}
+          error={confirmationError}
           isConfirming={isConfirming}
           onCancel={() => setConfirmation(null)}
           onConfirm={() => void runConfirmation()}

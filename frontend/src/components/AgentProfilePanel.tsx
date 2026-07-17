@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import type { ActivityLog, Agent, AgentConversation, AgentRunResult, HitlRequest, VaultSchema } from "../api/types";
+import type { ActivityLog, Agent, AgentConversation, AgentRunResult, HitlRequest, ProviderReceipt, VaultSchema } from "../api/types";
 import type { AgentProfileTab, ChatTranscriptItem } from "../hooks/useAgentChat";
 import { externalSourceLabel, externalVerificationLabel, hostFromAgent, isExternalAgent } from "../lib/externalRuntimeDisplay";
 import { AgentActivityTab } from "./agent-profile/AgentActivityTab";
@@ -46,6 +46,7 @@ type AgentProfilePanelProps = {
   allowedPermissionCount: number;
   permissionReview: PermissionReviewItem[];
   selectedAgentLogs: ActivityLog[];
+  selectedAgentProviderReceipts: ProviderReceipt[];
   friendlyLogText: (log: ActivityLog) => string;
   friendlyLogDetail: (log: ActivityLog) => string;
   friendlyDate: (value: string) => string;
@@ -58,7 +59,7 @@ type AgentProfilePanelProps = {
   onBackToAgents: () => void;
   runVaultSearch: () => void | Promise<void>;
   triggerHighRiskAction: () => void | Promise<void>;
-  revokeSelectedAgentAccess: () => void | Promise<void>;
+  revokeSelectedAgentAccess: () => "confirm" | "none" | void | Promise<"confirm" | "none" | void>;
   removeAgentFromProfile: (agent: Agent) => void;
   toolResult: string;
 };
@@ -69,6 +70,13 @@ const tabs: Array<[AgentProfileTab, string]> = [
   ["activity", "Activity"],
   ["settings", "Settings"]
 ];
+
+const mobileTabLabels: Record<AgentProfileTab, string> = {
+  chat: "Chat",
+  permissions: "Access",
+  activity: "Activity",
+  settings: "Info"
+};
 
 export function AgentProfilePanel(props: AgentProfilePanelProps) {
   const {
@@ -106,13 +114,15 @@ export function AgentProfilePanel(props: AgentProfilePanelProps) {
           {tabs.map(([tab, label]) => (
             <button
               aria-selected={agentProfileTab === tab}
+              aria-label={`${label} for ${selectedAgent.name}`}
               className={agentProfileTab === tab ? "active" : ""}
               key={tab}
               onClick={() => setAgentProfileTab(tab)}
               role="tab"
               type="button"
             >
-              {label}
+              <span className="desktop-tab-label">{label}</span>
+              <span className="mobile-tab-label">{mobileTabLabels[tab]}</span>
             </button>
           ))}
         </div>
@@ -130,8 +140,6 @@ export function AgentProfilePanel(props: AgentProfilePanelProps) {
           continueApprovedAction={props.continueApprovedAction}
           decideHitl={props.decideHitl}
           decidingApprovalId={props.decidingApprovalId}
-          friendlyDate={props.friendlyDate}
-          friendlyLogText={props.friendlyLogText}
           agentNextStep={props.agentNextStep}
           isAgentRunning={props.isAgentRunning}
           isConversationLoading={props.isConversationLoading}
@@ -144,10 +152,8 @@ export function AgentProfilePanel(props: AgentProfilePanelProps) {
           scrollToClearance={props.scrollToClearance}
           selectedAgent={selectedAgent}
           selectedAgentApprovals={props.selectedAgentApprovals}
-          selectedAgentLogs={props.selectedAgentLogs}
           selectedReadableInfo={props.selectedReadableInfo}
           selectedRiskyActions={props.selectedRiskyActions}
-          setAgentProfileTab={setAgentProfileTab}
           setChatInput={props.setChatInput}
           submitAgentPrompt={props.submitAgentPrompt}
           suggestedPrompts={props.suggestedPrompts}
@@ -172,6 +178,7 @@ export function AgentProfilePanel(props: AgentProfilePanelProps) {
             friendlyLogDetail={props.friendlyLogDetail}
             friendlyLogText={props.friendlyLogText}
             selectedAgentLogs={props.selectedAgentLogs}
+            selectedAgentProviderReceipts={props.selectedAgentProviderReceipts}
           />
         ) : null}
 

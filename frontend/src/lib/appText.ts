@@ -1,7 +1,25 @@
 import { ApiError } from "../api/client";
-import type { ActivityLog, AgentRunResult } from "../api/types";
+import type { ActivityLog, AgentRunResult, ProviderReceipt } from "../api/types";
 import { externalLogDisplay } from "./externalRuntimeDisplay";
 import { friendlyActionName } from "./display";
+
+const rawRuntimeTokenPattern = /\b[a-z]+(?:_[a-z0-9]+){1,}\b/g;
+const exactRawRuntimeTokenPattern = /^[a-z]+(?:_[a-z0-9]+){1,}$/;
+const providerNextActionLabels: Record<string, string> = {
+  connect_account: "Connect the provider, then try again.",
+  approve_action: "Review it and choose Allow once or Deny.",
+  fix_workflow: "Check setup, then try again.",
+  grant_access: "Allow the requested saved info, then try again.",
+  add_missing_info: "Add the missing details, then try again.",
+  try_again: "Try again in a moment.",
+  contact_support: "Ask support to check this provider."
+};
+
+function cleanRuntimeText(value: string | undefined, fallback: string) {
+  const text = (value ?? "").trim() || fallback;
+  if (/internal server error|status 500|something went wrong|provider_error|workflow failed/i.test(text)) return fallback;
+  return text.replace(rawRuntimeTokenPattern, (match) => friendlyActionName(match));
+}
 
 export function runtimeSummary(result: AgentRunResult | null) {
   if (!result) return null;
@@ -11,7 +29,7 @@ export function runtimeSummary(result: AgentRunResult | null) {
   if (result.externalRuntime?.proxyStatus === "blocked") return "The external agent was blocked by a safety check.";
   if (result.runtimeState === "needs_permission") return "This agent needs permission before it can use that private info.";
   if (result.runtimeState === "needs_approval") return "Waiting for you. Nothing continues unless you allow it.";
-  if (result.status === "blocked") return result.reason ?? "This request was blocked by your safety rules.";
+  if (result.status === "blocked") return cleanRuntimeText(result.reason, "Nothing continued. Review the agent access and try again.");
   if (result.provider === "openai") return "Answered using your approved info.";
   if (result.provider === "local") return "Answered safely with the information available.";
   return "Answered safely.";
@@ -45,6 +63,7 @@ export function getStarterInfoPlaceholder(templateId: string) {
 }
 
 export function friendlyLogText(log: ActivityLog) {
+  if (log.display?.title) return log.display.title;
   const external = externalLogDisplay(log);
   if (external) return external.title;
   const agent = log.agent?.name ?? "An agent";
@@ -63,6 +82,7 @@ export function friendlyLogText(log: ActivityLog) {
 }
 
 export function friendlyLogDetail(log: ActivityLog) {
+  if (log.display?.summary) return log.display.nextStep ? `${log.display.summary} ${log.display.nextStep}` : log.display.summary;
   const external = externalLogDisplay(log);
   if (external) return external.detail || "Ran through AI Agent Hub safety";
   if (log.actionType === "vault_read") return `Used: ${log.dataAccessed ?? "approved saved info"}`;
@@ -81,6 +101,60 @@ export function friendlyLogDetail(log: ActivityLog) {
   return "No extra detail";
 }
 
+export function friendlyLogBadge(log: ActivityLog) {
+  if (log.display?.badge) return log.display.badge;
+  if (log.status === "success") return "Done";
+  if (log.status === "pending_human_approval") return "Waiting";
+  if (log.status === "error") return "Problem";
+  return "Stopped";
+}
+
+export function logTone(log: ActivityLog): "blue" | "amber" | "green" | "red" {
+  if (log.display?.approvalStatus === "waiting" || log.status === "pending_human_approval") return "amber";
+  if (log.display?.approvalStatus === "denied" || log.status === "blocked_by_policy" || log.status === "error") return "red";
+  if (log.display?.category === "system" || log.display?.category === "provider") return "blue";
+  return "green";
+}
+
+export function logMatchesCategory(log: ActivityLog, category: "approval" | "blocked" | "private_info") {
+  if (category === "approval") return log.display?.category === "approval" || log.status === "pending_human_approval";
+  if (category === "blocked") return log.status === "blocked_by_policy" || log.status === "error" || log.display?.approvalStatus === "denied";
+  return log.display?.category === "private_info"
+    || Boolean(log.display?.privateInfoUsed?.length)
+    || friendlyLogText(log).toLowerCase().includes("saved info")
+    || friendlyLogText(log).toLowerCase().includes("private")
+    || friendlyLogDetail(log).toLowerCase().includes("saved info")
+    || friendlyLogDetail(log).toLowerCase().includes("private")
+    || friendlyLogDetail(log).toLowerCase().includes("read");
+}
+
+export function providerReceiptTitle(receipt: ProviderReceipt) {
+  return receipt.display?.title ?? cleanRuntimeText(
+    `${receipt.capabilityLabel} ${receipt.status === "succeeded" ? "completed" : receipt.status === "waiting_for_approval" ? "needs approval" : "did not complete"}`,
+    "Provider activity"
+  );
+}
+
+export function providerReceiptDetail(receipt: ProviderReceipt) {
+  const summary = cleanRuntimeText(receipt.display?.summary ?? receipt.userMessage, "This provider task could not finish.");
+  const nextStep = receipt.display?.nextStep
+    ? cleanRuntimeText(receipt.display.nextStep, "")
+    : receipt.nextAction
+      ? providerNextActionLabels[receipt.nextAction] ?? cleanRuntimeText(receipt.nextAction, "")
+      : "";
+  return [summary, nextStep ? `Next: ${nextStep}` : ""].filter(Boolean).join(" ");
+}
+
+export function providerReceiptBadge(receipt: ProviderReceipt) {
+  return receipt.display?.badge ?? (receipt.status === "succeeded" ? "Done" : receipt.status === "waiting_for_approval" ? "Waiting for you" : "Blocked");
+}
+
+export function providerReceiptTone(receipt: ProviderReceipt): "blue" | "amber" | "green" | "red" {
+  if (receipt.status === "waiting_for_approval") return "amber";
+  if (receipt.status === "blocked") return "red";
+  return "blue";
+}
+
 export function friendlyDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
@@ -97,24 +171,31 @@ export function friendlyNotificationText(log: ActivityLog) {
 export function friendlyResult(result: Record<string, unknown>) {
   const status = String(result.status ?? "ok");
   if (status === "ok" && Array.isArray(result.documents)) return `Found ${result.documents.length} matching personal info item${result.documents.length === 1 ? "" : "s"}.`;
-  if (status === "blocked") return `Blocked: ${String(result.reason ?? "this agent does not have permission.")}`;
+  if (status === "blocked") {
+    const reason = String(result.reason ?? "");
+    if (/missing_private_info_permission|permission|access/i.test(reason)) return "This agent needs access before it can use that private info.";
+    if (/policy|denied|blocked/i.test(reason)) return "Nothing continued because this is blocked by your safety rules.";
+    if (/internal server error|status 500|something went wrong|provider_error|workflow failed/i.test(reason)) return "Nothing continued. Review the agent access and try again.";
+    if (exactRawRuntimeTokenPattern.test(reason)) return `Nothing continued before ${friendlyActionName(reason).toLowerCase()}.`;
+    return cleanRuntimeText(reason, "Nothing continued. Review the agent access and try again.");
+  }
   if (status === "awaiting_human_approval") return "Waiting for you. Nothing continues unless you allow it.";
   if (status === "vault_item_created") return "Personal info saved.";
   if (status === "vault_item_updated") return "Personal info updated.";
   if (status === "vault_item_deleted") return "Personal info deleted.";
   if (status === "vault_file_uploaded") return "File uploaded into Personal Info.";
-  return status.replace(/_/g, " ");
+  return cleanRuntimeText(status, "We could not finish that request. Please try again.");
 }
 
 export function friendlyAppError(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.message && !/^request failed/i.test(error.message)) return error.message;
     if (error.status === 401) return "Your session expired. Please sign in again.";
     if (error.status === 403) return "You do not have permission to do that.";
     if (error.status === 404) return "We could not find that item.";
     if (error.status === 409) return "That change conflicts with something already saved.";
     if (error.status === 422 || error.status === 400) return "Check the details and try again.";
     if (error.status >= 500) return "We could not finish that request. Please try again in a moment.";
+    if (error.message && !/request failed|status \d{3}|internal server error/i.test(error.message)) return error.message;
     return "We could not finish that request. Please try again.";
   }
   const message = error instanceof Error ? error.message : String(error || "");

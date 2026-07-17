@@ -33,6 +33,9 @@ const schema = z.object({
   MODERATOR_USER_IDS: z.string().default(""),
   OPENAI_API_KEY: z.string().min(1).optional(),
   OPENAI_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+  GOOGLE_REDIRECT_URI: z.string().url().optional(),
   EXTERNAL_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   EXTERNAL_RUNTIME_MAX_RESPONSE_BYTES: z.coerce.number().int().min(1000).max(200000).default(60000)
 }).superRefine((value, context) => {

@@ -23,9 +23,20 @@ import { moderationRoutes } from "./routes/moderationRoutes.js";
 import { installRoutes } from "./routes/installRoutes.js";
 import { agentRuntimeRoutes } from "./routes/agentRuntimeRoutes.js";
 import { externalAgentImportRoutes } from "./routes/externalAgentImportRoutes.js";
+import { toolRoutes } from "./routes/toolRoutes.js";
+import { connectorRoutes, publicConnectorRoutes } from "./routes/connectorRoutes.js";
+import { workflowConnectionRoutes } from "./routes/workflowConnectionRoutes.js";
+import { providerHealthRoutes } from "./routes/providerHealthRoutes.js";
+import { providerConnectionRoutes, publicProviderConnectionRoutes } from "./routes/providerConnectionRoutes.js";
+import { providerReceiptRoutes } from "./routes/providerReceiptRoutes.js";
+import { providerDefinitionRoutes } from "./routes/providerDefinitionRoutes.js";
+import { loadActiveProviderDefinitionsIntoRegistry } from "./services/providerDefinitionService.js";
 
 export function createApp() {
   const app = express();
+  void loadActiveProviderDefinitionsIntoRegistry().catch((error) => {
+    logger.warn({ error }, "could not load persisted provider definitions");
+  });
   app.use(helmet());
   app.use(cors({ origin: frontendOrigins, credentials: true }));
   app.use(express.json({ limit: "1mb" }));
@@ -35,6 +46,8 @@ export function createApp() {
   app.use("/health", healthRoutes);
   app.use(requestContext);
   app.use("/api", generalApiRateLimit);
+  app.use("/api/connectors", publicConnectorRoutes);
+  app.use("/api/provider-connections", publicProviderConnectionRoutes);
   app.use("/api", requireUser);
   app.use("/api/agents", agentRoutes);
   app.use("/api/vault", vaultRoutes);
@@ -47,6 +60,13 @@ export function createApp() {
   app.use("/api/creator-access", sensitiveActionRateLimit, creatorAccessRoutes);
   app.use("/api/moderation", moderationRoutes);
   app.use("/api/external-agents", sensitiveActionRateLimit, externalAgentImportRoutes);
+  app.use("/api/tools", toolRoutes);
+  app.use("/api/connectors", connectorRoutes);
+  app.use("/api/workflows", workflowConnectionRoutes);
+  app.use("/api/provider-connections", providerConnectionRoutes);
+  app.use("/api/provider-health", providerHealthRoutes);
+  app.use("/api/provider-receipts", providerReceiptRoutes);
+  app.use("/api/admin/providers", sensitiveActionRateLimit, providerDefinitionRoutes);
   app.use("/api/me/agents", agentRuntimeRateLimit, agentRuntimeRoutes);
   app.use("/api/me", installRoutes);
 

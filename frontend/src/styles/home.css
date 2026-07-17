@@ -1,7 +1,7 @@
 .home-dashboard {
   align-items: start;
   grid-template-columns: minmax(420px, 1.35fr) minmax(260px, 0.65fr);
-  gap: 14px;
+  gap: 16px;
   margin-bottom: 14px;
 }
 
@@ -97,14 +97,14 @@
 .home-card {
   min-height: 172px;
   align-content: start;
-  gap: 14px;
+  gap: 16px;
 }
 
 .home-card-intro {
   color: #91a4ba;
   font-size: 13px;
   line-height: 1.4;
-  margin: -5px 0 2px;
+  margin: -4px 0 2px;
 }
 
 .home-agent-count {
@@ -116,15 +116,16 @@
   display: inline-flex;
   font-size: 12px;
   font-weight: 900;
-  height: 28px;
+  height: 36px;
   justify-content: center;
-  min-width: 28px;
-  padding: 0 9px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  width: auto;
 }
 
 .home-primary-card {
   background:
-    linear-gradient(135deg, rgba(64, 156, 255, 0.1), transparent 58%),
     rgba(10, 24, 40, 0.92);
   grid-row: span 2;
 }
@@ -158,8 +159,18 @@
   text-align: left;
 }
 
-.home-primary-card .button-row {
-  margin-top: 6px;
+.home-action-row {
+  align-items: center;
+  border-top: 1px solid rgba(137, 163, 196, 0.1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 16px;
+}
+
+.home-action-row button {
+  min-height: 44px;
 }
 
 .home-category-grid button:first-child {
@@ -236,6 +247,81 @@
   grid-template-columns: 1fr;
 }
 
+.home-how-it-works {
+  align-items: center;
+  background: rgba(7, 17, 31, 0.26);
+  border: 1px solid rgba(137, 163, 196, 0.1);
+  border-radius: 7px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(140px, 0.32fr) minmax(0, 1fr);
+  margin-top: 2px;
+  padding: 10px;
+}
+
+.home-how-it-works > div {
+  display: grid;
+  gap: 3px;
+}
+
+.home-how-it-works strong {
+  color: #f5f9ff;
+  font-size: 13px;
+}
+
+.home-how-it-works span {
+  color: #91a4ba;
+  font-size: 12px;
+}
+
+.home-setup-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.home-setup-list li {
+  align-items: center;
+  background: rgba(13, 31, 52, 0.72);
+  border: 1px solid rgba(137, 163, 196, 0.12);
+  border-radius: 999px;
+  color: #c9d9eb;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 10px 0 4px;
+}
+
+.home-setup-list li > span {
+  align-items: center;
+  background: rgba(64, 156, 255, 0.1);
+  border: 1px solid rgba(64, 156, 255, 0.2);
+  border-radius: 999px;
+  color: #d9e7f7;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 900;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.home-setup-list li.done {
+  border-color: rgba(64, 209, 137, 0.2);
+  color: #b8e8c9;
+}
+
+.home-setup-list li.done > span {
+  background: rgba(64, 209, 137, 0.12);
+  border-color: rgba(64, 209, 137, 0.24);
+  color: #b8e8c9;
+}
+
 .setup-step {
   align-items: start;
   background: rgba(7, 17, 31, 0.32);
@@ -309,25 +395,25 @@
 }
 
 .home-agents-card {
-  gap: 12px;
+  gap: 10px;
 }
 
 .home-agent-card {
   align-items: center;
-  background: rgba(13, 31, 52, 0.76);
-  border-color: rgba(137, 163, 196, 0.14);
+  background: rgba(13, 31, 52, 0.56);
+  border-color: rgba(137, 163, 196, 0.1);
   display: grid;
   gap: 12px;
   grid-template-columns: minmax(0, 1fr) auto;
   justify-content: stretch;
-  min-height: 62px;
-  padding: 11px 12px;
+  min-height: 54px;
+  padding: 9px 11px;
   text-align: left;
   width: 100%;
 }
 
 .home-agent-card + .home-agent-card {
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .home-agent-card:hover {
@@ -372,6 +458,12 @@
   min-height: 28px;
   padding: 0 9px;
   white-space: nowrap;
+}
+
+.home-view-all-agents {
+  justify-self: start;
+  min-height: 36px;
+  padding-inline: 10px;
 }
 
 .home-wide-card {

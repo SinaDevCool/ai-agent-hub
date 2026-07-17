@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { friendlyActionName, getRequestedAction, getRuntimeIntent } from "./services/runtimeIntentService.js";
+import { friendlyActionName, getCalendarLookupDays, getEmailDraftInput, getEmailSearchQuery, getRequestedAction, getRuntimeIntent } from "./services/runtimeIntentService.js";
 
 test("runtime intent helper classifies empty, search, and action messages", () => {
   assert.equal(getRuntimeIntent(""), "blocked");
@@ -8,6 +8,21 @@ test("runtime intent helper classifies empty, search, and action messages", () =
   assert.equal(getRuntimeIntent("What trips do I have planned?"), "search");
   assert.equal(getRuntimeIntent("Book a hotel for next Friday"), "action");
   assert.equal(getRuntimeIntent("Please apply for this card"), "action");
+  assert.equal(getRuntimeIntent("Find recent emails about my hotel"), "email_search");
+  assert.equal(getRuntimeIntent("Draft an email to sam@example.com saying thanks"), "email_draft");
+  assert.equal(getRuntimeIntent("When am I free this week?"), "calendar_free_time");
+  assert.equal(getRuntimeIntent("Send this email now"), "action");
+});
+
+test("runtime intent helper extracts connector inputs", () => {
+  assert.equal(getEmailSearchQuery("Find recent emails about my hotel"), "about hotel");
+  assert.deepEqual(getEmailDraftInput("Draft an email to sam@example.com saying thanks for the update"), {
+    to: "sam@example.com",
+    subject: "Draft from AI Agent Hub",
+    body: "thanks for the update"
+  });
+  assert.equal(getCalendarLookupDays("When am I free today?"), 1);
+  assert.equal(getCalendarLookupDays("Find free time in 14 days"), 14);
 });
 
 test("runtime action helper keeps the shared high-risk fallback order", () => {
@@ -24,5 +39,5 @@ test("runtime action helper prefers explicitly declared action names", () => {
     getRequestedAction("Please handle book non refundable travel now", ["book_non_refundable_travel"]),
     "book_non_refundable_travel"
   );
-  assert.equal(friendlyActionName("book_non_refundable_travel"), "book non refundable travel");
+  assert.equal(friendlyActionName("book_non_refundable_travel"), "book non-refundable travel");
 });
