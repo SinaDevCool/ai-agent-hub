@@ -60,6 +60,8 @@ const schema = z.object({
   PRIVATE_BETA_ENFORCED: z.enum(["true", "false"]).default("false"),
   PRIVACY_RIGHTS_ENABLED: z.enum(["true", "false"]).default("false"),
   PRIVACY_DELETION_GRACE_HOURS: z.coerce.number().int().min(24).max(720).default(168),
+  VERTICAL_RELEASE_GATING_ENABLED: z.enum(["true", "false"]).default("false"),
+  VERTICAL_RELEASE_RULES: z.string().default("{}"),
   BETA_COHORT_LIMITS: z.string().default('{"team":25,"trusted":5,"early":25,"expanded":100}'),
   BETA_CAPABILITY_RULES: z.string().default("{}"),
   EXTERNAL_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),

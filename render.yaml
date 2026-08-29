@@ -64,6 +64,10 @@ services:
         value: false
       - key: PRIVACY_DELETION_GRACE_HOURS
         value: 168
+      - key: VERTICAL_RELEASE_GATING_ENABLED
+        value: false
+      - key: VERTICAL_RELEASE_RULES
+        value: '{}'
       - key: BETA_COHORT_LIMITS
         value: '{"team":25,"trusted":5,"early":25,"expanded":100}'
       - key: BETA_CAPABILITY_RULES

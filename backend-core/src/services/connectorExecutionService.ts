@@ -13,7 +13,7 @@ import type { ProviderReadinessCode } from "./providerReadinessMessages.js";
 import type { ToolBlockDetails, ToolExecutionInput } from "./tools/toolExecutionTypes.js";
 import { getLifeCapability } from "./lifePlatformCatalog.js";
 import { persistAwaitingLifeApproval } from "./lifeTransactionService.js";
-import { isBetaCapabilityAllowed, releaseLevelForAction } from "./featureFlagService.js";
+import { isBetaCapabilityAllowed, isVerticalReleaseAllowed, releaseLevelForAction } from "./featureFlagService.js";
 
 export type ConnectorExecutionInput = {
   userId: string;
@@ -146,6 +146,17 @@ export async function executeConnector(input: ConnectorExecutionInput): Promise<
       code: "provider_error",
       userMessage: `No connected provider is ready for ${capability.label}.`,
       technicalMessage: `No provider for capability '${capability.canonicalKey}' and action '${action}'.`,
+      nextAction: "contact_support",
+      retryable: false
+    };
+  }
+  if (!isVerticalReleaseAllowed({ domain: capability.category, providerId: provider.providerId, level: releaseLevel })) {
+    return {
+      status: "blocked",
+      reason: "This live provider is not in the active vertical release cohort.",
+      code: "permission_denied",
+      userMessage: "This provider is not available for this capability yet.",
+      technicalMessage: `Vertical release rule blocked '${provider.providerId}' for '${capability.category}:${releaseLevel}'.`,
       nextAction: "contact_support",
       retryable: false
     };
