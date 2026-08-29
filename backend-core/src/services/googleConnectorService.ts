@@ -36,6 +36,11 @@ type GoogleEvents = {
 };
 type GoogleDriveFiles = { files?: Array<{ id: string; name: string; mimeType?: string; modifiedTime?: string; webViewLink?: string }> };
 
+type FetchLike = typeof fetch;
+let googleApiFetch: FetchLike = fetch;
+export function setGoogleApiFetchForTest(value: FetchLike) { googleApiFetch = value; }
+export function resetGoogleApiFetchForTest() { googleApiFetch = fetch; }
+
 function header(message: GoogleMessage, name: string) {
   return message.payload?.headers?.find((item) => item.name.toLowerCase() === name.toLowerCase())?.value ?? "";
 }
@@ -45,7 +50,7 @@ async function googleFetch<T>(input: { userId: string; url: string; scopes: stri
   if (token.status !== "ok") {
     return { status: "blocked" as const, reason: token.message };
   }
-  const response = await fetch(input.url, {
+  const response = await googleApiFetch(input.url, {
     ...input.init,
     headers: {
       ...input.init?.headers,
