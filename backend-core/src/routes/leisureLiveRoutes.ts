@@ -1,0 +1,6 @@
+import { Router } from "express"; import { z } from "zod"; import { continueLeisureHandoff, prepareLeisureHandoff, searchLiveRestaurants, searchTicketmasterEvents } from "../services/liveLeisureService.js";
+export const leisureLiveRoutes = Router();
+leisureLiveRoutes.post("/events/search", async (req, res) => { const body = z.object({ city: z.string().trim().min(1).max(120), startDate: z.string(), endDate: z.string(), keyword: z.string().trim().max(120).optional() }).parse(req.body); res.json(await searchTicketmasterEvents(body)); });
+leisureLiveRoutes.post("/restaurants/search", async (req, res) => { const body = z.object({ cuisine: z.string().trim().min(1).max(100), location: z.string().trim().min(1).max(160) }).parse(req.body); res.json(await searchLiveRestaurants(body)); });
+leisureLiveRoutes.post("/handoff/prepare", async (req, res) => { const body = z.object({ agentId: z.string().min(1), kind: z.enum(["event", "restaurant"]), externalId: z.string().trim().min(5).max(300), context: z.string().trim().min(1).max(500), idempotencyKey: z.string().trim().min(8).max(200) }).parse(req.body); res.status(201).json(await prepareLeisureHandoff({ userId: req.userId!, ...body })); });
+leisureLiveRoutes.post("/handoff/:id/continue", async (req, res) => { res.json(await continueLeisureHandoff({ userId: req.userId!, transactionId: req.params.id })); });

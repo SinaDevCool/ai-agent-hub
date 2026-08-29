@@ -78,6 +78,14 @@ services:
         value: 10000
       - key: GOOGLE_PLACES_API_KEY
         sync: false
+      - key: LIVE_LEISURE_ENABLED
+        value: false
+      - key: HOSTED_LEISURE_HANDOFF_ENABLED
+        value: false
+      - key: LEISURE_PROVIDER_TIMEOUT_MS
+        value: 10000
+      - key: TICKETMASTER_API_KEY
+        sync: false
       - key: HOSTED_TRAVEL_CHECKOUT_ENABLED
         value: false
       - key: TRAVEL_PROVIDER_TIMEOUT_MS

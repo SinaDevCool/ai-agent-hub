@@ -67,6 +67,10 @@ const schema = z.object({
   HOSTED_HOUSEHOLD_HANDOFF_ENABLED: z.enum(["true", "false"]).default("false"),
   HOUSEHOLD_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   GOOGLE_PLACES_API_KEY: z.string().min(1).optional(),
+  LIVE_LEISURE_ENABLED: z.enum(["true", "false"]).default("false"),
+  HOSTED_LEISURE_HANDOFF_ENABLED: z.enum(["true", "false"]).default("false"),
+  LEISURE_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
+  TICKETMASTER_API_KEY: z.string().min(1).optional(),
   HOSTED_TRAVEL_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("false"),
   TRAVEL_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   TRAVEL_LAUNCH_REGIONS: z.string().default("DE,EU"),
@@ -119,6 +123,9 @@ const schema = z.object({
   }
   if (value.LIVE_HOUSEHOLD_ENABLED === "true" && !value.GOOGLE_PLACES_API_KEY) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "GOOGLE_PLACES_API_KEY is required when live household discovery is enabled" });
+  }
+  if (value.LIVE_LEISURE_ENABLED === "true" && (!value.GOOGLE_PLACES_API_KEY || !value.TICKETMASTER_API_KEY)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "GOOGLE_PLACES_API_KEY and TICKETMASTER_API_KEY are required when live leisure is enabled" });
   }
   if (!process.env.FRONTEND_ORIGIN) {
     context.addIssue({

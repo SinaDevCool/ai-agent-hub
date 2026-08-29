@@ -11,6 +11,7 @@ The hub implements a provider-neutral personal-life capability layer. Agents ask
 - Household: sandbox provider discovery, quote workflow, approved service booking, and cancellation are executable; real providers remain account or partnership gated.
 - Shopping: sandbox product search, checkout preparation, approved order/cancellation, durable user-scoped lists, and a disabled-by-default Instacart hosted-list handoff are executable.
 - Household: sandbox discovery, quoting, booking, and cancellation remain available; disabled-by-default Google Places discovery and approval-bound provider-site handoff reuse canonical transactions without claiming a quote or booking.
+- Leisure: sandbox events and restaurant reservations remain available; disabled-by-default Ticketmaster event discovery and reused Google Places restaurant discovery support approval-bound external handoffs without claiming purchase or reservation.
 - Leisure: sandbox restaurant reservation/cancellation and event discovery are executable; real reservations and tickets remain provider gated.
 - Smart home: allowlisted sandbox device read/control and read-only energy analysis are executable; physical integrations require a connected Home Assistant/SmartThings account.
 - Wellness: deterministic read-only activity and non-diagnostic plan preparation are executable; device health data requires a user-authorized mobile or provider connection.
