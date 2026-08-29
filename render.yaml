@@ -37,7 +37,7 @@ services:
       - key: APP_ENV
         value: production
       - key: MIGRATION_VERSION
-        value: 0022_data_rights_foundation
+        value: 0023_privacy_export_expiry
       - key: DURABLE_JOBS_ENABLED
         value: false
       - key: DURABLE_JOB_BATCH_SIZE
@@ -64,10 +64,24 @@ services:
         value: false
       - key: PRIVACY_DELETION_GRACE_HOURS
         value: 168
+      - key: PRIVACY_EXPORT_EXECUTOR_ENABLED
+        value: false
+      - key: PRIVACY_EXPORT_PATH
+        value: ./private-exports
+      - key: PRIVACY_EXPORT_TTL_HOURS
+        value: 24
       - key: VERTICAL_RELEASE_GATING_ENABLED
         value: false
       - key: VERTICAL_RELEASE_RULES
         value: '{}'
+      - key: OPS_ALERT_DEAD_LETTER_WARN
+        value: 1
+      - key: OPS_ALERT_RECONCILIATION_WARN
+        value: 1
+      - key: OPS_ALERT_OLDEST_JOB_MINUTES
+        value: 15
+      - key: OPS_ALERT_PROVIDER_FAILURES_15M
+        value: 5
       - key: BETA_COHORT_LIMITS
         value: '{"team":25,"trusted":5,"early":25,"expanded":100}'
       - key: BETA_CAPABILITY_RULES

@@ -15,7 +15,7 @@ export async function listDataRightsRequests(userId: string) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: 50,
-    select: { id: true, requestType: true, status: true, executeAfter: true, completedAt: true, cancelledAt: true, createdAt: true, updatedAt: true }
+    select: { id: true, requestType: true, status: true, executeAfter: true, completedAt: true, cancelledAt: true, artifactExpiresAt: true, createdAt: true, updatedAt: true }
   });
 }
 

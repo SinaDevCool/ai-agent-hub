@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
+    "verify:performance-budget": "node scripts/verify_performance_budget.mjs",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run"

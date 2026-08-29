@@ -14,7 +14,7 @@ Production database URLs, encryption keys, OAuth clients, provider credentials, 
 
 ## Backend settings
 
-Set `NODE_ENV=production` so production security is exercised and set `APP_ENV=staging` so the deployment is visibly identified. Required release settings are `RELEASE_SHA` (or Render's `RENDER_GIT_COMMIT`), `MIGRATION_VERSION=0022_data_rights_foundation`, `API_PUBLIC_URL`, and `FRONTEND_PUBLIC_URL`.
+Set `NODE_ENV=production` so production security is exercised and set `APP_ENV=staging` so the deployment is visibly identified. Required release settings are `RELEASE_SHA` (or Render's `RENDER_GIT_COMMIT`), `MIGRATION_VERSION=0023_privacy_export_expiry`, `API_PUBLIC_URL`, and `FRONTEND_PUBLIC_URL`.
 
 Keep `DURABLE_JOBS_ENABLED=false` on both the web service and worker until the Phase 5 failure drills are complete. The web process enqueues only; a separately deployed worker runs `npm --workspace backend-core run start:worker`. Enable one staging worker first, verify queue metrics and dead-letter controls, and only then test concurrent workers.
 

@@ -239,12 +239,14 @@ model DataRightsRequest {
   cancelledAt    DateTime?               @map("cancelled_at")
   failureReason  String?                 @map("failure_reason")
   artifactRef    String?                 @map("artifact_ref")
+  artifactExpiresAt DateTime?            @map("artifact_expires_at")
   createdAt      DateTime                @default(now()) @map("created_at")
   updatedAt      DateTime                @updatedAt @map("updated_at")
   user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, requestType, status])
   @@index([status, executeAfter])
+  @@index([artifactExpiresAt])
   @@map("data_rights_requests")
 }
 

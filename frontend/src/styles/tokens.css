@@ -51,7 +51,7 @@ button:hover {
 button.primary-action,
 .topbar-primary {
   border-color: rgba(72, 170, 255, 0.66);
-  background: #1f7bd0;
+  background: #1768b3;
   color: #ffffff;
   box-shadow: 0 8px 18px rgba(35, 131, 223, 0.18);
 }
@@ -59,7 +59,7 @@ button.primary-action,
 button.primary-action:hover,
 .topbar-primary:hover {
   border-color: rgba(126, 202, 255, 0.9);
-  background: #2f95f0;
+  background: #1b72c2;
 }
 
 button:focus-visible,

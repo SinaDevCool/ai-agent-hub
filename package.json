@@ -16,6 +16,7 @@
     "test": "npm --workspaces run test",
     "typecheck": "npm --workspaces run typecheck",
     "smoke:ui": "playwright test",
+    "verify:performance-budget": "npm --workspace frontend run verify:performance-budget",
     "smoke:production": "npm --workspace backend-core run smoke:production",
     "verify:release": "npm --workspace backend-core run verify:release",
     "verify:release-evidence": "npm --workspace backend-core run verify:release-evidence",
@@ -27,6 +28,7 @@
     "db:cleanup:demo": "npm --workspace backend-core run db:cleanup:demo --"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "npm-run-all": "^4.1.5",
     "playwright": "^1.61.1"
   },

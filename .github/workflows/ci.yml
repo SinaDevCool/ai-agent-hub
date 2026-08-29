@@ -35,6 +35,7 @@ jobs:
       - run: npm audit --audit-level=high --omit=dev
       - run: npm test
       - run: npm run build
+      - run: npm run verify:performance-budget
 
   browser-smoke:
     runs-on: ubuntu-latest

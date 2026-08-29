@@ -36,6 +36,7 @@ import { travelCheckoutRoutes } from "./routes/travelCheckoutRoutes.js";
 import { betaRoutes } from "./routes/betaRoutes.js";
 import { requireBetaAccess } from "./middleware/requireBetaAccess.js";
 import { dataRightsRoutes } from "./routes/dataRightsRoutes.js";
+import { operationsRoutes } from "./routes/operationsRoutes.js";
 import { loadActiveProviderDefinitionsIntoRegistry } from "./services/providerDefinitionService.js";
 
 export function createApp() {
@@ -80,6 +81,7 @@ export function createApp() {
   app.use("/api/travel/hosted-checkout", sensitiveActionRateLimit, travelCheckoutRoutes);
   app.use("/api/admin/providers", sensitiveActionRateLimit, providerDefinitionRoutes);
   app.use("/api/admin/durable-jobs", sensitiveActionRateLimit, durableJobRoutes);
+  app.use("/api/admin/operations", sensitiveActionRateLimit, operationsRoutes);
   app.use("/api/me/agents", agentRuntimeRateLimit, agentRuntimeRoutes);
   app.use("/api/me", installRoutes);
 

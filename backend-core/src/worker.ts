@@ -3,8 +3,10 @@ import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { disconnectPrisma } from "./db/prisma.js";
 import { processDurableJobBatch } from "./services/durableJobService.js";
+import { registerPrivacyExportJobHandler } from "./services/privacyExportJobService.js";
 
 const workerId = `durable-worker:${randomUUID()}`;
+registerPrivacyExportJobHandler();
 let stopping = false;
 
 async function run() {
