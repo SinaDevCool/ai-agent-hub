@@ -74,4 +74,4 @@ npm test
 npm run build
 ```
 
-Production deployment applies the committed PostgreSQL migrations through `0017_shopping_lists`; do not replace migration deploy with `db push`.
+Production deployment applies the committed PostgreSQL migrations through `0018_enable_rls`; do not replace migration deploy with `db push`.

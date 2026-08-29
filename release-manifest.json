@@ -1,0 +1,10 @@
+{
+  "name": "hardened-production-baseline",
+  "version": "0.2.0",
+  "gitSha": "e93ebe0b66f7aece7f6d6d595b514848dfaf7203",
+  "databaseMigration": "0018_enable_rls",
+  "frontendUrl": "https://ai-agent-hub-417.pages.dev",
+  "backendUrl": "https://ai-agent-hub-q3b1.onrender.com",
+  "providerPolicy": "sandbox-by-default; live providers require credentials, readiness, and capability gates",
+  "notes": "Release metadata at runtime is supplied by RELEASE_SHA and BUILD_TIMESTAMP. Secrets and environment-specific credentials are never stored here."
+}

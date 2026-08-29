@@ -4,7 +4,8 @@ export default defineConfig({
   testDir: "./tests",
   timeout: 30_000,
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    // Match the development CORS/WebSocket origin used by backend-core.
+    baseURL: "http://localhost:5173",
     trace: "retain-on-failure"
   },
   webServer: {

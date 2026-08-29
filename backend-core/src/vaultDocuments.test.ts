@@ -85,6 +85,7 @@ test("vault document API creates manual entries with schema metadata and an acti
       frontmatter: { source: string; schema: string; content: string };
       vaultSchema: { id: string; name: string };
       embedding: number[];
+      vectorProvider: string;
     };
   };
   assert.equal(payload.document.title, "Passport renewal reminder");
@@ -92,7 +93,12 @@ test("vault document API creates manual entries with schema metadata and an acti
   assert.equal(payload.document.frontmatter.source, "manual-entry");
   assert.equal(payload.document.frontmatter.schema, schema.name);
   assert.equal(payload.document.vaultSchema.id, schema.id);
-  assert.ok(payload.document.embedding.length > 0);
+  // Embeddings are internal derived data and must not be exposed through the API.
+  assert.deepEqual(payload.document.embedding, []);
+  assert.equal(payload.document.vectorProvider, "local-hash");
+
+  const storedDocument = await prisma.vaultDocument.findUniqueOrThrow({ where: { id: payload.document.id } });
+  assert.notEqual(storedDocument.embedding, "[]");
 
   const receipt = await prisma.activityLog.findFirst({
     where: { userId: user.id, actionType: "vault_write", dataAccessed: payload.document.relativePath }

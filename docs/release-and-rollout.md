@@ -1,20 +1,20 @@
 # Release, Beta, and Provider Rollout
 
-This is the operational completion checklist for AI Agent Hub. A phase is complete only when its exit criteria are evidenced; having code in the repository is not the same as having a live provider or production deployment.
+This is the authoritative operational completion checklist for AI Agent Hub. A phase is complete only when its exit criteria are evidenced; having code in the repository is not the same as having a live provider or production deployment. Canonical ownership and the mandatory reuse gate are defined in [`architecture-decisions.md`](architecture-decisions.md); do not create parallel approval, transaction, provider, receipt, or job systems.
 
 ## Phase 1 — Continuous verification
 
-The GitHub Actions workflow verifies type safety, lint, unit/integration tests, both builds, database bootstrap/seed, and the consumer Playwright smoke. Protect `master` and require the `verify` and `browser-smoke` jobs before merge.
+The GitHub Actions workflow verifies type safety, lint, unit/integration tests, both builds, database bootstrap/seed, the consumer Playwright smoke, and PostgreSQL migrations/tests. Protect `master` and require the `verify`, `browser-smoke`, and `postgres-integration` jobs before merge.
 
 Exit criteria:
 
-- Both CI jobs pass on the release commit.
+- All CI jobs pass on the release commit.
 - The PostgreSQL Prisma client generates successfully.
 - No uncommitted migration or generated-schema drift remains.
 
 ## Phase 2 — Staging infrastructure
 
-Connect `render.yaml` as one Render Blueprint. It defines the React static site and Express API. Supply every `sync: false` value in the Render dashboard; never commit secrets.
+Use separate deployment resources for staging and production. `render.yaml` documents the Express API and an optional Render-hosted static frontend; the current production frontend is Cloudflare Pages. Supply every secret in the relevant hosting dashboard and never commit it.
 
 Frontend variables:
 
@@ -23,7 +23,7 @@ Frontend variables:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-Backend variables are listed in the root README. Set `FRONTEND_ORIGIN` and `APP_PUBLIC_URL` to the static-site origin. Use a staging Supabase project and database that contain no production user data.
+Backend variables are listed in the root README. Set `FRONTEND_ORIGIN` and `FRONTEND_PUBLIC_URL` to the frontend origin and `API_PUBLIC_URL` to the API origin. `APP_PUBLIC_URL` is a deprecated compatibility input and must not be used to conflate frontend and backend URLs. Use a staging Supabase project and database that contain no production user data.
 
 Exit criteria:
 

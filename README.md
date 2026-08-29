@@ -10,6 +10,7 @@ AI Agent Hub is scaffolded as a local-first, privacy-centric Personal AI Operati
 
 The personal-life capability/provider catalogue, durable approval-aware transaction lifecycle, supported domains, and provider activation procedure are documented in [`docs/life-platform.md`](docs/life-platform.md).
 Release gates, closed-beta metrics, live travel requirements, and the vertical-by-vertical production rollout are documented in [`docs/release-and-rollout.md`](docs/release-and-rollout.md).
+Canonical component ownership and the non-duplication change gate are documented in [`docs/architecture-decisions.md`](docs/architecture-decisions.md).
 
 ## Quick Start
 
