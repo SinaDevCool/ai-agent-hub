@@ -15,6 +15,7 @@ export function AppShell(props: {
   canModerateMarketplace: boolean;
   children: ReactNode;
   connectionState: string;
+  environmentLabel?: string;
   heading: SectionHeading;
   onAddPrivateInfo: () => void;
   onOpenAgentPoolNeed?: (needId: string) => void;
@@ -67,6 +68,7 @@ export function AppShell(props: {
             <p>{props.heading.description}</p>
           </div>
           <div className="topbar-actions">
+            {props.environmentLabel ? <span className="environment-chip">{props.environmentLabel}</span> : null}
             <span className={`connection-status ${props.connectionState === "live" ? "is-live" : "is-syncing"}`} title={`Connection: ${props.connectionState}`}>
               <span className="connection-dot" />
               <span className="connection-text">{props.connectionState === "live" ? "live" : "syncing"}</span>

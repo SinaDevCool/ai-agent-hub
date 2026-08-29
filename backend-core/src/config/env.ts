@@ -6,6 +6,11 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  APP_ENV: z.enum(["local", "staging", "production"]).optional(),
+  RELEASE_SHA: z.string().min(7).max(64).optional(),
+  RENDER_GIT_COMMIT: z.string().min(7).max(64).optional(),
+  BUILD_TIMESTAMP: z.string().datetime().optional(),
+  MIGRATION_VERSION: z.string().min(1).default("0018_enable_rls"),
   PORT: z.coerce.number().int().positive().default(4141),
   DATABASE_URL: z.string().min(1),
   FRONTEND_ORIGIN: z.string().refine(
@@ -88,6 +93,13 @@ const schema = z.object({
 });
 
 export const env = schema.parse(process.env);
+
+export const deploymentInfo = {
+  environment: env.APP_ENV ?? (env.NODE_ENV === "production" ? "production" : "local"),
+  releaseSha: env.RELEASE_SHA ?? env.RENDER_GIT_COMMIT ?? "development",
+  buildTimestamp: env.BUILD_TIMESTAMP ?? null,
+  migrationVersion: env.MIGRATION_VERSION
+} as const;
 
 export const frontendOrigins = env.FRONTEND_ORIGIN.split(",")
   .map((origin) => origin.trim())

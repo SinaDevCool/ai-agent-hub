@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { env } from "../config/env.js";
+import { deploymentInfo, env } from "../config/env.js";
 import { prisma } from "../db/prisma.js";
 
 export const healthRoutes = Router();
@@ -8,7 +8,12 @@ healthRoutes.get("/", (_req, res) => {
   res.json({
     ok: true,
     service: "backend-core",
-    environment: env.NODE_ENV,
+    environment: deploymentInfo.environment,
+    release: {
+      sha: deploymentInfo.releaseSha,
+      buildTimestamp: deploymentInfo.buildTimestamp,
+      migrationVersion: deploymentInfo.migrationVersion
+    },
     syncMode: env.SYNC_MODE,
     database: {
       configured: Boolean(env.DATABASE_URL)
@@ -34,6 +39,9 @@ healthRoutes.get("/ready", async (_req, res) => {
       ok: true,
       service: "backend-core",
       database: "ready",
+      environment: deploymentInfo.environment,
+      releaseSha: deploymentInfo.releaseSha,
+      migrationVersion: deploymentInfo.migrationVersion,
       timestamp: new Date().toISOString()
     });
   } catch {
@@ -41,6 +49,9 @@ healthRoutes.get("/ready", async (_req, res) => {
       ok: false,
       service: "backend-core",
       database: "unavailable",
+      environment: deploymentInfo.environment,
+      releaseSha: deploymentInfo.releaseSha,
+      migrationVersion: deploymentInfo.migrationVersion,
       timestamp: new Date().toISOString()
     });
   }

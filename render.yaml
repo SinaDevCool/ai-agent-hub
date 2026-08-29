@@ -34,6 +34,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: APP_ENV
+        value: production
+      - key: MIGRATION_VERSION
+        value: 0018_enable_rls
       - key: PORT
         value: 4141
       - key: DATABASE_URL

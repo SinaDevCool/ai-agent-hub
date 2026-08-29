@@ -68,6 +68,7 @@ type ConfirmationDialog = {
 
 const WS_URL = import.meta.env.VITE_WS_URL
   ?? (import.meta.env.DEV ? `ws://${window.location.hostname}:4141/ws` : "");
+const APP_ENV = import.meta.env.VITE_APP_ENV ?? (import.meta.env.DEV ? "local" : "production");
 
 function toggleListValue(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
@@ -629,6 +630,7 @@ export function App() {
       canModerateMarketplace={canModerateMarketplace}
       canUseCreatorTools={canUseCreatorTools}
       connectionState={connectionState}
+      environmentLabel={APP_ENV === "production" ? undefined : APP_ENV}
       heading={heading}
       onAddPrivateInfo={() => {
         setIsAddingVaultItem(true);

@@ -377,7 +377,8 @@ small {
   margin-bottom: 12px;
 }
 
-.user-chip {
+.user-chip,
+.environment-chip {
   max-width: 240px;
   min-height: 38px;
   display: inline-flex;
@@ -390,6 +391,15 @@ small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.environment-chip {
+  min-height: 30px;
+  border-color: rgba(255, 190, 86, 0.4);
+  color: #ffcf7a;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.06em;
 }
 
 .grid {

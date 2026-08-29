@@ -29,9 +29,12 @@ test("health endpoints stay public and readiness checks database access", async 
   assert.equal(health.status, 200);
   const ready = await fetch(`${baseUrl}/health/ready`);
   assert.equal(ready.status, 200);
-  const payload = await ready.json() as { ok: boolean; database: string };
+  const payload = await ready.json() as { ok: boolean; database: string; environment: string; releaseSha: string; migrationVersion: string };
   assert.equal(payload.ok, true);
   assert.equal(payload.database, "ready");
+  assert.equal(payload.environment, "local");
+  assert.ok(payload.releaseSha);
+  assert.equal(payload.migrationVersion, "0018_enable_rls");
 });
 
 test("request id middleware preserves valid incoming ids and errors echo them", async () => {
