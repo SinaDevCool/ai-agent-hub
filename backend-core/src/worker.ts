@@ -4,9 +4,11 @@ import { logger } from "./config/logger.js";
 import { disconnectPrisma } from "./db/prisma.js";
 import { processDurableJobBatch } from "./services/durableJobService.js";
 import { registerPrivacyExportJobHandler } from "./services/privacyExportJobService.js";
+import { registerCalComWebhookJobHandler } from "./services/calComWebhookService.js";
 
 const workerId = `durable-worker:${randomUUID()}`;
 registerPrivacyExportJobHandler();
+registerCalComWebhookJobHandler();
 let stopping = false;
 
 async function run() {

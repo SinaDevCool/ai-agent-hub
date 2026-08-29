@@ -8,6 +8,8 @@ export type OperationalSignals = {
   oldestPendingMinutes: number | null;
   providerFailures15m: number;
   failedPrivacyRequests: number;
+  appointmentWebhookPending: number;
+  appointmentWebhookDeadLetter: number;
 };
 
 export function evaluateOperationalSignals(signals: OperationalSignals) {
@@ -22,9 +24,11 @@ export function evaluateOperationalSignals(signals: OperationalSignals) {
 
 export async function getOperationalSummary(now = new Date()) {
   const jobs = await getDurableJobStats();
-  const [providerFailures15m, failedPrivacyRequests] = await Promise.all([
+  const [providerFailures15m, failedPrivacyRequests, appointmentWebhookPending, appointmentWebhookDeadLetter] = await Promise.all([
     prisma.providerReceipt.count({ where: { createdAt: { gte: new Date(now.getTime() - 15 * 60_000) }, OR: [{ status: { in: ["failed", "error"] } }, { status: "blocked", retryable: true }] } }),
-    prisma.dataRightsRequest.count({ where: { status: "failed" } })
+    prisma.dataRightsRequest.count({ where: { status: "failed" } }),
+    prisma.durableJob.count({ where: { jobType: { in: ["calcom_webhook", "calcom_reconciliation"] }, status: { in: ["queued", "leased", "retry_scheduled", "reconciliation_required"] } } }),
+    prisma.durableJob.count({ where: { jobType: { in: ["calcom_webhook", "calcom_reconciliation"] }, status: "dead_letter" } })
   ]);
   const oldestPendingMinutes = jobs.oldestPendingAt ? Math.max(0, Math.floor((now.getTime() - jobs.oldestPendingAt.getTime()) / 60_000)) : null;
   const signals: OperationalSignals = {
@@ -32,7 +36,9 @@ export async function getOperationalSummary(now = new Date()) {
     reconciliationJobs: Number(jobs.counts.reconciliation_required ?? 0),
     oldestPendingMinutes,
     providerFailures15m,
-    failedPrivacyRequests
+    failedPrivacyRequests,
+    appointmentWebhookPending,
+    appointmentWebhookDeadLetter
   };
   return {
     generatedAt: now.toISOString(),

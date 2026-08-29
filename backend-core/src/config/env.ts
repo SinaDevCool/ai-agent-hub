@@ -54,6 +54,8 @@ const schema = z.object({
   LIVE_TRAVEL_ENABLED: z.enum(["true", "false"]).default("false"),
   LIVE_APPOINTMENTS_ENABLED: z.enum(["true", "false"]).default("false"),
   APPOINTMENTS_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
+  CALCOM_WEBHOOK_SECRET: z.string().min(24).optional(),
+  CALCOM_WEBHOOK_REPLAY_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
   HOSTED_TRAVEL_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("false"),
   TRAVEL_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   TRAVEL_LAUNCH_REGIONS: z.string().default("DE,EU"),
@@ -97,6 +99,9 @@ const schema = z.object({
       code: z.ZodIssueCode.custom,
       message: "OPENAI_API_KEY is required in production for the agent runtime"
     });
+  }
+  if (value.LIVE_APPOINTMENTS_ENABLED === "true" && !value.CALCOM_WEBHOOK_SECRET) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "CALCOM_WEBHOOK_SECRET is required when live appointments are enabled" });
   }
   if (!process.env.FRONTEND_ORIGIN) {
     context.addIssue({

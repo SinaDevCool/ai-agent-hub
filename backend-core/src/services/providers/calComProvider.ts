@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { env } from "../../config/env.js";
+import { prisma } from "../../db/prisma.js";
 import type { ProviderAdapter, ProviderExecutionInput, ProviderExecutionResult } from "./providerAdapterTypes.js";
 
 type FetchLike = typeof fetch;
@@ -31,14 +32,42 @@ async function execute(input: ProviderExecutionInput): Promise<ProviderExecution
   }
   if (input.capability.key === "appointments.booking.manage" && ["reserve", "execute_action"].includes(input.action)) {
     if (!input.idempotencyKey || !text(input.input.approvalRequestId)) return blocked(input, "Approval reference and idempotency key are required.");
+    if (text(input.input.bookingUid)) {
+      const validatedAt = new Date(text(input.input.slotValidatedAt)); const start = text(input.input.newStart);
+      if (!start || Number.isNaN(validatedAt.valueOf()) || Math.abs(Date.now() - validatedAt.valueOf()) > 5 * 60_000) return blocked(input, "Choose a freshly checked slot before rescheduling.");
+      const uid = encodeURIComponent(text(input.input.bookingUid));
+      const result = await request(input, `/bookings/${uid}/reschedule`, "POST", { start, reschedulingReason: text(input.input.reason) || "User requested reschedule" }); if (result.error) return result.error;
+      await syncBooking(input, result.value?.data, "rescheduled");
+      return { status: "ok", toolRunId, actionName: "Cal.com appointment rescheduled", result: { provider: "cal-com", booking: result.value?.data } };
+    }
     const start = text(input.input.start); const attendee = input.input.attendee; const eventTypeId = Number(input.input.eventTypeId);
     if (!start || !attendee || typeof attendee !== "object" || !Number.isInteger(eventTypeId)) return blocked(input, "Start, attendee, and event type ID are required.");
-    const result = await request(input, "/bookings", "POST", { start, attendee, eventTypeId, metadata: { agentHubApproval: text(input.input.approvalRequestId) } }); if (result.error) return result.error;
+    const result = await request(input, "/bookings", "POST", { start, attendee, eventTypeId, metadata: { agentHubApproval: text(input.input.approvalRequestId), agentHubUserId: input.userId, agentHubIdempotencyKey: input.idempotencyKey } }); if (result.error) return result.error;
+    await syncBooking(input, result.value?.data, "confirmed");
     return { status: "ok", toolRunId, actionName: "Cal.com appointment created", result: { provider: "cal-com", booking: result.value?.data } };
   }
   const uid = encodeURIComponent(text(input.input.bookingUid)); if (!uid) return blocked(input, "Booking UID is required.");
   if (["status", "sync_status"].includes(input.action)) { const result = await request(input, `/bookings/${uid}`, "GET"); if (result.error) return result.error; return { status: "ok", toolRunId, result: { provider: "cal-com", booking: result.value?.data } }; }
-  if (input.action === "cancel") { if (!text(input.input.approvalRequestId)) return blocked(input, "Approval reference is required for cancellation."); const result = await request(input, `/bookings/${uid}/cancel`, "POST", { cancellationReason: text(input.input.reason) || "User requested cancellation" }); if (result.error) return result.error; return { status: "ok", toolRunId, actionName: "Cal.com appointment cancelled", result: { provider: "cal-com", booking: result.value?.data } }; }
+  if (input.action === "cancel") { if (!text(input.input.approvalRequestId) || !input.idempotencyKey) return blocked(input, "Approval reference and idempotency key are required for cancellation."); const result = await request(input, `/bookings/${uid}/cancel`, "POST", { cancellationReason: text(input.input.reason) || "User requested cancellation" }); if (result.error) return result.error; await syncBooking(input, result.value?.data, "cancelled"); return { status: "ok", toolRunId, actionName: "Cal.com appointment cancelled", result: { provider: "cal-com", booking: result.value?.data } }; }
   return blocked(input, "Cal.com does not support this appointment operation.");
+}
+
+async function syncBooking(input: ProviderExecutionInput, raw: unknown, fallbackStatus: string) {
+  if (!raw || typeof raw !== "object" || !input.idempotencyKey) return;
+  const booking = raw as Record<string, unknown>; const uid = text(booking.uid) || text(input.input.bookingUid); if (!uid) return;
+  const priorUid = text(input.input.bookingUid);
+  const existingAppointment = priorUid ? await prisma.appointment.findFirst({ where: { userId: input.userId, externalProviderId: priorUid } }) : null;
+  const start = new Date(text(booking.start) || text(input.input.start) || text(input.input.newStart));
+  const explicitEnd = text(booking.end);
+  const end = explicitEnd ? new Date(explicitEnd) : Number.isNaN(start.valueOf()) ? new Date(Number.NaN) : new Date(start.valueOf() + Number(booking.duration ?? 30) * 60_000);
+  const validTimes = !Number.isNaN(start.valueOf()) && !Number.isNaN(end.valueOf());
+  if (existingAppointment) await prisma.appointment.update({ where: { id: existingAppointment.id }, data: { externalProviderId: uid, status: text(booking.status) || fallbackStatus, confirmationCode: uid, ...(validTimes ? { startsAt: start, endsAt: end } : {}) } });
+  else {
+    if (!validTimes) return;
+    await prisma.appointment.upsert({ where: { userId_idempotencyKey: { userId: input.userId, idempotencyKey: input.idempotencyKey } }, update: { externalProviderId: uid, startsAt: start, endsAt: end, status: text(booking.status) || fallbackStatus }, create: { userId: input.userId, providerId: "cal-com", externalProviderId: uid, providerName: text(booking.title) || "Cal.com appointment", specialty: text(booking.title) || "Appointment", location: text(booking.location) || "To be confirmed", startsAt: start, endsAt: end, timeZone: text((input.input.attendee as Record<string, unknown> | undefined)?.timeZone) || "UTC", status: text(booking.status) || fallbackStatus, confirmationCode: uid, idempotencyKey: input.idempotencyKey } });
+  }
+  const lifeData = { providerId: "cal-com", state: fallbackStatus === "cancelled" ? "cancelled" : "confirmed", externalReference: uid, resultJson: JSON.stringify({ provider: "cal-com", bookingUid: uid, status: text(booking.status) || fallbackStatus }), completedAt: new Date() };
+  const updatedLife = priorUid ? await prisma.lifeTransaction.updateMany({ where: { userId: input.userId, externalReference: priorUid }, data: lifeData }) : { count: 0 };
+  if (!updatedLife.count) await prisma.lifeTransaction.upsert({ where: { userId_idempotencyKey: { userId: input.userId, idempotencyKey: input.idempotencyKey } }, update: lifeData, create: { userId: input.userId, capabilityKey: "appointments.booking.manage", executionLevel: "transact", ...lifeData, approvalRequired: true, idempotencyKey: input.idempotencyKey, inputJson: JSON.stringify({ appointment: true }) } });
 }
 export const calComProvider: ProviderAdapter = { providerId: "cal-com", label: "Cal.com", kind: "api", toolName: "cal.appointments", capabilities: ["appointments.availability.search", "appointments.booking.manage"], actions: ["search", "reserve", "execute_action", "status", "sync_status", "cancel"], requiresConnectedAccount: true, credentialType: "bearer_token", credentialFields: [{ key: "accessToken", label: "Cal.com API key or OAuth token", type: "password", required: true }], authType: "api_key", riskLevel: "high", description: "Gated Cal.com availability and appointment lifecycle adapter.", supportsHealthCheck: true, canHandle(input) { return (!input.preferredProviderId || input.preferredProviderId === this.providerId) && this.capabilities.includes(input.capabilityKey) && this.actions.includes(input.action); }, execute, async healthCheck() { return { state: env.LIVE_APPOINTMENTS_ENABLED === "true" ? "healthy" : "disabled", message: env.LIVE_APPOINTMENTS_ENABLED === "true" ? "Cal.com adapter is enabled; connection health is checked per account." : "Live appointments are disabled.", checkedAt: new Date().toISOString() }; } };

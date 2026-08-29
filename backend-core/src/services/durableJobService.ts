@@ -9,6 +9,8 @@ import { decodeJson, encodeJson } from "./jsonService.js";
 
 export const durableJobTypes = [
   "provider_webhook",
+  "calcom_webhook",
+  "calcom_reconciliation",
   "provider_reconciliation",
   "checkout_confirmation",
   "connector_subscription_renewal",
