@@ -13,6 +13,7 @@ test("runtime intent helper classifies empty, search, and action messages", () =
   assert.equal(getRuntimeIntent("Find recent emails about my hotel"), "email_search");
   assert.equal(getRuntimeIntent("Draft an email to sam@example.com saying thanks"), "email_draft");
   assert.equal(getRuntimeIntent("When am I free this week?"), "calendar_free_time");
+  assert.equal(getRuntimeIntent("Find available appointment slots for sandbox-clinic from 2030-04-12 to 2030-04-13"), "search");
   assert.equal(getRuntimeIntent("Send this email now"), "action");
 });
 

@@ -27,6 +27,7 @@ export type Agent = {
     verificationStatus?: "declared" | "verified" | "blocked";
     verificationSummary?: string[];
     tools?: string[];
+    capabilities?: string[];
     requestedSchemas?: string[];
     highRiskActions?: string[];
     description?: string;

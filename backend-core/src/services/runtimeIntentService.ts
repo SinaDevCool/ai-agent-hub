@@ -12,6 +12,11 @@ export function getRuntimeIntent(message: string): RuntimeIntent {
   if (/\b(find|search|look up|show)\b.*\b(document|file|drive)\b/i.test(cleanMessage)) return "document_search";
   if (/\b(create|add|schedule)\b.*\b(calendar event|event on (?:my )?calendar)\b/i.test(cleanMessage)) return "action";
 
+  // Appointment-provider inventory is not the user's personal calendar. Route
+  // these requests to the appointment workflow even though they use words such
+  // as "available" and "slot".
+  if (/\b(appointment slots?|appointment availability|available appointments?)\b/i.test(cleanMessage)) return "search";
+
   if (/\b(calendar|schedule|meeting|meetings|availability|available|free time|free slot|when am i free|open slot)\b/i.test(cleanMessage)) {
     return "calendar_free_time";
   }

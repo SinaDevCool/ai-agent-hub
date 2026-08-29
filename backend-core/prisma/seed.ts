@@ -262,7 +262,7 @@ const agents: SeedAgent[] = [
       requestedSchemas: ["Medical History", "Personal Identity Profile"],
       highRiskActions: ["book_medical_appointment", "cancel_medical_appointment", "share_medical_record"],
       description: "Coordinates appointments but never diagnoses or changes treatment.",
-      examplePrompts: ["Find an English-speaking dermatologist near me", "Prepare an appointment request for next week", "Add my confirmed appointment and reminders"],
+      examplePrompts: ["Find a dentist in Berlin", "Find available appointment slots for sandbox-clinic from 2030-04-12 to 2030-04-13", "Book an appointment after I choose a slot"],
       trustReasons: ["Does not diagnose", "Health data is narrowly permissioned", "Booking and health sharing require approval"]
     }
   },

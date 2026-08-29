@@ -83,6 +83,12 @@ export function agentReadiness(agent: Agent | undefined, missingCount: number, p
 export function promptSuggestions(agent: Agent | undefined): HelperPrompt[] {
   const category = agent?.category.toLowerCase() ?? "";
   const tools = agent?.capabilityManifest.tools ?? [];
+  const capabilities = agent?.capabilityManifest.capabilities ?? [];
+  if (capabilities.some((capability) => capability.startsWith("appointments."))) return [
+    { label: "Find a provider", prompt: "Find a dentist in Berlin", detail: "Searches providers without booking.", tone: "info" },
+    { label: "Check availability", prompt: "Find available appointment slots for sandbox-clinic from 2030-04-12 to 2030-04-13", detail: "Checks times only; no appointment is created.", tone: "safe" },
+    { label: "Manage safely", prompt: "Book an appointment after I choose a slot", detail: "Must pause for your approval before any change.", tone: "approval" }
+  ];
   if (tools.includes("email.search") || tools.includes("email.draft_reply") || tools.includes("email.draft")) return [
     { label: "Search inbox", prompt: "Find recent emails about travel", detail: "Uses Gmail if connected.", tone: "info" },
     { label: "Draft safely", prompt: "Draft an email to name@example.com saying I will follow up tomorrow", detail: "Creates a draft only.", tone: "safe" },

@@ -48,7 +48,8 @@ test("uncertain transactions reconcile instead of retrying blindly", () => {
 
 test("life domains expose concrete provider input contracts", () => {
   const appointment = canonicalProviderActionContract({ capabilityKey: "appointments.booking.manage", action: "reserve", riskLevel: "high", requiresApproval: true });
-  assert.deepEqual(appointment.requiredFields, ["operation", "providerId", "approvalRequestId"]);
+  assert.deepEqual(appointment.requiredFields, ["operation", "providerId", "slotId"]);
+  assert.equal(appointment.requiresApproval, true);
   const payment = canonicalProviderActionContract({ capabilityKey: "finance.payment.create", action: "execute_action", riskLevel: "high", requiresApproval: true });
   assert.ok(payment.requiredFields.includes("payeeId"));
   assert.ok(payment.requiredFields.includes("approvalRequestId"));
@@ -61,6 +62,8 @@ test("unified workflow catalog exposes and infers life capabilities", () => {
   assert.ok(keys.has("appointments.provider.search"));
   assert.ok(keys.has("home.device.control"));
   assert.equal(inferWorkflowCapability({ message: "Find an English speaking dermatologist near Berlin" }), "appointments.provider.search");
+  assert.equal(inferWorkflowCapability({ message: "Find available appointment slots with my dentist" }), "appointments.availability.search");
+  assert.equal(inferWorkflowCapability({ message: "Book the sandbox-clinic appointment slot sandbox-slot-morning" }), "appointments.booking.manage");
   assert.equal(inferWorkflowCapability({ message: "Show my bank transactions for this month" }), "finance.transactions.read");
   assert.equal(inferWorkflowCapability({ message: "Turn off my smart home light" }), "home.device.control");
 });

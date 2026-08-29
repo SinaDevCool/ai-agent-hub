@@ -43,6 +43,7 @@ function listFromRawResult(rawResult?: Record<string, unknown>) {
     rawResult?.hotels,
     rawResult?.flights,
     rawResult?.cars,
+    rawResult?.slots,
     rawResult?.results
   ];
   return candidates.find((value): value is unknown[] => Array.isArray(value)) ?? [];
@@ -52,6 +53,7 @@ function titleForCapability(capabilityKey: string, itemCount: number) {
   if (capabilityKey === "travel.search_hotels") return itemCount ? "Hotel options found" : "Hotel search completed";
   if (capabilityKey === "travel.search_flights") return itemCount ? "Flight options found" : "Flight search completed";
   if (capabilityKey === "travel.search_cars") return itemCount ? "Car rental options found" : "Car rental search completed";
+  if (capabilityKey === "appointments.availability.search") return itemCount ? "Appointment slots found" : "Appointment search completed";
   if (capabilityKey === "finance.review_spending") return "Spending review ready";
   if (capabilityKey === "health.organize_notes") return "Health notes organized";
   if (capabilityKey === "travel.hold_or_book") return "Travel request updated";
@@ -66,8 +68,8 @@ function itemText(record: Record<string, unknown>, keys: string[], fallback = ""
   return fallback;
 }
 
-function normalizeRawItems(rawResult?: Record<string, unknown>) {
-  return listFromRawResult(rawResult).slice(0, 8).map((value, index) => {
+function normalizeRawItems(rawResult?: Record<string, unknown>): WorkflowResultItem[] {
+  return listFromRawResult(rawResult).slice(0, 8).map((value, index): WorkflowResultItem => {
     const record = value && typeof value === "object" ? value as Record<string, unknown> : { title: value };
     if (record.kind === "flight") {
       const slices = Array.isArray(record.slices) ? record.slices as Array<Record<string, unknown>> : [];
@@ -87,6 +89,21 @@ function normalizeRawItems(rawResult?: Record<string, unknown>) {
           providerOfferId: sanitize(record.providerOfferId),
           providerId: sanitize(record.providerId),
           inventoryMode: sanitize(record.inventoryMode)
+        }
+      };
+    }
+    if (record.startsAt) {
+      return {
+        title: itemText(record, ["providerName", "title", "name"], `Appointment slot ${index + 1}`),
+        subtitle: itemText(record, ["specialty", "providerId", "location"]),
+        detail: [
+          itemText(record, ["startsAt"]),
+          itemText(record, ["endsAt"]),
+          itemText(record, ["timeZone"])
+        ].filter(Boolean).join(" · "),
+        metadata: {
+          slotId: itemText(record, ["id"]),
+          providerId: itemText(record, ["providerId"])
         }
       };
     }

@@ -311,9 +311,9 @@ export function inferWorkflowCapability(input: Record<string, unknown>) {
   if (/\b(car rental|rent a car|rental car|vehicle rental)\b/.test(haystack)) return "travel.search_cars";
   if (/\b(trip|itinerary|travel plan|vacation|holiday)\b/.test(haystack)) return "travel.plan_trip";
   if (/\b(email|reply|follow up|follow-up|inbox)\b/.test(haystack)) return "email.follow_up";
-  if (/\b(doctor|dentist|clinic|specialist|medical appointment|health appointment|dermatologist|cardiologist)\b/.test(haystack)) return "appointments.provider.search";
+  if (/\b(?:book|reschedule|cancel)\b[^.?!]{0,100}\bappointment\b|\bappointment\b[^.?!]{0,100}\b(?:book|reschedule|cancel)\b/.test(haystack)) return "appointments.booking.manage";
   if (/\b(appointment slot|appointment availability|available appointment)\b/.test(haystack)) return "appointments.availability.search";
-  if (/\b(book appointment|reschedule appointment|cancel appointment)\b/.test(haystack)) return "appointments.booking.manage";
+  if (/\b(doctor|dentist|clinic|specialist|medical appointment|health appointment|dermatologist|cardiologist)\b/.test(haystack)) return "appointments.provider.search";
   if (/\b(bank account|account balance|balances)\b/.test(haystack)) return "finance.accounts.read";
   if (/\b(bank transactions|categorize transactions|sync transactions)\b/.test(haystack)) return "finance.transactions.read";
   if (/\b(cash flow|recurring charge|subscription spending|analyze budget)\b/.test(haystack)) return "finance.budget.analyze";
