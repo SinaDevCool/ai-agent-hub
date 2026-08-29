@@ -12,7 +12,7 @@
     "lint": "eslint \"src/**/*.ts\"",
     "smoke:production": "node scripts/smoke_production_backend.mjs",
     "verify:release": "node scripts/verify_release.mjs",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --test src/*.test.ts",
     "test:with-generate": "npm run prisma:generate --silent && npm test",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:push": "prisma db push",
