@@ -16,8 +16,13 @@ export function AuthLoadingScreen() {
 export function AuthSignInScreen(props: {
   authMessage: string;
   email: string;
+  password: string;
   isSendingMagicLink: boolean;
+  isSigningInWithPassword: boolean;
+  isStagingPasswordSignInEnabled: boolean;
   onEmailChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
+  onPasswordSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
@@ -49,6 +54,25 @@ export function AuthSignInScreen(props: {
             <Mail size={16} /> {props.isSendingMagicLink ? "Sending…" : "Send magic link"}
           </button>
         </form>
+        {props.isStagingPasswordSignInEnabled ? (
+          <form className="auth-form" onSubmit={props.onPasswordSubmit}>
+            <p className="auth-message">Staging acceptance access</p>
+            <label>
+              <span>Password</span>
+              <input
+                autoComplete="current-password"
+                name="password"
+                onChange={(event) => props.onPasswordChange(event.currentTarget.value)}
+                required
+                type="password"
+                value={props.password}
+              />
+            </label>
+            <button disabled={props.isSigningInWithPassword} type="submit">
+              <KeyRound size={16} /> {props.isSigningInWithPassword ? "Signing in…" : "Sign in to staging"}
+            </button>
+          </form>
+        ) : null}
         {props.authMessage ? <p className="auth-message">{props.authMessage}</p> : null}
       </section>
     </main>

@@ -618,8 +618,13 @@ export function App() {
       <AuthSignInScreen
         authMessage={auth.authMessage}
         email={auth.email}
+        password={auth.password}
         isSendingMagicLink={auth.isSendingMagicLink}
+        isSigningInWithPassword={auth.isSigningInWithPassword}
+        isStagingPasswordSignInEnabled={auth.isStagingPasswordSignInEnabled}
         onEmailChange={auth.setEmail}
+        onPasswordChange={auth.setPassword}
+        onPasswordSubmit={(event) => void auth.signInWithPassword(event)}
         onSubmit={(event) => void auth.sendMagicLink(event)}
       />
     );
