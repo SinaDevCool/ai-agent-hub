@@ -5,7 +5,7 @@ The hub implements a provider-neutral personal-life capability layer. Agents ask
 ## Capability catalogue and execution status
 
 - Administration: Google and Microsoft email/calendar/document tools are executable after OAuth; Nylas remains account/configuration gated.
-- Travel: sandbox flight and hotel search/booking/cancellation, ground transport search, itinerary aggregation, and Google Calendar sync are executable. Amadeus and Duffel adapters remain credential gated; other live providers remain account or partnership gated.
+- Travel: sandbox flight and hotel search/booking/cancellation, ground transport search, itinerary aggregation, and Google Calendar sync are executable. Amadeus provides credential-gated live flight and hotel search with selected-hotel-offer refresh; Duffel provides credential-gated flight operations. Live booking remains account or partnership gated.
 - Appointments: sandbox provider/availability search and booking/rescheduling/cancellation/calendar sync are executable. Real healthcare scheduling remains provider, partnership, and compliance gated.
 - Finance: deterministic read-only accounts, transactions, categories, recurring costs, and budget summaries are executable. Approval-gated payment simulation is also executable, but it never contacts a bank or payee and cannot move money. Plaid is credential gated; live payment initiation remains regulated-provider and account gated.
 - Household: sandbox provider discovery, quote workflow, approved service booking, and cancellation are executable; real providers remain account or partnership gated.

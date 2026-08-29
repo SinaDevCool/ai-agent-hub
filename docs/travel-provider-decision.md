@@ -9,14 +9,17 @@ Date: 2026-08-29
 - Launch region: Germany first, then the wider EU only after the same legal and support checks pass.
 - Initial currency: EUR.
 - Flights: Duffel is the primary candidate for attributable offer search and hosted/provider checkout. Amadeus remains a search-only comparison candidate until its contracted production capability is confirmed.
-- Hotels: no provider is selected yet. Booking.com Demand and Expedia Rapid remain candidates; selection requires verified production access, caching/attribution terms, a hosted-checkout capability, support escalation, and cancellation/refund obligations.
+- Hotels: Amadeus is the implemented search-only inventory source. Booking.com Demand and Expedia Rapid remain hosted-checkout candidates; selection requires verified production access, caching/attribution terms, a hosted-checkout capability, support escalation, and cancellation/refund obligations.
 - Native booking: disabled.
 
 This decision deliberately avoids presenting sandbox access as production entitlement. No live provider is activated merely because an adapter or credential form exists.
 
 ## Engineering boundary
 
-- Both flight adapters normalize provider data into `travel-offer.v1` contracts.
+- Flight and Amadeus hotel adapters normalize provider data into `travel-offer.v1` contracts.
+- Amadeus hotel search first discovers bounded hotel IDs by IATA city code, then requests live Hotel Search v3 room offers. A selected offer can be refreshed by `offerId` before a later booking handoff.
+- Hotel contracts include total multi-room price, reported taxes, room/bed/board details, refundability, cancellation deadline, provider trace, and offer freshness. Malformed individual offers are isolated.
+- Amadeus hotel results explicitly declare `hostedCheckoutAvailable: false` and `nativeBookingEnabled: false`; the Self-Service booking API is not treated as a hosted redirect.
 - Every live offer identifies its provider, supplier, fetch time, expiry, price/currency, itinerary, and attribution trace.
 - Malformed provider items are dropped and the response is marked partial rather than mixing raw and normalized results.
 - Live and sandbox offers cannot be combined.
@@ -33,4 +36,4 @@ This decision deliberately avoids presenting sandbox access as production entitl
 - Verified hosted checkout callback/webhook and status-polling contract.
 - Support escalation contacts and ownership matrix.
 
-Until those items are recorded, both live-travel flags remain false and Phase 4 remains incomplete.
+Until those items are recorded, both live-travel flags remain false. Search engineering is complete, while Phase 4 production activation and checkout remain externally gated.

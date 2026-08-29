@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ProviderAdapter, ProviderExecutionInput, ProviderExecutionResult } from "./providerAdapterTypes.js";
 import { env } from "../../config/env.js";
-import { normalizeAmadeusFlightOffers, validateFlightSearchInput, validateHotelSearchInput } from "../travelOfferService.js";
+import { normalizeAmadeusFlightOffers, normalizeAmadeusHotelOffers, validateFlightSearchInput, validateHotelSearchInput } from "../travelOfferService.js";
 
 type FetchLike = typeof fetch;
 let amadeusFetch: FetchLike = fetch;
@@ -36,9 +36,25 @@ async function execute(input: ProviderExecutionInput): Promise<ProviderExecution
     if ("error" in result) return result.error; const offers = normalizeAmadeusFlightOffers(result.body ?? {}); return { status: "ok", toolRunId: runId(input), result: { provider: "amadeus", inventoryMode: "live", contractVersion: "travel-offer.v1", offers, partial: offers.length < (Array.isArray(result.body?.data) ? result.body.data.length : 0), fetchedAt: new Date().toISOString() } };
   }
   if (input.capability.key === "travel.hotel.search") {
+    const selectedOfferId = String(input.input.offerId ?? input.input.selectedOfferId ?? "").trim();
+    if (selectedOfferId) {
+      if (!/^[A-Za-z0-9_-]{5,200}$/.test(selectedOfferId)) return fail(input, "The selected Amadeus hotel offer id is invalid.");
+      const adults = Number(input.input.adults ?? 1); const rooms = Number(input.input.rooms ?? 1); const currency = String(input.input.currency ?? "EUR").toUpperCase();
+      const refreshed = await get(input, `/v3/shopping/hotel-offers/${encodeURIComponent(selectedOfferId)}`, {});
+      if ("error" in refreshed) return refreshed.error;
+      const offers = normalizeAmadeusHotelOffers(refreshed.body ?? {}, { adults, rooms, currency, max: 1 }, new Date(), true);
+      if (!offers.length) return fail(input, "The selected Amadeus hotel offer is no longer available.");
+      return { status: "ok", toolRunId: runId(input), result: { provider: "amadeus", inventoryMode: "live", contractVersion: "travel-offer.v1", offers, partial: false, selectedOfferRevalidated: true, hostedCheckoutAvailable: false, nativeBookingEnabled: false, fetchedAt: new Date().toISOString() } };
+    }
     let search: ReturnType<typeof validateHotelSearchInput>; try { search = validateHotelSearchInput(input.input); } catch (error) { return fail(input, error instanceof Error ? error.message : "Hotel search details are invalid."); }
-    const hotels = await get(input, "/v1/reference-data/locations/hotels/by-city", { cityCode: search.cityCode, radius: String(input.input.radius ?? 20), radiusUnit: "KM" });
-    if ("error" in hotels) return hotels.error; return { status: "ok", toolRunId: runId(input), result: { provider: "amadeus", ...(hotels.body ?? {}) } };
+    const hotels = await get(input, "/v1/reference-data/locations/hotels/by-city", { cityCode: search.cityCode, radius: String(search.radius), radiusUnit: "KM", hotelSource: "ALL" });
+    if ("error" in hotels) return hotels.error;
+    const hotelIds = (Array.isArray(hotels.body?.data) ? hotels.body.data : []).map((item) => String((item as Record<string, unknown>).hotelId ?? "")).filter(Boolean).slice(0, 20);
+    if (!hotelIds.length) return { status: "ok", toolRunId: runId(input), result: { provider: "amadeus", inventoryMode: "live", contractVersion: "travel-offer.v1", offers: [], partial: false, hostedCheckoutAvailable: false, nativeBookingEnabled: false, fetchedAt: new Date().toISOString() } };
+    const availability = await get(input, "/v3/shopping/hotel-offers", { hotelIds: hotelIds.join(","), adults: String(search.adults), checkInDate: search.checkInDate, checkOutDate: search.checkOutDate, roomQuantity: String(search.rooms), currency: search.currency, bestRateOnly: "true" });
+    if ("error" in availability) return availability.error;
+    const offers = normalizeAmadeusHotelOffers(availability.body ?? {}, search);
+    return { status: "ok", toolRunId: runId(input), result: { provider: "amadeus", inventoryMode: "live", contractVersion: "travel-offer.v1", offers, partial: offers.length < (Array.isArray(availability.body?.data) ? availability.body.data.length : 0), selectedOfferRevalidated: false, hostedCheckoutAvailable: false, nativeBookingEnabled: false, bookingLimitation: "Amadeus Self-Service hotel booking is a native API flow; no customer hosted-checkout URL is provided.", fetchedAt: new Date().toISOString() } };
   }
   return fail(input, "Amadeus does not support this discovery capability.");
 }
