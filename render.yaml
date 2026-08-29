@@ -60,6 +60,16 @@ services:
         value: false
       - key: FINANCE_PROVIDER_TIMEOUT_MS
         value: 10000
+      - key: LIVE_SHOPPING_ENABLED
+        value: false
+      - key: HOSTED_SHOPPING_CHECKOUT_ENABLED
+        value: false
+      - key: SHOPPING_PROVIDER_TIMEOUT_MS
+        value: 10000
+      - key: INSTACART_API_KEY
+        sync: false
+      - key: INSTACART_API_ENV
+        value: development
       - key: HOSTED_TRAVEL_CHECKOUT_ENABLED
         value: false
       - key: TRAVEL_PROVIDER_TIMEOUT_MS

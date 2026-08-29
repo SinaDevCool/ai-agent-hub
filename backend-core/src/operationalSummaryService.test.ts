@@ -3,11 +3,17 @@ import test from "node:test";
 import { evaluateOperationalSignals } from "./services/operationalSummaryService.js";
 
 test("operational signals are healthy below alert thresholds", () => {
-  assert.equal(evaluateOperationalSignals({ deadLetterJobs: 0, reconciliationJobs: 0, oldestPendingMinutes: null, providerFailures15m: 0, failedPrivacyRequests: 0, appointmentWebhookPending: 0, appointmentWebhookDeadLetter: 0, financeSyncPending: 0, financeSyncDeadLetter: 0 }).status, "healthy");
+  assert.equal(evaluateOperationalSignals({ deadLetterJobs: 0, reconciliationJobs: 0, oldestPendingMinutes: null, providerFailures15m: 0, failedPrivacyRequests: 0, appointmentWebhookPending: 0, appointmentWebhookDeadLetter: 0, financeSyncPending: 0, financeSyncDeadLetter: 0, shoppingHandoffUncertain: 0 }).status, "healthy");
 });
 
 test("privacy failures and dead letters produce a critical state", () => {
-  const result = evaluateOperationalSignals({ deadLetterJobs: 1, reconciliationJobs: 0, oldestPendingMinutes: null, providerFailures15m: 0, failedPrivacyRequests: 1, appointmentWebhookPending: 0, appointmentWebhookDeadLetter: 1, financeSyncPending: 0, financeSyncDeadLetter: 0 });
+  const result = evaluateOperationalSignals({ deadLetterJobs: 1, reconciliationJobs: 0, oldestPendingMinutes: null, providerFailures15m: 0, failedPrivacyRequests: 1, appointmentWebhookPending: 0, appointmentWebhookDeadLetter: 1, financeSyncPending: 0, financeSyncDeadLetter: 0, shoppingHandoffUncertain: 0 });
   assert.equal(result.status, "critical");
   assert.deepEqual(result.alerts.map((item) => item.key), ["dead_letter_jobs", "failed_privacy_requests"]);
+});
+
+test("uncertain shopping handoffs are visible to operators", () => {
+  const result = evaluateOperationalSignals({ deadLetterJobs: 0, reconciliationJobs: 0, oldestPendingMinutes: null, providerFailures15m: 0, failedPrivacyRequests: 0, appointmentWebhookPending: 0, appointmentWebhookDeadLetter: 0, financeSyncPending: 0, financeSyncDeadLetter: 0, shoppingHandoffUncertain: 1 });
+  assert.equal(result.status, "degraded");
+  assert.equal(result.alerts[0]?.key, "shopping_handoff_uncertain");
 });

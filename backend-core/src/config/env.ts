@@ -58,6 +58,11 @@ const schema = z.object({
   CALCOM_WEBHOOK_REPLAY_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
   LIVE_FINANCE_ENABLED: z.enum(["true", "false"]).default("false"),
   FINANCE_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
+  LIVE_SHOPPING_ENABLED: z.enum(["true", "false"]).default("false"),
+  HOSTED_SHOPPING_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("false"),
+  SHOPPING_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
+  INSTACART_API_KEY: z.string().min(1).optional(),
+  INSTACART_API_ENV: z.enum(["development", "production"]).default("development"),
   HOSTED_TRAVEL_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("false"),
   TRAVEL_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   TRAVEL_LAUNCH_REGIONS: z.string().default("DE,EU"),
@@ -104,6 +109,9 @@ const schema = z.object({
   }
   if (value.LIVE_APPOINTMENTS_ENABLED === "true" && !value.CALCOM_WEBHOOK_SECRET) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "CALCOM_WEBHOOK_SECRET is required when live appointments are enabled" });
+  }
+  if (value.LIVE_SHOPPING_ENABLED === "true" && !value.INSTACART_API_KEY) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "INSTACART_API_KEY is required when live shopping is enabled" });
   }
   if (!process.env.FRONTEND_ORIGIN) {
     context.addIssue({

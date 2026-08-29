@@ -12,6 +12,7 @@ export type OperationalSignals = {
   appointmentWebhookDeadLetter: number;
   financeSyncPending: number;
   financeSyncDeadLetter: number;
+  shoppingHandoffUncertain: number;
 };
 
 export function evaluateOperationalSignals(signals: OperationalSignals) {
@@ -21,18 +22,20 @@ export function evaluateOperationalSignals(signals: OperationalSignals) {
   if ((signals.oldestPendingMinutes ?? 0) >= env.OPS_ALERT_OLDEST_JOB_MINUTES) alerts.push({ key: "oldest_pending_job_minutes", severity: "warning", value: signals.oldestPendingMinutes!, threshold: env.OPS_ALERT_OLDEST_JOB_MINUTES });
   if (signals.providerFailures15m >= env.OPS_ALERT_PROVIDER_FAILURES_15M) alerts.push({ key: "provider_failures_15m", severity: "warning", value: signals.providerFailures15m, threshold: env.OPS_ALERT_PROVIDER_FAILURES_15M });
   if (signals.failedPrivacyRequests > 0) alerts.push({ key: "failed_privacy_requests", severity: "critical", value: signals.failedPrivacyRequests, threshold: 1 });
+  if (signals.shoppingHandoffUncertain > 0) alerts.push({ key: "shopping_handoff_uncertain", severity: "warning", value: signals.shoppingHandoffUncertain, threshold: 1 });
   return { status: alerts.some((item) => item.severity === "critical") ? "critical" : alerts.length ? "degraded" : "healthy", alerts } as const;
 }
 
 export async function getOperationalSummary(now = new Date()) {
   const jobs = await getDurableJobStats();
-  const [providerFailures15m, failedPrivacyRequests, appointmentWebhookPending, appointmentWebhookDeadLetter, financeSyncPending, financeSyncDeadLetter] = await Promise.all([
+  const [providerFailures15m, failedPrivacyRequests, appointmentWebhookPending, appointmentWebhookDeadLetter, financeSyncPending, financeSyncDeadLetter, shoppingHandoffUncertain] = await Promise.all([
     prisma.providerReceipt.count({ where: { createdAt: { gte: new Date(now.getTime() - 15 * 60_000) }, OR: [{ status: { in: ["failed", "error"] } }, { status: "blocked", retryable: true }] } }),
     prisma.dataRightsRequest.count({ where: { status: "failed" } }),
     prisma.durableJob.count({ where: { jobType: { in: ["calcom_webhook", "calcom_reconciliation"] }, status: { in: ["queued", "leased", "retry_scheduled", "reconciliation_required"] } } }),
     prisma.durableJob.count({ where: { jobType: { in: ["calcom_webhook", "calcom_reconciliation"] }, status: "dead_letter" } }),
     prisma.durableJob.count({ where: { jobType: { in: ["plaid_webhook", "plaid_reconciliation"] }, status: { in: ["queued", "leased", "retry_scheduled", "reconciliation_required"] } } }),
-    prisma.durableJob.count({ where: { jobType: { in: ["plaid_webhook", "plaid_reconciliation"] }, status: "dead_letter" } })
+    prisma.durableJob.count({ where: { jobType: { in: ["plaid_webhook", "plaid_reconciliation"] }, status: "dead_letter" } }),
+    prisma.lifeTransaction.count({ where: { providerId: "instacart", state: { in: ["uncertain", "reconciliation_required"] } } })
   ]);
   const oldestPendingMinutes = jobs.oldestPendingAt ? Math.max(0, Math.floor((now.getTime() - jobs.oldestPendingAt.getTime()) / 60_000)) : null;
   const signals: OperationalSignals = {
@@ -44,12 +47,13 @@ export async function getOperationalSummary(now = new Date()) {
     appointmentWebhookPending,
     appointmentWebhookDeadLetter,
     financeSyncPending,
-    financeSyncDeadLetter
+    financeSyncDeadLetter,
+    shoppingHandoffUncertain
   };
   return {
     generatedAt: now.toISOString(),
     release: deploymentInfo,
-    flags: { durableJobs: env.DURABLE_JOBS_ENABLED === "true", privateBeta: env.PRIVATE_BETA_ENFORCED === "true", liveTravel: env.LIVE_TRAVEL_ENABLED === "true", liveFinance: env.LIVE_FINANCE_ENABLED === "true", privacyRights: env.PRIVACY_RIGHTS_ENABLED === "true", verticalReleaseGating: env.VERTICAL_RELEASE_GATING_ENABLED === "true" },
+    flags: { durableJobs: env.DURABLE_JOBS_ENABLED === "true", privateBeta: env.PRIVATE_BETA_ENFORCED === "true", liveTravel: env.LIVE_TRAVEL_ENABLED === "true", liveFinance: env.LIVE_FINANCE_ENABLED === "true", liveShopping: env.LIVE_SHOPPING_ENABLED === "true", privacyRights: env.PRIVACY_RIGHTS_ENABLED === "true", verticalReleaseGating: env.VERTICAL_RELEASE_GATING_ENABLED === "true" },
     signals,
     ...evaluateOperationalSignals(signals)
   };

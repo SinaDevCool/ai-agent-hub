@@ -41,3 +41,15 @@ test("shopping lists persist, update by name, isolate users, and delete by owner
   assert.equal((await fetch(`${baseUrl}/api/life-platform/shopping/lists/${list.id}`, { method: "DELETE", headers: { "x-user-id": outsider } })).status, 400);
   assert.equal((await fetch(`${baseUrl}/api/life-platform/shopping/lists/${list.id}`, { method: "DELETE", headers: { "x-user-id": owner } })).status, 200);
 });
+
+test("live hosted shopping fails closed while its feature flags are disabled", async () => {
+  const response = await post("/api/shopping/hosted-checkout/prepare", owner, {
+    agentId: "agent-not-contacted",
+    title: "Weekly groceries",
+    items: [{ name: "Oats", quantity: 2 }],
+    idempotencyKey: `${runId}-hosted-disabled`
+  });
+  assert.equal(response.status, 503);
+  assert.equal(((await response.json()) as { error: { code: string } }).error.code, "hosted_shopping_disabled");
+  assert.equal(await prisma.lifeTransaction.count({ where: { userId: owner, providerId: "instacart" } }), 0);
+});
