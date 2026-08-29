@@ -37,7 +37,7 @@ services:
       - key: APP_ENV
         value: production
       - key: MIGRATION_VERSION
-        value: 0021_private_beta_foundation
+        value: 0022_data_rights_foundation
       - key: DURABLE_JOBS_ENABLED
         value: false
       - key: DURABLE_JOB_BATCH_SIZE
@@ -60,6 +60,10 @@ services:
         value: ""
       - key: PRIVATE_BETA_ENFORCED
         value: false
+      - key: PRIVACY_RIGHTS_ENABLED
+        value: false
+      - key: PRIVACY_DELETION_GRACE_HOURS
+        value: 168
       - key: BETA_COHORT_LIMITS
         value: '{"team":25,"trusted":5,"early":25,"expanded":100}'
       - key: BETA_CAPABILITY_RULES

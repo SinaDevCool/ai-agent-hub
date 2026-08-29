@@ -35,6 +35,7 @@ import { durableJobRoutes } from "./routes/durableJobRoutes.js";
 import { travelCheckoutRoutes } from "./routes/travelCheckoutRoutes.js";
 import { betaRoutes } from "./routes/betaRoutes.js";
 import { requireBetaAccess } from "./middleware/requireBetaAccess.js";
+import { dataRightsRoutes } from "./routes/dataRightsRoutes.js";
 import { loadActiveProviderDefinitionsIntoRegistry } from "./services/providerDefinitionService.js";
 
 export function createApp() {
@@ -75,6 +76,7 @@ export function createApp() {
   app.use("/api/provider-health", providerHealthRoutes);
   app.use("/api/provider-receipts", providerReceiptRoutes);
   app.use("/api/life-platform", lifePlatformRoutes);
+  app.use("/api/privacy/requests", sensitiveActionRateLimit, dataRightsRoutes);
   app.use("/api/travel/hosted-checkout", sensitiveActionRateLimit, travelCheckoutRoutes);
   app.use("/api/admin/providers", sensitiveActionRateLimit, providerDefinitionRoutes);
   app.use("/api/admin/durable-jobs", sensitiveActionRateLimit, durableJobRoutes);
