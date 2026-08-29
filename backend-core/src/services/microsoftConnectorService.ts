@@ -38,7 +38,7 @@ export async function createMicrosoftCalendarEvent(input: { userId: string; titl
 export async function findMicrosoftCalendarFreeTime(input: { userId: string; days?: number }) {
   const start = new Date(); const end = new Date(start.getTime() + Math.min(Math.max(input.days ?? 7, 1), 14) * 86_400_000);
   const path = `/me/calendarView?startDateTime=${encodeURIComponent(start.toISOString())}&endDateTime=${encodeURIComponent(end.toISOString())}&$select=id,subject,start,end`;
-  const response = await microsoftFetch<{ value?: Array<{ id?: string; subject?: string; start?: { dateTime?: string }; end?: { dateTime?: string } }> }>({ userId: input.userId, path, scopes: ["Calendars.ReadWrite"] });
+  const response = await microsoftFetch<{ value?: Array<{ id?: string; subject?: string; start?: { dateTime?: string }; end?: { dateTime?: string } }> }>({ userId: input.userId, path, scopes: ["Calendars.Read"] });
   if (response.status === "blocked") return response; const busy = (response.body.value ?? []).map((event) => ({ id: event.id, title: event.subject ?? "Busy", start: event.start?.dateTime, end: event.end?.dateTime })); return { status: "ok" as const, busy, suggestion: busy.length ? "Review the busy times and choose an open gap." : "Your Microsoft calendar has no events in this window." };
 }
 export async function searchMicrosoftDriveFiles(input: { userId: string; query: string; limit?: number }) {

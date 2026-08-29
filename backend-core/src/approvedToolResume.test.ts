@@ -4,7 +4,7 @@ import type { HitlRequest } from "@prisma/client";
 import { prisma } from "./db/prisma.js";
 import { createVaultSalt } from "./services/cryptoService.js";
 import { decideHitlRequest } from "./services/hitlService.js";
-import { encodeJson } from "./services/jsonService.js";
+import { decodeJson, encodeJson } from "./services/jsonService.js";
 import {
   consumeApprovedHitlRequest,
   resumeApprovedToolRequest
@@ -146,6 +146,24 @@ test("approved high-risk tool resumes the stored provider command once", async (
     assert.equal(resumed.result.toolRunId, resumedAgain.result.toolRunId);
   }
   assert.equal(calls, 1);
+});
+
+test("approval binding rejects changed arguments before provider execution", async () => {
+  const { user, agent } = await createUserAndAgent("tampered-arguments");
+  let calls = 0;
+  setWebhookFetchForTest(async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const request = await approveToolRequest({ userId: user.id, agentId: agent.id, toolName: `${testRunId}.book`, args: { bookingId: "approved-booking" } });
+  const payload = decodeJson<Record<string, unknown>>(request.payload, {});
+  const tampered = {
+    ...request,
+    payload: encodeJson({ ...payload, arguments: { bookingId: "different-booking" } })
+  };
+  const resumed = await resumeApprovedToolRequest({ request: tampered });
+  assert.equal(resumed.status, "blocked");
+  assert.equal(calls, 0);
 });
 
 test("denied approval cannot be consumed for execution", async () => {

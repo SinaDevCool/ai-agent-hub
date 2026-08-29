@@ -22,7 +22,7 @@ const googleScopes = [
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/drive.metadata.readonly"
 ];
-const microsoftScopes = ["openid", "profile", "email", "offline_access", "User.Read", "Mail.Read", "Mail.ReadWrite", "Mail.Send", "Calendars.ReadWrite", "Files.Read"];
+const microsoftScopes = ["openid", "profile", "email", "offline_access", "User.Read", "Mail.Read", "Mail.ReadWrite", "Mail.Send", "Calendars.Read", "Calendars.ReadWrite", "Files.Read"];
 
 export const connectorCapabilityKeys = ["email_read", "email_write", "calendar_read", "calendar_write", "files_read"] as const;
 export type ConnectorCapabilityKey = typeof connectorCapabilityKeys[number];
