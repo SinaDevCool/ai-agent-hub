@@ -1,0 +1,13 @@
+{
+  "releaseSha": "replace-with-commit-sha",
+  "environment": "staging",
+  "gates": {
+    "security": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" },
+    "backup_restore": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" },
+    "accessibility": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" },
+    "performance": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" },
+    "privacy_legal": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" },
+    "observability_incident": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" },
+    "release_rollback": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" }
+  }
+}
