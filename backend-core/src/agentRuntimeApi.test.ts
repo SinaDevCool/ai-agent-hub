@@ -359,6 +359,24 @@ test("approval flow creates a waiting request, allows once, resumes once, and ke
   assert.match(completed?.display.title ?? "", /book non-refundable travel/i);
 });
 
+test("action requests use approval before broad provider workflow inference", async () => {
+  const { user, agent } = await createUserAndAgent({
+    suffix: "approval-before-workflow",
+    tools: ["workflow.run", "action.execute"],
+    highRiskActions: ["book_non_refundable_travel"]
+  });
+
+  const run = await api<RuntimeResponse>(`/api/me/agents/${agent.id}/run`, user.id, {
+    method: "POST",
+    body: JSON.stringify({ message: "Book a hotel for my trip" })
+  });
+
+  assert.equal(run.response.status, 200);
+  assert.equal(run.body.status, "awaiting_human_approval");
+  assert.equal(run.body.runtimeState, "needs_approval");
+  assert.ok(run.body.requestId);
+});
+
 test("removed agent cannot keep running through the runtime route", async () => {
   const { user, agent } = await createUserAndAgent({
     suffix: "removed-agent",

@@ -160,6 +160,21 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
   });
   if (connectorBranch) return persist(connectorBranch.result, connectorBranch.step);
 
+  // Explicit action requests must reach the action permission/HITL gate before
+  // a broad workflow capability inferred from words such as "hotel" or
+  // "travel" can execute. Marketplace agents commonly expose both tools.
+  if (intent === "action") {
+    const branch = await runActionIntent({
+      userId: input.userId,
+      agent: runtimeAgent,
+      agentRunId: agentRun.id,
+      message,
+      manifest,
+      tools
+    });
+    return persist(branch.result, branch.step);
+  }
+
   const providerBranch = await runProviderRuntimeIntent({
     userId: input.userId,
     agent: runtimeAgent,
@@ -172,18 +187,6 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
 
   if (intent === "search") {
     const branch = await runVaultSearchIntent({
-      userId: input.userId,
-      agent: runtimeAgent,
-      agentRunId: agentRun.id,
-      message,
-      manifest,
-      tools
-    });
-    return persist(branch.result, branch.step);
-  }
-
-  if (intent === "action") {
-    const branch = await runActionIntent({
       userId: input.userId,
       agent: runtimeAgent,
       agentRunId: agentRun.id,
