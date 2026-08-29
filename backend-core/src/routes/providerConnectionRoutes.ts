@@ -11,6 +11,7 @@ import {
   validateProviderConnection
 } from "../services/providerConnectionService.js";
 import { completeProviderOAuth, startProviderOAuth } from "../services/providerOAuthService.js";
+import { env } from "../config/env.js";
 
 export const providerConnectionRoutes = Router();
 export const publicProviderConnectionRoutes = Router();
@@ -52,8 +53,15 @@ const updateConnectionSchema = z.object({
 publicProviderConnectionRoutes.get("/oauth/callback", async (req, res, next) => {
   try {
     const query = callbackSchema.parse(req.query);
-    if (query.error) return res.status(400).json({ error: { message: "Provider connection was cancelled." } });
-    res.json(await completeProviderOAuth(query));
+    const browserNavigation = String(req.header("accept") ?? "").includes("text/html");
+    const frontendBase = env.FRONTEND_PUBLIC_URL ?? env.FRONTEND_ORIGIN.split(",")[0]?.trim() ?? "http://localhost:5173";
+    if (query.error) {
+      if (browserNavigation) return res.redirect(`${frontendBase.replace(/\/$/, "")}/settings?provider=error`);
+      return res.status(400).json({ error: { message: "Provider connection was cancelled." } });
+    }
+    const result = await completeProviderOAuth(query);
+    if (browserNavigation) return res.redirect(`${frontendBase.replace(/\/$/, "")}/settings?provider=success`);
+    return res.json(result);
   } catch (error) {
     next(error);
   }

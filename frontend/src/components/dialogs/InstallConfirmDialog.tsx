@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
 import type { MarketplaceAgent } from "../../api/types";
+import { useAccessibleDialog } from "../../hooks/useAccessibleDialog";
 
 export function InstallConfirmDialog(props: {
   agent: MarketplaceAgent;
@@ -8,10 +9,11 @@ export function InstallConfirmDialog(props: {
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const dialogRef = useAccessibleDialog(props.onCancel);
   const manifest = props.agent.versions[0]?.capabilityManifest;
   return (
     <div className="confirm-backdrop" role="presentation">
-      <section aria-describedby="install-dialog-copy" aria-labelledby="install-dialog-title" aria-modal="true" className="confirm-dialog install-confirm-dialog" role="dialog">
+      <section ref={dialogRef} aria-describedby="install-dialog-copy" aria-labelledby="install-dialog-title" aria-modal="true" className="confirm-dialog install-confirm-dialog" role="dialog">
         <div className="panel-title">Add to My Agents</div>
         <h2 id="install-dialog-title">Add {props.agent.name}?</h2>
         <p id="install-dialog-copy">This agent will appear in My Agents. It cannot read private info until you allow it.</p>

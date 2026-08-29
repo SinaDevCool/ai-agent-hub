@@ -1,9 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { sectionHeadings, type SectionId } from "../lib/appNavigation";
 
+const sectionPaths: Record<SectionId, string> = {
+  home: "/", marketplace: "/marketplace", helpers: "/agents", creator: "/creator",
+  moderation: "/moderation", vault: "/private-info", clearance: "/access",
+  activity: "/activity", settings: "/settings"
+};
+
+function sectionFromLocation(fallback: SectionId) {
+  const match = (Object.entries(sectionPaths) as Array<[SectionId, string]>).find(([, path]) => path === window.location.pathname);
+  return match?.[0] ?? fallback;
+}
+
 export function useAppNavigation(initialSection: SectionId = "home") {
-  const [activeSection, setActiveSection] = useState<SectionId>(initialSection);
+  const [activeSection, setActiveSectionState] = useState<SectionId>(() => sectionFromLocation(initialSection));
   const heading = sectionHeadings[activeSection];
+
+  useEffect(() => {
+    const handlePopState = () => setActiveSectionState(sectionFromLocation(initialSection));
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [initialSection]);
+
+  function setActiveSection(id: SectionId) {
+    setActiveSectionState(id);
+    if (window.location.pathname !== sectionPaths[id]) window.history.pushState({ section: id }, "", sectionPaths[id]);
+  }
 
   function sectionClass(section: SectionId) {
     return activeSection === section ? "is-section-active" : "";

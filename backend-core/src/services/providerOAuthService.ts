@@ -10,11 +10,23 @@ import {
   setProviderOAuthFetchForTest
 } from "./providerOAuthFetchService.js";
 import type { ProviderOAuthConfig } from "./providers/providerAdapterTypes.js";
+import { sha256 } from "./cryptoService.js";
 
 export { resetProviderOAuthFetchForTest, setProviderOAuthFetchForTest };
 
+const consumedOAuthStates = new Map<string, number>();
+
+function consumeOAuthState(state: string, expiresAt: number) {
+  const now = Date.now();
+  for (const [key, expiry] of consumedOAuthStates) if (expiry <= now) consumedOAuthStates.delete(key);
+  const fingerprint = sha256(state);
+  if (consumedOAuthStates.has(fingerprint)) return false;
+  consumedOAuthStates.set(fingerprint, expiresAt);
+  return true;
+}
+
 function publicBaseUrl() {
-  return env.APP_PUBLIC_URL ?? env.FRONTEND_ORIGIN.split(",")[0]?.trim() ?? "http://localhost:4141";
+  return env.API_PUBLIC_URL ?? env.APP_PUBLIC_URL ?? "http://localhost:4141";
 }
 
 function callbackUrl(redirectPath = "/api/provider-connections/oauth/callback") {
@@ -76,8 +88,13 @@ export async function completeProviderOAuth(input: { code?: string; state?: stri
     userId?: string;
     createdAt?: string;
   }>(input.state);
-  if (!state || state.type !== "provider_oauth" || !state.providerId || !state.userId) {
+  const createdAt = state?.createdAt ? Date.parse(state.createdAt) : Number.NaN;
+  if (!state || state.type !== "provider_oauth" || !state.providerId || !state.userId
+    || !Number.isFinite(createdAt) || Date.now() - createdAt > 15 * 60_000 || createdAt > Date.now() + 60_000) {
     throw unauthorized("OAuth state is invalid or expired.", "invalid_oauth_state");
+  }
+  if (!consumeOAuthState(input.state, createdAt + 15 * 60_000)) {
+    throw unauthorized("OAuth state has already been used.", "invalid_oauth_state");
   }
   const { provider, config } = providerForOAuth(state.providerId);
   const clientId = process.env[config.clientIdEnvKey!];

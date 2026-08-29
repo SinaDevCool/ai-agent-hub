@@ -51,7 +51,18 @@ export async function createHitlRequest(input: {
       nextStep: "Allow once or deny."
     }
   });
-  realtimeHub.broadcast({ type: "hitl.requested", payload: request });
+  realtimeHub.broadcastToUser(input.userId, {
+    type: "hitl.requested",
+    payload: {
+      id: request.id,
+      agentId: request.agentId,
+      actionName: request.actionName,
+      riskLevel: request.riskLevel,
+      status: request.status,
+      expiresAt: request.expiresAt,
+      createdAt: request.createdAt
+    }
+  });
   return request;
 }
 

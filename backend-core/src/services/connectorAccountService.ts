@@ -52,7 +52,8 @@ export function isSupportedConnectorProvider(provider: string) {
 }
 
 function getGoogleRedirectUri() {
-  return env.GOOGLE_REDIRECT_URI ?? (env.APP_PUBLIC_URL ? `${env.APP_PUBLIC_URL.replace(/\/$/, "")}/api/connectors/google/callback` : "");
+  const apiBase = env.API_PUBLIC_URL ?? env.APP_PUBLIC_URL;
+  return env.GOOGLE_REDIRECT_URI ?? (apiBase ? `${apiBase.replace(/\/$/, "")}/api/connectors/google/callback` : "");
 }
 
 function getGoogleConfigState() {
@@ -70,7 +71,8 @@ function getGoogleConfigState() {
 }
 
 function getMicrosoftRedirectUri() {
-  return env.MICROSOFT_REDIRECT_URI ?? (env.APP_PUBLIC_URL ? `${env.APP_PUBLIC_URL.replace(/\/$/, "")}/api/connectors/microsoft/callback` : "");
+  const apiBase = env.API_PUBLIC_URL ?? env.APP_PUBLIC_URL;
+  return env.MICROSOFT_REDIRECT_URI ?? (apiBase ? `${apiBase.replace(/\/$/, "")}/api/connectors/microsoft/callback` : "");
 }
 
 function getMicrosoftConfigState() {

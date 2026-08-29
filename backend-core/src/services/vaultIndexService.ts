@@ -4,9 +4,10 @@ import { embedText } from "./embeddingService.js";
 import { writeActivityLog } from "./activityLogService.js";
 import { realtimeHub } from "./realtimeHub.js";
 import { decodeJson, encodeJson } from "./jsonService.js";
-import { serializeVaultDocument } from "./serializerService.js";
+import { decryptVaultFields, encryptVaultFields } from "./vaultCryptoService.js";
 
 export async function indexVaultFile(filePath: string, userId: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   const parsed = await parseVaultFile(filePath);
   if (!parsed) return null;
   const schema = parsed.schemaName
@@ -17,13 +18,18 @@ export async function indexVaultFile(filePath: string, userId: string) {
     where: { userId, relativePath: parsed.relativePath },
     select: { id: true }
   });
+  const protectedFields = encryptVaultFields({
+    frontmatter: encodeJson({ ...parsed.frontmatter, content: parsed.body }),
+    excerpt: parsed.excerpt,
+    embedding: encodeJson(embedding.vector)
+  }, user.vaultEncryptionSalt);
   const data = {
       title: parsed.title,
       contentHash: parsed.contentHash,
-      frontmatter: encodeJson(parsed.frontmatter),
-      excerpt: parsed.excerpt,
+      frontmatter: protectedFields.frontmatter,
+      excerpt: protectedFields.excerpt,
       vectorProvider: embedding.provider,
-      embedding: encodeJson(embedding.vector),
+      embedding: protectedFields.embedding,
       vaultSchemaId: schema?.id ?? null,
       indexedAt: new Date()
   };
@@ -36,7 +42,10 @@ export async function indexVaultFile(filePath: string, userId: string) {
       ...data
     }
   });
-  realtimeHub.broadcast({ type: "vault.indexed", payload: serializeVaultDocument(document) });
+  realtimeHub.broadcastToUser(userId, {
+    type: "vault.indexed",
+    payload: { id: document.id, title: document.title, indexedAt: document.indexedAt }
+  });
   await writeActivityLog({
     userId,
     actionType: "indexing_completed",
@@ -59,15 +68,16 @@ export async function reindexVault(userId: string) {
 
 export async function searchVaultDocuments(userId: string, query: string, schemaId?: string) {
   const queryEmbedding = await embedText(query);
-  const docs = await prisma.vaultDocument.findMany({
+  const [user, docs] = await Promise.all([prisma.user.findUniqueOrThrow({ where: { id: userId } }), prisma.vaultDocument.findMany({
     where: { userId, vaultSchemaId: schemaId },
     include: { vaultSchema: true }
-  });
+  })]);
   return docs
     .map((doc) => {
-      const vector = decodeJson<number[]>(doc.embedding, []);
+      const decrypted = decryptVaultFields(doc, user.vaultEncryptionSalt);
+      const vector = decodeJson<number[]>(decrypted.embedding, []);
       const score = cosineSimilarity(queryEmbedding.vector, vector);
-      return { ...doc, score };
+      return { ...decrypted, score };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, 8);

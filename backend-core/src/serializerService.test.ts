@@ -72,7 +72,7 @@ test("serializeUserAgentInstall decodes nested definition, version, and agent", 
   assert.deepEqual(install.agent?.capabilityManifest, { tools: ["action.execute"] });
 });
 
-test("serializeVaultDocument decodes frontmatter, embedding, and nested schema", () => {
+test("serializeVaultDocument decodes frontmatter but redacts the private search vector", () => {
   const document = serializeVaultDocument({
     id: "document-1",
     frontmatter: encodeJson({ source: "manual-entry" }),
@@ -84,7 +84,7 @@ test("serializeVaultDocument decodes frontmatter, embedding, and nested schema",
   });
 
   assert.deepEqual(document.frontmatter, { source: "manual-entry" });
-  assert.deepEqual(document.embedding, [0.1, 0.2]);
+  assert.deepEqual(document.embedding, []);
   assert.deepEqual(document.vaultSchema?.structuralTemplate, { fields: ["content"] });
 });
 

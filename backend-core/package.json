@@ -28,8 +28,10 @@
     "prisma:generate:postgres": "prisma generate --schema prisma/postgres/schema.prisma"
   },
   "dependencies": {
-    "@prisma/client": "^6.1.0",
+    "@prisma/client": "6.12.0",
     "@supabase/supabase-js": "^2.110.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.3",
     "bcryptjs": "^2.4.3",
     "chokidar": "^4.0.3",
     "cors": "^2.8.5",
@@ -53,7 +55,7 @@
     "@typescript-eslint/parser": "^8.18.2",
     "eslint": "^9.17.0",
     "pino-pretty": "^13.0.0",
-    "prisma": "^6.1.0",
+    "prisma": "6.12.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   },

@@ -207,6 +207,20 @@ button.danger {
   gap: 8px;
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  left: 12px;
+  top: 12px;
+  transform: translateY(-160%);
+  border-radius: 6px;
+  background: #f6d18d;
+  color: #07111d;
+  padding: 10px 14px;
+}
+
+.skip-link:focus { transform: translateY(0); }
+
 .nav-item-group {
   display: grid;
   gap: 6px;

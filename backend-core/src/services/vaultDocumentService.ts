@@ -6,6 +6,7 @@ import { embedText } from "./embeddingService.js";
 import { decodeJson, encodeJson } from "./jsonService.js";
 import { serializeVaultDocument, serializeVaultSchema } from "./serializerService.js";
 import { reindexVault, searchVaultDocuments } from "./vaultIndexService.js";
+import { decryptVaultFields, encryptVaultFields } from "./vaultCryptoService.js";
 
 export type CreateVaultDocumentInput = {
   title: string;
@@ -41,15 +42,16 @@ export async function listVaultSchemas() {
 }
 
 export async function listVaultDocuments(userId: string) {
-  const documents = await prisma.vaultDocument.findMany({
+  const [user, documents] = await Promise.all([prisma.user.findUniqueOrThrow({ where: { id: userId } }), prisma.vaultDocument.findMany({
     where: { userId },
     include: { vaultSchema: true },
     orderBy: { indexedAt: "desc" }
-  });
-  return documents.map(serializeVaultDocument);
+  })]);
+  return documents.map((document) => serializeVaultDocument(decryptVaultFields(document, user.vaultEncryptionSalt)));
 }
 
 export async function createVaultDocument(userId: string, input: CreateVaultDocumentInput) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   const schema = await findSchema(input.vaultSchemaId);
   const frontmatter = {
     source: "manual-entry",
@@ -61,6 +63,11 @@ export async function createVaultDocument(userId: string, input: CreateVaultDocu
   const contentHash = sha256(textForEmbedding);
   const relativePath = `manual/${slugifyTitle(input.title)}-${contentHash.slice(0, 10)}.md`;
 
+  const encrypted = encryptVaultFields({
+    frontmatter: encodeJson(frontmatter),
+    excerpt: createExcerpt(input.content),
+    embedding: encodeJson(embedding.vector)
+  }, user.vaultEncryptionSalt);
   const document = await prisma.vaultDocument.create({
     data: {
       userId,
@@ -68,10 +75,10 @@ export async function createVaultDocument(userId: string, input: CreateVaultDocu
       title: input.title,
       relativePath,
       contentHash,
-      frontmatter: encodeJson(frontmatter),
-      excerpt: createExcerpt(input.content),
+      frontmatter: encrypted.frontmatter,
+      excerpt: encrypted.excerpt,
       vectorProvider: embedding.provider,
-      embedding: encodeJson(embedding.vector)
+      embedding: encrypted.embedding
     },
     include: { vaultSchema: true }
   });
@@ -88,20 +95,21 @@ export async function createVaultDocument(userId: string, input: CreateVaultDocu
     }
   });
 
-  return serializeVaultDocument(document);
+  return serializeVaultDocument(decryptVaultFields(document, user.vaultEncryptionSalt));
 }
 
 export async function updateVaultDocument(userId: string, documentId: string, input: UpdateVaultDocumentInput) {
-  const existing = await prisma.vaultDocument.findFirst({
+  const [user, existing] = await Promise.all([prisma.user.findUniqueOrThrow({ where: { id: userId } }), prisma.vaultDocument.findFirst({
     where: { id: documentId, userId },
     include: { vaultSchema: true }
-  });
+  })]);
   if (!existing) throw notFound("Vault item not found", "vault_item_not_found");
 
   const schema = input.vaultSchemaId === undefined ? existing.vaultSchema : await findSchema(input.vaultSchemaId);
   const title = input.title ?? existing.title;
-  const existingFrontmatter = decodeJson<Record<string, unknown>>(existing.frontmatter, {});
-  const content = input.content ?? String(existingFrontmatter.content ?? existing.excerpt);
+  const decryptedExisting = decryptVaultFields(existing, user.vaultEncryptionSalt);
+  const existingFrontmatter = decodeJson<Record<string, unknown>>(decryptedExisting.frontmatter, {});
+  const content = input.content ?? String(existingFrontmatter.content ?? decryptedExisting.excerpt);
   const frontmatter = {
     source: "manual-entry",
     schema: schema?.name ?? null,
@@ -110,16 +118,21 @@ export async function updateVaultDocument(userId: string, documentId: string, in
   const textForEmbedding = `${title}\n${schema?.name ?? "Uncategorized"}\n${content}`;
   const embedding = await embedText(textForEmbedding);
 
+  const encrypted = encryptVaultFields({
+    frontmatter: encodeJson(frontmatter),
+    excerpt: createExcerpt(content),
+    embedding: encodeJson(embedding.vector)
+  }, user.vaultEncryptionSalt);
   const document = await prisma.vaultDocument.update({
     where: { id: existing.id },
     data: {
       title,
       vaultSchemaId: schema?.id ?? null,
       contentHash: sha256(textForEmbedding),
-      frontmatter: encodeJson(frontmatter),
-      excerpt: createExcerpt(content),
+      frontmatter: encrypted.frontmatter,
+      excerpt: encrypted.excerpt,
       vectorProvider: embedding.provider,
-      embedding: encodeJson(embedding.vector),
+      embedding: encrypted.embedding,
       indexedAt: new Date()
     },
     include: { vaultSchema: true }
@@ -137,7 +150,7 @@ export async function updateVaultDocument(userId: string, documentId: string, in
     }
   });
 
-  return serializeVaultDocument(document);
+  return serializeVaultDocument(decryptVaultFields(document, user.vaultEncryptionSalt));
 }
 
 export async function deleteVaultDocument(userId: string, documentId: string) {

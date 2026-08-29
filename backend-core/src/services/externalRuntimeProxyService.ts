@@ -1,7 +1,7 @@
 import { setTimeout, clearTimeout } from "node:timers";
 import { env } from "../config/env.js";
 import type { AgentCapabilityManifest, RuntimeIntent } from "./agentRuntimeTypes.js";
-import { validateExternalUrl } from "./policy/externalUrlPolicyService.js";
+import { validateExternalUrl, validateResolvedExternalUrl } from "./policy/externalUrlPolicyService.js";
 
 type ExternalSourceType = "mcp_server" | "openapi_endpoint";
 
@@ -131,7 +131,9 @@ export async function runExternalRuntimeProxy(input: ExternalRuntimeProxyRequest
     };
   }
 
-  const urlDecision = validateExternalRuntimeUrl(input.endpointUrl);
+  const urlDecision = fetchImpl === fetch
+    ? await validateResolvedExternalUrl(input.endpointUrl)
+    : validateExternalRuntimeUrl(input.endpointUrl);
   if (!urlDecision.allowed) {
     return {
       status: "blocked",
@@ -152,8 +154,20 @@ export async function runExternalRuntimeProxy(input: ExternalRuntimeProxyRequest
         accept: "application/json"
       },
       body: JSON.stringify(buildPayload(input)),
-      signal: controller.signal
+      signal: controller.signal,
+      redirect: "manual"
     });
+    if (response.status >= 300 && response.status < 400) {
+      return {
+        status: "blocked",
+        reply: "The external helper attempted an unapproved redirect.",
+        durationMs: Date.now() - start,
+        endpointHost: urlDecision.url.hostname,
+        providerStatus: response.status,
+        blockedReason: "external_redirect_blocked",
+        sanitizedMetadata: { proxyStatus: "blocked", reason: "external_redirect_blocked" }
+      };
+    }
     const rawText = await response.text();
     const durationMs = Date.now() - start;
     const truncated = rawText.length > env.EXTERNAL_RUNTIME_MAX_RESPONSE_BYTES;

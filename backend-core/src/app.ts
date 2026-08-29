@@ -35,6 +35,7 @@ import { loadActiveProviderDefinitionsIntoRegistry } from "./services/providerDe
 
 export function createApp() {
   const app = express();
+  app.set("trust proxy", 1);
   void loadActiveProviderDefinitionsIntoRegistry().catch((error) => {
     logger.warn({ error }, "could not load persisted provider definitions");
   });

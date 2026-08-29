@@ -106,7 +106,7 @@ export function serializeVaultDocument<T extends SerializableVaultDocument>(docu
   return {
     ...document,
     frontmatter: decodeJson(document.frontmatter, {}),
-    embedding: decodeJson(document.embedding, []),
+    embedding: [],
     vaultSchema: document.vaultSchema ? serializeVaultSchema(document.vaultSchema) : document.vaultSchema
   };
 }

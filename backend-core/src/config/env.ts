@@ -28,6 +28,8 @@ const schema = z.object({
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
   DIRECT_URL: z.string().min(1).optional(),
   APP_PUBLIC_URL: z.string().url().optional(),
+  API_PUBLIC_URL: z.string().url().optional(),
+  FRONTEND_PUBLIC_URL: z.string().url().optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
   NOTIFICATION_FROM_EMAIL: z.string().min(3).default("AI Agent Hub <onboarding@resend.dev>"),
   MODERATOR_USER_IDS: z.string().default(""),
@@ -41,7 +43,9 @@ const schema = z.object({
   MICROSOFT_TENANT_ID: z.string().min(1).default("common"),
   MICROSOFT_REDIRECT_URI: z.string().url().optional(),
   EXTERNAL_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
-  EXTERNAL_RUNTIME_MAX_RESPONSE_BYTES: z.coerce.number().int().min(1000).max(200000).default(60000)
+  EXTERNAL_RUNTIME_MAX_RESPONSE_BYTES: z.coerce.number().int().min(1000).max(200000).default(60000),
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional()
 }).superRefine((value, context) => {
   if (value.NODE_ENV !== "production") return;
 
@@ -68,6 +72,12 @@ const schema = z.object({
       code: z.ZodIssueCode.custom,
       message: "FRONTEND_ORIGIN is required in production"
     });
+  }
+  if (!value.API_PUBLIC_URL) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "API_PUBLIC_URL is required in production" });
+  }
+  if (Boolean(value.UPSTASH_REDIS_REST_URL) !== Boolean(value.UPSTASH_REDIS_REST_TOKEN)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "Both Upstash Redis REST settings must be configured together" });
   }
   if (value.FRONTEND_ORIGIN.split(",").some((origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin.trim()))) {
     context.addIssue({

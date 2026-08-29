@@ -62,3 +62,36 @@ jobs:
             playwright-report
             test-results
           retention-days: 7
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: agent_hub
+          POSTGRES_PASSWORD: agent_hub_test
+          POSTGRES_DB: agent_hub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agent_hub -d agent_hub_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://agent_hub:agent_hub_test@localhost:5432/agent_hub_test
+      DIRECT_URL: postgresql://agent_hub:agent_hub_test@localhost:5432/agent_hub_test
+      VAULT_ENCRYPTION_KEY: postgres-ci-encryption-key-at-least-24-characters
+      FRONTEND_ORIGIN: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm --workspace backend-core run prisma:generate:postgres
+      - run: npm --workspace backend-core run db:migrate:postgres
+      - run: npm --workspace backend-core test

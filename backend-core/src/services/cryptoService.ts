@@ -35,6 +35,17 @@ export function decryptForVault(payload: string, salt: string) {
   return Buffer.concat([decipher.update(Buffer.from(textRaw, "base64")), decipher.final()]).toString("utf8");
 }
 
+const encryptedFieldPrefix = "enc:v1:";
+
+export function encryptVaultField(value: string, userSalt: string) {
+  return `${encryptedFieldPrefix}${encryptForVault(value, userSalt)}`;
+}
+
+export function decryptVaultField(value: string, userSalt: string) {
+  if (!value.startsWith(encryptedFieldPrefix)) return value;
+  return decryptForVault(value.slice(encryptedFieldPrefix.length), userSalt);
+}
+
 const connectorSalt = "ai-agent-hub-connector-tokens-v1";
 
 export function encryptConnectorToken(plaintext: string) {

@@ -25,6 +25,7 @@ export function AppShell(props: {
 }) {
   return (
     <main className="app-shell">
+      <a className="skip-link" href="#workspace-content">Skip to main content</a>
       <aside className="nav-rail">
         <div className="brand-mark" role="heading" aria-level={1}><ShieldCheck size={22} /> AI Agent Hub</div>
         <nav>
@@ -55,7 +56,7 @@ export function AppShell(props: {
         </nav>
       </aside>
 
-      <section className="workspace">
+      <section className="workspace" id="workspace-content" tabIndex={-1}>
         <header className="topbar">
           <div className="topbar-heading">
             <h1 className="mobile-topbar-brand" aria-label="AI Agent Hub">

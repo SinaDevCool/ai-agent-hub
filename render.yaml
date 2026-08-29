@@ -48,12 +48,16 @@ services:
         sync: false
       - key: APP_PUBLIC_URL
         sync: false
+      - key: API_PUBLIC_URL
+        sync: false
+      - key: FRONTEND_PUBLIC_URL
+        sync: false
       - key: VAULT_LOCAL_PATH
         value: ./vault-samples/personal-vault
       - key: VAULT_ENCRYPTION_KEY
         sync: false
       - key: SYNC_MODE
-        value: local
+        value: encrypted_cloud_backup
       - key: LOG_LEVEL
         value: info
       - key: EMBEDDING_PROVIDER
@@ -65,4 +69,8 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: NOTIFICATION_FROM_EMAIL
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
         sync: false

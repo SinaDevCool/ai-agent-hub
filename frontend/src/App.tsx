@@ -66,7 +66,8 @@ type ConfirmationDialog = {
   onConfirm: () => Promise<void> | void;
 };
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:4141/ws`;
+const WS_URL = import.meta.env.VITE_WS_URL
+  ?? (import.meta.env.DEV ? `ws://${window.location.hostname}:4141/ws` : "");
 
 function toggleListValue(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
@@ -292,7 +293,13 @@ export function App() {
     let shouldReconnect = true;
 
     const connectSocket = () => {
-      socket = new WebSocket(WS_URL);
+      if (!WS_URL) {
+        setConnectionState("offline");
+        return;
+      }
+      const protocols = ["ai-agent-hub"];
+      if (auth.session?.access_token) protocols.push(`auth.${auth.session.access_token}`);
+      socket = new WebSocket(WS_URL, protocols);
       socket.onopen = () => {
         reconnectAttempt = 0;
         setConnectionState("live");

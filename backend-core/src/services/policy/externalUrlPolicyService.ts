@@ -1,7 +1,8 @@
 import net from "node:net";
+import dns from "node:dns/promises";
 import { URL } from "node:url";
 
-function privateIpReason(hostname: string) {
+export function privateIpReason(hostname: string) {
   const ipVersion = net.isIP(hostname);
   if (!ipVersion) return null;
   if (hostname === "0.0.0.0" || hostname === "::" || hostname === "::1") return "Loopback and unspecified IP addresses are blocked.";
@@ -17,6 +18,22 @@ function privateIpReason(hostname: string) {
     if (normalized.startsWith("fe80")) return "Link-local IPv6 addresses are blocked.";
   }
   return null;
+}
+
+export async function validateResolvedExternalUrl(endpointUrl?: string) {
+  const decision = validateExternalUrl(endpointUrl);
+  if (!decision.allowed) return decision;
+  try {
+    const addresses = await dns.lookup(decision.url.hostname, { all: true, verbatim: true });
+    if (!addresses.length) return { allowed: false as const, reason: "External endpoint DNS returned no addresses." };
+    for (const address of addresses) {
+      const reason = privateIpReason(address.address);
+      if (reason) return { allowed: false as const, reason };
+    }
+    return { ...decision, addresses: addresses.map((address) => address.address) };
+  } catch {
+    return { allowed: false as const, reason: "External endpoint DNS could not be verified." };
+  }
 }
 
 export function validateExternalUrl(endpointUrl?: string) {

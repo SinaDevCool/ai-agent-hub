@@ -27,6 +27,9 @@ export async function writeActivityLog(input: {
     },
     include: { agent: true }
   });
-  realtimeHub.broadcast({ type: "activity.created", payload: { ...log, dynamicMetadata: decodeJson(log.dynamicMetadata, {}) } });
+  realtimeHub.broadcastToUser(input.userId, {
+    type: "activity.created",
+    payload: { ...log, dynamicMetadata: decodeJson(log.dynamicMetadata, {}) }
+  });
   return log;
 }

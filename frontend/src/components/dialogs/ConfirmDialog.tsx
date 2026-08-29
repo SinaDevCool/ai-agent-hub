@@ -12,9 +12,10 @@ export function ConfirmDialog(props: {
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const dialogRef = useAccessibleDialog(props.onCancel);
   return (
     <div className="confirm-backdrop" role="presentation">
-      <section aria-describedby="confirm-dialog-copy" aria-labelledby="confirm-dialog-title" aria-modal="true" className="confirm-dialog" role="dialog">
+      <section ref={dialogRef} aria-describedby="confirm-dialog-copy" aria-labelledby="confirm-dialog-title" aria-modal="true" className="confirm-dialog" role="dialog">
         <div className="panel-title">Please Confirm</div>
         <h2 id="confirm-dialog-title">{props.confirmation.title}</h2>
         <p id="confirm-dialog-copy">{props.confirmation.message}</p>
@@ -34,3 +35,4 @@ export function ConfirmDialog(props: {
     </div>
   );
 }
+import { useAccessibleDialog } from "../../hooks/useAccessibleDialog";
