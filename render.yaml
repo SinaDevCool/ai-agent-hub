@@ -37,7 +37,7 @@ services:
       - key: APP_ENV
         value: production
       - key: MIGRATION_VERSION
-        value: 0020_durable_jobs
+        value: 0021_private_beta_foundation
       - key: DURABLE_JOBS_ENABLED
         value: false
       - key: DURABLE_JOB_BATCH_SIZE
@@ -58,6 +58,12 @@ services:
         value: EUR
       - key: TRAVEL_CHECKOUT_HOSTS
         value: ""
+      - key: PRIVATE_BETA_ENFORCED
+        value: false
+      - key: BETA_COHORT_LIMITS
+        value: '{"team":25,"trusted":5,"early":25,"expanded":100}'
+      - key: BETA_CAPABILITY_RULES
+        value: '{}'
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET

@@ -165,6 +165,14 @@ enum DurableJobStatus {
   dead_letter
 }
 
+enum BetaInviteStatus {
+  pending
+  redeemed
+  revoked
+  expired
+  replaced
+}
+
 model User {
   id                            String                 @id @default(cuid())
   email                         String                 @unique
@@ -197,8 +205,59 @@ model User {
   creatorAccessRequests         CreatorAccessRequest[] @relation("CreatorAccessRequestUser")
   reviewedCreatorAccessRequests CreatorAccessRequest[] @relation("CreatorAccessRequestReviewer")
   durableJobs                   DurableJob[]
+  sentBetaInvites               BetaInvite[]            @relation("BetaInviteInviter")
+  redeemedBetaInvites           BetaInvite[]            @relation("BetaInviteRedeemer")
+  betaFeedback                  BetaFeedback[]
+  betaTermsAcceptedAt           DateTime?                @map("beta_terms_accepted_at")
+  onboardingState               String                   @default("{}") @map("onboarding_state")
 
   @@map("users")
+}
+
+model BetaInvite {
+  id               String           @id @default(cuid())
+  tokenHash        String           @unique @map("token_hash")
+  email            String
+  cohort           String
+  inviterUserId    String           @map("inviter_user_id")
+  redeemedByUserId String?          @map("redeemed_by_user_id")
+  status           BetaInviteStatus @default(pending)
+  expiresAt        DateTime         @map("expires_at")
+  redeemedAt       DateTime?        @map("redeemed_at")
+  revokedAt        DateTime?        @map("revoked_at")
+  replacedById     String?          @map("replaced_by_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  inviter          User             @relation("BetaInviteInviter", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  redeemedBy       User?            @relation("BetaInviteRedeemer", fields: [redeemedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([email, status])
+  @@index([cohort, status])
+  @@index([redeemedByUserId, status])
+  @@map("beta_invites")
+}
+
+model BetaFeedback {
+  id                    String   @id @default(cuid())
+  userId                String   @map("user_id")
+  category              String
+  severity              String
+  expectedResult        String   @map("expected_result")
+  actualResult          String   @map("actual_result")
+  consentedDiagnostics  String   @default("{}") @map("consented_diagnostics")
+  contactPreference     String   @default("none") @map("contact_preference")
+  requestId             String?  @map("request_id")
+  runId                 String?  @map("run_id")
+  transactionId         String?  @map("transaction_id")
+  status                String   @default("open")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, severity, createdAt])
+  @@index([userId, createdAt])
+  @@index([transactionId])
+  @@map("beta_feedback")
 }
 
 model DurableJob {

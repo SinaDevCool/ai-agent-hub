@@ -13,6 +13,7 @@ import type { ProviderReadinessCode } from "./providerReadinessMessages.js";
 import type { ToolBlockDetails, ToolExecutionInput } from "./tools/toolExecutionTypes.js";
 import { getLifeCapability } from "./lifePlatformCatalog.js";
 import { persistAwaitingLifeApproval } from "./lifeTransactionService.js";
+import { isBetaCapabilityAllowed, releaseLevelForAction } from "./featureFlagService.js";
 
 export type ConnectorExecutionInput = {
   userId: string;
@@ -106,6 +107,18 @@ export async function executeConnector(input: ConnectorExecutionInput): Promise<
   }
 
   const action = input.action ?? capability.defaultAction;
+  const releaseLevel = releaseLevelForAction(action);
+  if (!await isBetaCapabilityAllowed(input.userId, releaseLevel)) {
+    return {
+      status: "blocked",
+      reason: "This capability is not enabled for your beta cohort.",
+      code: "permission_denied",
+      userMessage: "This capability is not enabled for your beta cohort yet.",
+      technicalMessage: `Beta release level '${releaseLevel}' is disabled for this user.`,
+      nextAction: "contact_support",
+      retryable: false
+    };
+  }
   const provider = resolveConnectorProvider({
     capabilityKey: capability.canonicalKey,
     action,

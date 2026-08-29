@@ -33,6 +33,8 @@ import { providerDefinitionRoutes } from "./routes/providerDefinitionRoutes.js";
 import { lifePlatformRoutes } from "./routes/lifePlatformRoutes.js";
 import { durableJobRoutes } from "./routes/durableJobRoutes.js";
 import { travelCheckoutRoutes } from "./routes/travelCheckoutRoutes.js";
+import { betaRoutes } from "./routes/betaRoutes.js";
+import { requireBetaAccess } from "./middleware/requireBetaAccess.js";
 import { loadActiveProviderDefinitionsIntoRegistry } from "./services/providerDefinitionService.js";
 
 export function createApp() {
@@ -53,6 +55,8 @@ export function createApp() {
   app.use("/api/connectors", publicConnectorRoutes);
   app.use("/api/provider-connections", publicProviderConnectionRoutes);
   app.use("/api", requireUser);
+  app.use("/api/beta", betaRoutes);
+  app.use("/api", requireBetaAccess);
   app.use("/api/agents", agentRoutes);
   app.use("/api/vault", vaultRoutes);
   app.use("/api/permissions", permissionRoutes);
