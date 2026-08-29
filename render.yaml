@@ -46,6 +46,18 @@ services:
         value: 60000
       - key: DURABLE_JOB_POLL_MS
         value: 2000
+      - key: LIVE_TRAVEL_ENABLED
+        value: false
+      - key: HOSTED_TRAVEL_CHECKOUT_ENABLED
+        value: false
+      - key: TRAVEL_PROVIDER_TIMEOUT_MS
+        value: 10000
+      - key: TRAVEL_LAUNCH_REGIONS
+        value: DE,EU
+      - key: TRAVEL_LAUNCH_CURRENCIES
+        value: EUR
+      - key: TRAVEL_CHECKOUT_HOSTS
+        value: ""
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET

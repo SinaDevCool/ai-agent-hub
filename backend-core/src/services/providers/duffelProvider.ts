@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ProviderAdapter, ProviderExecutionInput, ProviderExecutionResult } from "./providerAdapterTypes.js";
+import { env } from "../../config/env.js";
+import { normalizeDuffelFlightOffers, validateFlightSearchInput } from "../travelOfferService.js";
 
 type FetchLike = typeof fetch;
 let duffelFetch: FetchLike = fetch;
@@ -17,7 +19,7 @@ async function request(input: ProviderExecutionInput, path: string, method: stri
   const accessToken = token(input);
   if (!accessToken) return { error: blocked(input, "Connect a Duffel access token before using live travel.", "connector_not_connected") };
   try {
-    const response = await duffelFetch(`https://api.duffel.com${path}`, { method, headers: { Accept: "application/json", "Content-Type": "application/json", "Duffel-Version": "v2", Authorization: `Bearer ${accessToken}`, ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}) }, body: data === undefined ? undefined : JSON.stringify({ data }) });
+    const response = await duffelFetch(`https://api.duffel.com${path}`, { method, signal: globalThis.AbortSignal.timeout(env.TRAVEL_PROVIDER_TIMEOUT_MS), headers: { Accept: "application/json", "Content-Type": "application/json", "Duffel-Version": "v2", Authorization: `Bearer ${accessToken}`, ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}) }, body: data === undefined ? undefined : JSON.stringify({ data }) });
     const body = await response.json() as Record<string, unknown>;
     if (!response.ok) return { error: blocked(input, `Duffel returned HTTP ${response.status}.`, "provider_error") };
     return { body };
@@ -29,11 +31,14 @@ async function request(input: ProviderExecutionInput, path: string, method: stri
 async function execute(input: ProviderExecutionInput): Promise<ProviderExecutionResult> {
   const toolRunId = input.previousToolRunId ?? randomUUID();
   if (input.capability.key === "travel.flight.search" && input.action === "search") {
-    const { origin, destination, departureDate, passengers = [{ type: "adult" }], cabinClass = "economy" } = input.input;
-    if (!origin || !destination || !departureDate) return blocked(input, "Origin, destination, and departure date are required.");
-    const result = await request(input, "/air/offer_requests?return_offers=true", "POST", { slices: [{ origin, destination, departure_date: departureDate }], passengers, cabin_class: cabinClass });
+    let search: ReturnType<typeof validateFlightSearchInput>;
+    try { search = validateFlightSearchInput(input.input); } catch (error) { return blocked(input, error instanceof Error ? error.message : "Travel search details are invalid."); }
+    const passengers = Array.from({ length: search.adults }, () => ({ type: "adult" }));
+    const slices = [{ origin: search.origin, destination: search.destination, departure_date: search.departureDate }, ...(search.returnDate ? [{ origin: search.destination, destination: search.origin, departure_date: search.returnDate }] : [])];
+    const result = await request(input, "/air/offer_requests?return_offers=true", "POST", { slices, passengers, cabin_class: search.cabinClass });
     if (result.error) return result.error;
-    return { status: "ok", toolRunId, result: { provider: "duffel", ...(result.body ?? {}) } };
+    const offers = normalizeDuffelFlightOffers(result.body ?? {});
+    return { status: "ok", toolRunId, result: { provider: "duffel", inventoryMode: "live", contractVersion: "travel-offer.v1", offers, partial: offers.length < (((result.body?.data as Record<string, unknown> | undefined)?.offers as unknown[] | undefined)?.length ?? offers.length), fetchedAt: new Date().toISOString() } };
   }
   if (input.capability.key === "travel.flight.book" && ["reserve", "execute_action"].includes(input.action)) {
     const { offerId, passengers, approvalRequestId, services = [], type = "instant", payments = [] } = input.input;
