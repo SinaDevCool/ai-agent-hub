@@ -327,14 +327,16 @@ export function App() {
 
   useEffect(() => {
     const hash = window.location.hash;
-    if (!hash.includes("connector=")) return;
-    const queryText = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : hash.replace(/^#/, "");
-    const params = new URLSearchParams(queryText);
+    const legacyQuery = hash.includes("connector=")
+      ? (hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : hash.replace(/^#/, ""))
+      : "";
+    const params = new URLSearchParams(legacyQuery || window.location.search);
     const status = params.get("connector");
+    if (!status) return;
     const message = params.get("message");
-    if (message) connectors.setMessage(decodeURIComponent(message));
+    if (message) connectors.setMessage(message);
     if (status === "success") void connectors.refreshConnectors();
-    window.history.replaceState(null, "", window.location.pathname + window.location.search + "#settings");
+    window.history.replaceState(null, "", "/settings");
     scrollToSection("settings");
   }, []);
 
@@ -774,6 +776,10 @@ export function App() {
             pinnedAgentIds,
             primarySetupLabel,
             providerReceipts,
+            requestConfirmation: (request) => {
+              setConfirmationError("");
+              setConfirmation(request);
+            },
             prioritizedMarketplaceAgents,
             prioritizedMarketplaceMatches,
             promptPreview,

@@ -312,3 +312,40 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await expect(page.locator(".agent-list")).toBeVisible();
   await expect(page.locator(".detail-panel")).toBeHidden();
 });
+
+test("connector returns land in settings and disconnect requires confirmation", async ({ page }) => {
+  const smokeUserId = `ui-connector-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await page.addInitScript((userId) => {
+    window.localStorage.setItem("ai-agent-hub-user-id", userId);
+  }, smokeUserId);
+
+  await page.route("**/api/connectors", async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        accounts: [{
+          id: "google-test-account",
+          provider: "google",
+          accountLabel: "journey@example.test",
+          status: "active",
+          scopes: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }]
+      })
+    });
+  });
+
+  await page.goto("/settings?connector=error&message=Google+could+not+be+connected.+Please+try+again.");
+  await expect(page.locator("#settings")).toBeVisible();
+  await expect(page.locator("#settings")).toContainText("Google could not be connected. Please try again.");
+  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page.locator("#settings")).toContainText("journey@example.test connected");
+
+  await page.locator("#settings").getByRole("button", { name: "Disconnect" }).click();
+  const dialog = page.getByRole("dialog", { name: "Disconnect Google?" });
+  await expect(dialog).toContainText("Agents will immediately lose access");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+});

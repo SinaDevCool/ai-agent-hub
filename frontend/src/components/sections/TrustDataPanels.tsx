@@ -36,6 +36,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
     providerReceipts,
     recentLogs,
     recentProviderReceipts,
+    requestConfirmation,
     reindexVault,
     revokeAllAgentAccess,
     schemas,
@@ -155,6 +156,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         onConnectMicrosoft={connectors.connectMicrosoft}
         onCreatorAccessReasonChange={creatorAccess.setReason}
         onDisconnectConnector={connectors.disconnectAccount}
+        onRequestConfirmation={requestConfirmation}
         onExportData={exportMyData}
         onManageAccess={() => scrollToSection("clearance")}
         onOpenCreator={() => scrollToSection("creator")}

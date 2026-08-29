@@ -26,11 +26,13 @@ const googleCallbackSchema = z.object({
 function frontendConnectorRedirect(status: "success" | "error", message: string) {
   const base = env.FRONTEND_ORIGIN.split(",")[0]?.trim() || "http://localhost:5173";
   const url = new URL(base);
-  url.hash = `settings?connector=${status}&message=${encodeURIComponent(message)}`;
+  url.pathname = "/settings";
+  url.searchParams.set("connector", status);
+  url.searchParams.set("message", message);
   return url.toString();
 }
 
-publicConnectorRoutes.get("/google/callback", async (req, res, next) => {
+publicConnectorRoutes.get("/google/callback", async (req, res) => {
   try {
     const query = googleCallbackSchema.parse(req.query);
     if (query.error) {
@@ -41,19 +43,21 @@ publicConnectorRoutes.get("/google/callback", async (req, res, next) => {
     }
     await completeGoogleOAuth({ code: query.code, state: query.state });
     return res.redirect(frontendConnectorRedirect("success", "Google connected."));
-  } catch (error) {
-    next(error);
+  } catch {
+    return res.redirect(frontendConnectorRedirect("error", "Google could not be connected. Please try again."));
   }
 });
 
-publicConnectorRoutes.get("/microsoft/callback", async (req, res, next) => {
+publicConnectorRoutes.get("/microsoft/callback", async (req, res) => {
   try {
     const query = googleCallbackSchema.parse(req.query);
     if (query.error) return res.redirect(frontendConnectorRedirect("error", "Microsoft connection was cancelled."));
     if (!query.code || !query.state) return res.redirect(frontendConnectorRedirect("error", "Microsoft connection response was incomplete."));
     await completeMicrosoftOAuth({ code: query.code, state: query.state });
     return res.redirect(frontendConnectorRedirect("success", "Microsoft connected."));
-  } catch (error) { next(error); }
+  } catch {
+    return res.redirect(frontendConnectorRedirect("error", "Microsoft could not be connected. Please try again."));
+  }
 });
 
 connectorRoutes.get("/", async (req, res) => {

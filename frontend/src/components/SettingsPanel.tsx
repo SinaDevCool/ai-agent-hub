@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import type { Agent, ConnectedAccount, CreatorAccessRequest, WorkflowProvider } from "../api/types";
 import type { useWorkflows } from "../hooks/useWorkflows";
 import type { useLifePlatform } from "../hooks/useLifePlatform";
+import type { ConfirmationRequest } from "./sections/WorkspaceSections.types";
 
 function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -41,6 +42,7 @@ export function SettingsPanel(props: {
   onConnectGoogle: () => void | Promise<void>;
   onConnectMicrosoft: () => void | Promise<void>;
   onDisconnectConnector: (accountId: string) => void | Promise<void>;
+  onRequestConfirmation: (request: ConfirmationRequest) => void;
   onExportData: () => void;
   onManageAccess: () => void;
   onOpenCreator: () => void;
@@ -124,6 +126,36 @@ export function SettingsPanel(props: {
   const showCreatorRequestForm = !props.canUseCreatorTools && props.creatorAccessRequest?.status !== "pending";
   const googleAccount = props.connectedAccounts.find((account) => account.provider === "google" && account.status === "active");
   const microsoftAccount = props.connectedAccounts.find((account) => account.provider === "microsoft" && account.status === "active");
+
+  function requestDisconnect(account: ConnectedAccount) {
+    props.onRequestConfirmation({
+      title: `Disconnect ${account.provider === "google" ? "Google" : "Microsoft"}?`,
+      message: `Agents will immediately lose access to ${account.accountLabel}. You can reconnect this account later.`,
+      confirmLabel: "Disconnect account",
+      tone: "danger",
+      onConfirm: async () => { await props.onDisconnectConnector(account.id); }
+    });
+  }
+
+  function requestWorkflowRemoval(workflowId: string, workflowName: string) {
+    props.onRequestConfirmation({
+      title: `Remove ${workflowName}?`,
+      message: "Agents using this automation will stop being able to complete its connected tasks.",
+      confirmLabel: "Remove automation",
+      tone: "danger",
+      onConfirm: async () => { await props.workflows.deleteWorkflow(workflowId); }
+    });
+  }
+
+  function requestDestructiveAction(input: { title: string; message: string; confirmLabel: string; action: () => Promise<unknown> }) {
+    props.onRequestConfirmation({
+      title: input.title,
+      message: input.message,
+      confirmLabel: input.confirmLabel,
+      tone: "danger",
+      onConfirm: async () => { await input.action(); }
+    });
+  }
   const selectedCapability = props.workflows.capabilities.find((capability) => capability.key === workflowDraft.capabilityKey)
     ?? props.workflows.capabilities.find((capability) => capability.key === "general.research");
   const workflowStatusLabel = {
@@ -172,7 +204,7 @@ export function SettingsPanel(props: {
             <span>{googleAccount ? `${googleAccount.accountLabel} connected` : "Connect Gmail drafts and Calendar read access"}</span>
           </div>
           {googleAccount ? (
-            <button disabled={props.isConnectorSaving} onClick={() => void props.onDisconnectConnector(googleAccount.id)} type="button">
+            <button disabled={props.isConnectorSaving} onClick={() => requestDisconnect(googleAccount)} type="button">
               <Unplug size={16} /> Disconnect
             </button>
           ) : (
@@ -183,7 +215,7 @@ export function SettingsPanel(props: {
         </div>
         <div className="connector-row">
           <div><strong>Microsoft</strong><span>{microsoftAccount ? `${microsoftAccount.accountLabel} connected` : "Connect Outlook, Calendar, and OneDrive"}</span></div>
-          {microsoftAccount ? <button disabled={props.isConnectorSaving} onClick={() => void props.onDisconnectConnector(microsoftAccount.id)} type="button"><Unplug size={16} /> Disconnect</button> : <button disabled={props.isConnectorSaving} onClick={() => void props.onConnectMicrosoft()} type="button"><Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : "Connect Microsoft"}</button>}
+          {microsoftAccount ? <button disabled={props.isConnectorSaving} onClick={() => requestDisconnect(microsoftAccount)} type="button"><Unplug size={16} /> Disconnect</button> : <button disabled={props.isConnectorSaving} onClick={() => void props.onConnectMicrosoft()} type="button"><Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : "Connect Microsoft"}</button>}
         </div>
         {props.connectorMessage ? <small className="settings-action-note" role="status" aria-live="polite">{props.connectorMessage}</small> : null}
         {props.connectorError ? <small className="form-error">{props.connectorError}</small> : null}
@@ -261,7 +293,7 @@ export function SettingsPanel(props: {
             <span className={`status-pill ${appointment.status === "confirmed" ? "green" : "amber"}`}>{appointment.status}</span>
             {appointment.status === "confirmed" ? <button disabled={props.lifePlatform.isSaving} onClick={() => setRescheduleAppointmentId(appointment.id)} type="button">Reschedule</button> : null}
             {appointment.status === "confirmed" && !Object.keys(appointment.calendarEvent).length ? <button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.syncAppointmentCalendar(appointment.id)} type="button">Add to Google Calendar</button> : null}
-            {appointment.status === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelAppointment(appointment.id)} type="button">Confirm cancellation</button> : null}
+            {appointment.status === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => requestDestructiveAction({ title: "Cancel this appointment?", message: `${appointment.providerName} at ${formatDateTime(appointment.startsAt)} will be cancelled in the sandbox.`, confirmLabel: "Cancel appointment", action: () => props.lifePlatform.cancelAppointment(appointment.id) })} type="button">Cancel appointment</button> : null}
           </div>)}
         </div> : <small>No appointments booked.</small>}
         <div><strong>Shopping sandbox</strong><span>Compare example products and practice approval-gated ordering. No merchant is contacted and no payment is taken.</span></div>
@@ -270,7 +302,7 @@ export function SettingsPanel(props: {
           <label><span>Items, comma separated</span><input aria-label="Shopping list items" onChange={(event) => setShoppingListDraft((current) => ({ ...current, items: event.currentTarget.value }))} required value={shoppingListDraft.items} /></label>
           <button disabled={props.lifePlatform.isSaving} type="submit">Save shopping list</button>
         </form>
-        {props.lifePlatform.shoppingLists.length ? <div className="workflow-list" aria-label="Saved shopping lists">{props.lifePlatform.shoppingLists.map((list) => <div className="workflow-row" key={list.id}><div><strong>{list.name}</strong><span>{list.items.map((item) => `${item.quantity}× ${item.name}`).join(", ") || "No items"}</span><small>Updated {formatDateTime(list.updatedAt)}</small></div><button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.removeList(list.id)} type="button">Delete list</button></div>)}</div> : <small>No shopping lists saved.</small>}
+        {props.lifePlatform.shoppingLists.length ? <div className="workflow-list" aria-label="Saved shopping lists">{props.lifePlatform.shoppingLists.map((list) => <div className="workflow-row" key={list.id}><div><strong>{list.name}</strong><span>{list.items.map((item) => `${item.quantity}× ${item.name}`).join(", ") || "No items"}</span><small>Updated {formatDateTime(list.updatedAt)}</small></div><button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => requestDestructiveAction({ title: `Delete ${list.name}?`, message: "This shopping list and its saved items will be permanently removed.", confirmLabel: "Delete list", action: () => props.lifePlatform.removeList(list.id) })} type="button">Delete list</button></div>)}</div> : <small>No shopping lists saved.</small>}
         <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.searchProducts(productQuery); }}>
           <label><span>Product</span><input aria-label="Product search" onChange={(event) => setProductQuery(event.currentTarget.value)} required value={productQuery} /></label>
           <label><span>Quantity</span><input aria-label="Product quantity" max={20} min={1} onChange={(event) => setProductQuantity(Number(event.currentTarget.value))} required type="number" value={productQuantity} /></label>
@@ -347,11 +379,11 @@ export function SettingsPanel(props: {
                 <span className={`status-pill ${transaction.state === "confirmed" ? "green" : transaction.state === "failed" ? "red" : transaction.state === "uncertain" || transaction.state === "reconciliation_required" ? "amber" : "blue"}`}>{transaction.state.replace(/_/g, " ")}</span>
                 {transaction.capabilityKey === "travel.flight.book" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.quoteCancellation(transaction.id)} type="button">Get cancellation quote</button> : null}
                 {transaction.capabilityKey === "travel.flight.book" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" && !transaction.result.calendarEvent ? <button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.syncTravelCalendar(transaction.id)} type="button">Add itinerary to Google Calendar</button> : null}
-                {transaction.capabilityKey === "travel.hotel.book" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelHotel(transaction.id)} type="button">Cancel sandbox hotel</button> : null}
-                {transaction.capabilityKey === "shopping.order.create" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelOrder(transaction.id)} type="button">Cancel sandbox order</button> : null}
-                {transaction.capabilityKey === "household.service.book" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelHousehold(transaction.id)} type="button">Cancel sandbox service</button> : null}
-                {transaction.capabilityKey === "leisure.restaurant.reserve" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelRestaurant(transaction.id)} type="button">Cancel sandbox reservation</button> : null}
-                {transaction.capabilityKey === "finance.payment.create" && transaction.providerId === "finance-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelPayment(transaction.id)} type="button">Cancel payment simulation</button> : null}
+                {transaction.capabilityKey === "travel.hotel.book" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => requestDestructiveAction({ title: "Cancel this sandbox hotel?", message: "The simulated hotel booking will be marked cancelled.", confirmLabel: "Cancel hotel", action: () => props.lifePlatform.cancelHotel(transaction.id) })} type="button">Cancel sandbox hotel</button> : null}
+                {transaction.capabilityKey === "shopping.order.create" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => requestDestructiveAction({ title: "Cancel this sandbox order?", message: "The simulated order will be marked cancelled.", confirmLabel: "Cancel order", action: () => props.lifePlatform.cancelOrder(transaction.id) })} type="button">Cancel sandbox order</button> : null}
+                {transaction.capabilityKey === "household.service.book" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => requestDestructiveAction({ title: "Cancel this sandbox service?", message: "The simulated household-service booking will be marked cancelled.", confirmLabel: "Cancel service", action: () => props.lifePlatform.cancelHousehold(transaction.id) })} type="button">Cancel sandbox service</button> : null}
+                {transaction.capabilityKey === "leisure.restaurant.reserve" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => requestDestructiveAction({ title: "Cancel this sandbox reservation?", message: "The simulated restaurant reservation will be marked cancelled.", confirmLabel: "Cancel reservation", action: () => props.lifePlatform.cancelRestaurant(transaction.id) })} type="button">Cancel sandbox reservation</button> : null}
+                {transaction.capabilityKey === "finance.payment.create" && transaction.providerId === "finance-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => requestDestructiveAction({ title: "Cancel this payment simulation?", message: "The simulated payment record will be marked cancelled. No money has moved.", confirmLabel: "Cancel simulation", action: () => props.lifePlatform.cancelPayment(transaction.id) })} type="button">Cancel payment simulation</button> : null}
               </div>;
             })}
           </div>
@@ -598,7 +630,7 @@ export function SettingsPanel(props: {
                         >
                           {workflow.status === "disabled" ? "Enable" : "Disable"}
                         </button>
-                        <button className="danger" disabled={props.workflows.isSaving} onClick={() => void props.workflows.deleteWorkflow(workflow.id)} type="button">
+                        <button className="danger" disabled={props.workflows.isSaving} onClick={() => requestWorkflowRemoval(workflow.id, workflow.name)} type="button">
                           <Trash2 size={16} /> Remove
                         </button>
                       </div>

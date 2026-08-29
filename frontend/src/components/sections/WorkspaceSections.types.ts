@@ -40,6 +40,13 @@ type AuthSummary = {
   signOut: () => void | Promise<void>;
 };
 export type SetupStep = { label: string; detail: string; done: boolean };
+export type ConfirmationRequest = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  tone?: "danger";
+  onConfirm: () => Promise<void> | void;
+};
 
 export type WorkspaceSectionsProps = {
   activeMobileClass: (section: SectionId) => string;
@@ -166,6 +173,7 @@ export type WorkspaceSectionsProps = {
   pinnedAgentIds: string[];
   primarySetupLabel: string;
   providerReceipts: ProviderReceipt[];
+  requestConfirmation: (request: ConfirmationRequest) => void;
   prioritizedMarketplaceAgents: MarketplaceAgent[];
   prioritizedMarketplaceMatches: MarketplaceMatch[];
   promptPreview: ToneState;
