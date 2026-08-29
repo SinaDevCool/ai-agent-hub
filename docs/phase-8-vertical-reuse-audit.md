@@ -5,7 +5,7 @@ The repository already has canonical capability, provider, approval, transaction
 | Vertical | Existing canonical foundation | Live gap |
 | --- | --- | --- |
 | Appointments | appointment records, search/book/reschedule/cancel sandbox, calendar handoff | one approved regional provider and live lifecycle acceptance |
-| Finance | accounts, transactions, summaries, simulated payments, finance adapter | regulated partner, consent/reauth, reconciliation and compliance approval |
+| Finance | accounts, transactions, summaries, simulated payments, gated Plaid sync, signed callbacks, consent state, reconciliation | production partner approval, Link/update-mode UX, regional compliance and live acceptance |
 | Shopping | product search/order sandbox and persistent lists | merchant/provider selection and hosted checkout acceptance |
 | Household | provider/quote/book/cancel sandbox | regional provider agreement and dispute/support workflow |
 | Leisure | restaurant reservation and event discovery sandbox | one regional live provider and cancellation acceptance |

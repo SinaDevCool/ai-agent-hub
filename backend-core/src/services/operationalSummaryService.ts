@@ -10,6 +10,8 @@ export type OperationalSignals = {
   failedPrivacyRequests: number;
   appointmentWebhookPending: number;
   appointmentWebhookDeadLetter: number;
+  financeSyncPending: number;
+  financeSyncDeadLetter: number;
 };
 
 export function evaluateOperationalSignals(signals: OperationalSignals) {
@@ -24,11 +26,13 @@ export function evaluateOperationalSignals(signals: OperationalSignals) {
 
 export async function getOperationalSummary(now = new Date()) {
   const jobs = await getDurableJobStats();
-  const [providerFailures15m, failedPrivacyRequests, appointmentWebhookPending, appointmentWebhookDeadLetter] = await Promise.all([
+  const [providerFailures15m, failedPrivacyRequests, appointmentWebhookPending, appointmentWebhookDeadLetter, financeSyncPending, financeSyncDeadLetter] = await Promise.all([
     prisma.providerReceipt.count({ where: { createdAt: { gte: new Date(now.getTime() - 15 * 60_000) }, OR: [{ status: { in: ["failed", "error"] } }, { status: "blocked", retryable: true }] } }),
     prisma.dataRightsRequest.count({ where: { status: "failed" } }),
     prisma.durableJob.count({ where: { jobType: { in: ["calcom_webhook", "calcom_reconciliation"] }, status: { in: ["queued", "leased", "retry_scheduled", "reconciliation_required"] } } }),
-    prisma.durableJob.count({ where: { jobType: { in: ["calcom_webhook", "calcom_reconciliation"] }, status: "dead_letter" } })
+    prisma.durableJob.count({ where: { jobType: { in: ["calcom_webhook", "calcom_reconciliation"] }, status: "dead_letter" } }),
+    prisma.durableJob.count({ where: { jobType: { in: ["plaid_webhook", "plaid_reconciliation"] }, status: { in: ["queued", "leased", "retry_scheduled", "reconciliation_required"] } } }),
+    prisma.durableJob.count({ where: { jobType: { in: ["plaid_webhook", "plaid_reconciliation"] }, status: "dead_letter" } })
   ]);
   const oldestPendingMinutes = jobs.oldestPendingAt ? Math.max(0, Math.floor((now.getTime() - jobs.oldestPendingAt.getTime()) / 60_000)) : null;
   const signals: OperationalSignals = {
@@ -38,12 +42,14 @@ export async function getOperationalSummary(now = new Date()) {
     providerFailures15m,
     failedPrivacyRequests,
     appointmentWebhookPending,
-    appointmentWebhookDeadLetter
+    appointmentWebhookDeadLetter,
+    financeSyncPending,
+    financeSyncDeadLetter
   };
   return {
     generatedAt: now.toISOString(),
     release: deploymentInfo,
-    flags: { durableJobs: env.DURABLE_JOBS_ENABLED === "true", privateBeta: env.PRIVATE_BETA_ENFORCED === "true", liveTravel: env.LIVE_TRAVEL_ENABLED === "true", privacyRights: env.PRIVACY_RIGHTS_ENABLED === "true", verticalReleaseGating: env.VERTICAL_RELEASE_GATING_ENABLED === "true" },
+    flags: { durableJobs: env.DURABLE_JOBS_ENABLED === "true", privateBeta: env.PRIVATE_BETA_ENFORCED === "true", liveTravel: env.LIVE_TRAVEL_ENABLED === "true", liveFinance: env.LIVE_FINANCE_ENABLED === "true", privacyRights: env.PRIVACY_RIGHTS_ENABLED === "true", verticalReleaseGating: env.VERTICAL_RELEASE_GATING_ENABLED === "true" },
     signals,
     ...evaluateOperationalSignals(signals)
   };

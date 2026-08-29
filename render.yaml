@@ -56,6 +56,10 @@ services:
         sync: false
       - key: CALCOM_WEBHOOK_REPLAY_MINUTES
         value: 10
+      - key: LIVE_FINANCE_ENABLED
+        value: false
+      - key: FINANCE_PROVIDER_TIMEOUT_MS
+        value: 10000
       - key: HOSTED_TRAVEL_CHECKOUT_ENABLED
         value: false
       - key: TRAVEL_PROVIDER_TIMEOUT_MS

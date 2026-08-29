@@ -56,6 +56,8 @@ const schema = z.object({
   APPOINTMENTS_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   CALCOM_WEBHOOK_SECRET: z.string().min(24).optional(),
   CALCOM_WEBHOOK_REPLAY_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
+  LIVE_FINANCE_ENABLED: z.enum(["true", "false"]).default("false"),
+  FINANCE_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   HOSTED_TRAVEL_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("false"),
   TRAVEL_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   TRAVEL_LAUNCH_REGIONS: z.string().default("DE,EU"),

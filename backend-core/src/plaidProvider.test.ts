@@ -1,22 +1,34 @@
 import assert from "node:assert/strict";
-import test, { afterEach } from "node:test";
+import test, { after, afterEach } from "node:test";
+import { env } from "./config/env.js";
+import { prisma } from "./db/prisma.js";
 import { getConnectorCapability } from "./services/connectorCapabilityService.js";
+import { createProviderConnection, deleteProviderConnection, getProviderConnectionForExecution, resetProviderConnectionTestFetchForTest, setProviderConnectionTestFetchForTest } from "./services/providerConnectionService.js";
 import { plaidProvider, resetPlaidFetchForTest, setPlaidFetchForTest } from "./services/providers/plaidProvider.js";
 
-afterEach(resetPlaidFetchForTest);
+const original = env.LIVE_FINANCE_ENABLED; const users: string[] = [];
+afterEach(() => { resetPlaidFetchForTest(); resetProviderConnectionTestFetchForTest(); env.LIVE_FINANCE_ENABLED = original; });
+after(async () => { await prisma.user.deleteMany({ where: { id: { in: users } } }); await prisma.$disconnect(); });
 function capability() { const value = getConnectorCapability("finance.transactions.read"); assert.ok(value); return value; }
-const providerConnection = { id: "c", status: "active", displayName: "Plaid", credentials: { clientId: "client", secret: "secret", accessToken: "access-sandbox", environment: "sandbox" } };
+async function setup() { const userId = `plaid-${Date.now()}-${users.length}`; users.push(userId); await prisma.user.create({ data: { id: userId, email: `${userId}@example.test`, vaultLocalPath: "", vaultEncryptionSalt: "salt" } }); const saved = await createProviderConnection({ userId, providerId: "plaid", displayName: "Bank", credentials: { clientId: "client", secret: "secret", accessToken: "access-sandbox", environment: "sandbox" } }); const ready = await getProviderConnectionForExecution({ userId, providerId: "plaid" }); assert.ok(ready); return { userId, connection: { id: saved.id, status: "active", displayName: "Bank", credentials: ready.credentials } }; }
 
-test("Plaid transaction sync consumes every cursor page without enabling money movement", async () => {
-  const requests: string[] = [];
-  setPlaidFetchForTest(async (_url, init) => { const body = JSON.parse(String(init?.body)) as { cursor?: string }; requests.push(body.cursor ?? "initial"); const second = body.cursor === "cursor-1"; return new Response(JSON.stringify(second ? { added: [{ transaction_id: "two" }], modified: [], removed: [], next_cursor: "cursor-2", has_more: false } : { added: [{ transaction_id: "one" }], modified: [], removed: [], next_cursor: "cursor-1", has_more: true }), { status: 200, headers: { "Content-Type": "application/json" } }); });
-  const result = await plaidProvider.execute({ userId: "u", agentId: "a", capability: capability(), action: "sync_status", input: {}, attempt: 1, providerConnection });
-  assert.equal(result.status, "ok"); if (result.status === "ok") { assert.equal((result.result?.added as unknown[]).length, 2); assert.equal(result.result?.nextCursor, "cursor-2"); assert.equal(result.result?.readOnly, true); }
-  assert.deepEqual(requests, ["initial", "cursor-1"]);
-  assert.equal(plaidProvider.actions.includes("execute_action"), false);
+test("Plaid stays disabled until its explicit live-read flag is enabled", async () => { const { userId, connection } = await setup(); env.LIVE_FINANCE_ENABLED = "false"; const result = await plaidProvider.execute({ userId, agentId: "a", capability: capability(), action: "sync_status", input: {}, attempt: 1, providerConnection: connection }); assert.equal(result.status, "blocked"); });
+
+test("Plaid sync persists accounts and every cursor page without enabling money movement", async () => {
+  const { userId, connection } = await setup(); env.LIVE_FINANCE_ENABLED = "true"; const cursors: string[] = [];
+  await prisma.financialAccount.create({ data: { userId, providerId: "plaid", externalAccountId: "revoked-account", name: "Revoked", type: "depository", currency: "EUR" } });
+  setPlaidFetchForTest(async (url, init) => { const path = new URL(String(url)).pathname; const request = JSON.parse(String(init?.body)) as { cursor?: string }; if (path === "/item/get") return Response.json({ item: { item_id: "item-1", consent_expiration_time: "2030-01-01T00:00:00Z" } }); if (path === "/accounts/get") return Response.json({ accounts: [{ account_id: "account-1", name: "Current", type: "depository", subtype: "checking", mask: "1234", balances: { current: 1000, available: 900, iso_currency_code: "EUR" } }] }); cursors.push(request.cursor ?? "initial"); const second = request.cursor === "cursor-1"; return Response.json(second ? { added: [{ transaction_id: "two", account_id: "account-1", name: "Salary", amount: -1000, date: "2026-08-02", iso_currency_code: "EUR" }], modified: [], removed: [], next_cursor: "cursor-2", has_more: false } : { added: [{ transaction_id: "one", account_id: "account-1", name: "Groceries", amount: 40, date: "2026-08-01", iso_currency_code: "EUR", personal_finance_category: { primary: "FOOD_AND_DRINK", detailed: "GROCERIES" } }], modified: [], removed: [], next_cursor: "cursor-1", has_more: true }); });
+  const result = await plaidProvider.execute({ userId, agentId: "a", capability: capability(), action: "sync_status", input: {}, attempt: 1, providerConnection: connection }); assert.equal(result.status, "ok"); assert.deepEqual(cursors, ["initial", "cursor-1"]); assert.equal(await prisma.financialAccount.count({ where: { userId, providerId: "plaid" } }), 1); assert.equal(await prisma.financialTransaction.count({ where: { userId } }), 2); assert.equal(plaidProvider.actions.includes("execute_action"), false);
 });
 
-test("Plaid refuses synchronization without user-authorized credentials", async () => {
-  const result = await plaidProvider.execute({ userId: "u", agentId: "a", capability: capability(), action: "search", input: {}, attempt: 1 });
-  assert.equal(result.status, "blocked"); if (result.status === "blocked") assert.equal(result.code, "connector_not_connected");
+test("Plaid restarts pagination from the original cursor after a mutation error", async () => {
+  const { userId, connection } = await setup(); env.LIVE_FINANCE_ENABLED = "true"; let syncCalls = 0;
+  setPlaidFetchForTest(async (url) => { const path = new URL(String(url)).pathname; if (path === "/item/get") return Response.json({ item: { item_id: "item-r" } }); if (path === "/accounts/get") return Response.json({ accounts: [] }); syncCalls += 1; if (syncCalls === 2) return Response.json({ error_code: "TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION", error_message: "restart" }, { status: 400 }); return Response.json(syncCalls === 1 ? { added: [], modified: [], removed: [], next_cursor: "partial", has_more: true } : { added: [], modified: [], removed: [], next_cursor: "final", has_more: false }); });
+  const result = await plaidProvider.execute({ userId, agentId: "a", capability: capability(), action: "sync_status", input: {}, attempt: 1, providerConnection: connection }); assert.equal(result.status, "ok"); if (result.status === "ok") assert.equal(result.result?.restarts, 1);
 });
+
+test("Plaid marks revoked or expired consent for reconnection", async () => { const { userId, connection } = await setup(); env.LIVE_FINANCE_ENABLED = "true"; setPlaidFetchForTest(async () => Response.json({ error_code: "ITEM_LOGIN_REQUIRED", error_message: "login" }, { status: 400 })); const result = await plaidProvider.execute({ userId, agentId: "a", capability: capability(), action: "sync_status", input: {}, attempt: 1, providerConnection: connection }); assert.equal(result.status, "blocked"); assert.equal((await prisma.providerConnection.findUniqueOrThrow({ where: { id: connection.id } })).status, "reconnect_required"); });
+
+test("Plaid serializes concurrent cursor syncs per connection", async () => { const { userId, connection } = await setup(); env.LIVE_FINANCE_ENABLED = "true"; setPlaidFetchForTest(async (url) => { const path = new URL(String(url)).pathname; if (path === "/item/get") await new Promise((resolve) => setTimeout(resolve, 40)); if (path === "/item/get") return Response.json({ item: { item_id: "item-lock" } }); if (path === "/accounts/get") return Response.json({ accounts: [] }); return Response.json({ added: [], modified: [], removed: [], next_cursor: "cursor", has_more: false }); }); const execute = () => plaidProvider.execute({ userId, agentId: "a", capability: capability(), action: "sync_status", input: {}, attempt: 1, providerConnection: connection }); const results = await Promise.all([execute(), execute()]); assert.equal(results.filter((value) => value.status === "ok").length, 1); assert.equal(results.filter((value) => value.status === "blocked").length, 1); });
+
+test("Plaid disconnect revokes the Item and deletes retained provider finance data", async () => { const { userId, connection } = await setup(); let path = ""; setProviderConnectionTestFetchForTest(async (url) => { path = new URL(String(url)).pathname; return Response.json({ removed: true }); }); await prisma.financialAccount.create({ data: { userId, providerId: "plaid", externalAccountId: "remove-me", name: "Bank", type: "depository", currency: "EUR" } }); assert.equal(await deleteProviderConnection({ userId, connectionId: connection.id }), true); assert.equal(path, "/item/remove"); assert.equal(await prisma.financialAccount.count({ where: { userId, providerId: "plaid" } }), 0); });

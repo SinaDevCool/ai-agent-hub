@@ -38,6 +38,7 @@ import { requireBetaAccess } from "./middleware/requireBetaAccess.js";
 import { dataRightsRoutes } from "./routes/dataRightsRoutes.js";
 import { operationsRoutes } from "./routes/operationsRoutes.js";
 import { calComWebhookRoutes } from "./routes/calComWebhookRoutes.js";
+import { plaidWebhookRoutes } from "./routes/plaidWebhookRoutes.js";
 import { loadActiveProviderDefinitionsIntoRegistry } from "./services/providerDefinitionService.js";
 
 export function createApp() {
@@ -58,6 +59,7 @@ export function createApp() {
   app.use("/api/connectors", publicConnectorRoutes);
   app.use("/api/provider-connections", publicProviderConnectionRoutes);
   app.use("/api/webhooks/cal-com", calComWebhookRoutes);
+  app.use("/api/webhooks/plaid", plaidWebhookRoutes);
   app.use("/api", requireUser);
   app.use("/api/beta", betaRoutes);
   app.use("/api", requireBetaAccess);

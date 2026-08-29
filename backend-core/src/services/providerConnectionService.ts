@@ -1,4 +1,5 @@
 import type { ProviderConnection, ProviderConnectionStatus } from "@prisma/client";
+import { env } from "../config/env.js";
 import { prisma } from "../db/prisma.js";
 import { badRequest, notFound } from "../errors/httpError.js";
 import { decryptProviderCredentials, encryptProviderCredentials, fingerprintSecret } from "./cryptoService.js";
@@ -8,6 +9,7 @@ import { providerOAuthFetch } from "./providerOAuthFetchService.js";
 import { buildProviderAuthHeaders } from "./providerConnectionPolicyService.js";
 import type { ProviderAdapter, ProviderOAuthConfig } from "./providers/providerAdapterTypes.js";
 import { validateExternalUrl } from "./policy/externalUrlPolicyService.js";
+import { writeActivityLog } from "./activityLogService.js";
 
 export type ProviderCredentials = Record<string, unknown>;
 
@@ -400,15 +402,25 @@ export async function updateProviderConnection(input: ProviderConnectionUpdateIn
 }
 
 export async function deleteProviderConnection(input: { userId: string; connectionId: string }) {
-  const deleted = await prisma.providerConnection.deleteMany({
-    where: { id: input.connectionId, userId: input.userId }
-  });
-  return deleted.count > 0;
+  const connection = await prisma.providerConnection.findFirst({ where: { id: input.connectionId, userId: input.userId } });
+  if (!connection) return false;
+  let providerRevoked: boolean | null = null;
+  if (connection.providerId === "plaid") {
+    const credentials = decodeJson<ProviderCredentials>(decryptProviderCredentials(connection.encryptedCredentials), {}); const clientId = String(credentials.clientId ?? ""); const secret = String(credentials.secret ?? ""); const accessToken = String(credentials.accessToken ?? ""); const environment = String(credentials.environment ?? "sandbox");
+    if (clientId && secret && accessToken) {
+      const base = environment === "production" ? "https://production.plaid.com" : environment === "development" ? "https://development.plaid.com" : "https://sandbox.plaid.com";
+      try { const response = await providerConnectionTestFetchImpl(`${base}/item/remove`, { method: "POST", signal: globalThis.AbortSignal.timeout(env.FINANCE_PROVIDER_TIMEOUT_MS), headers: { "Content-Type": "application/json", "PLAID-CLIENT-ID": clientId, "PLAID-SECRET": secret }, body: JSON.stringify({ access_token: accessToken }) }); providerRevoked = response.ok; } catch { providerRevoked = false; }
+    }
+    await prisma.financialAccount.deleteMany({ where: { userId: input.userId, providerId: "plaid" } });
+  }
+  await prisma.providerConnection.delete({ where: { id: connection.id } });
+  await writeActivityLog({ userId: input.userId, actionType: "api_callback", status: providerRevoked === false ? "error" : "success", dynamicMetadata: { event: "provider_connection_disconnected", providerId: connection.providerId, providerRevoked } });
+  return true;
 }
 
-export async function getProviderConnectionForExecution(input: { userId: string; providerId: string }) {
+export async function getProviderConnectionForExecution(input: { userId: string; providerId: string; connectionId?: string }) {
   const connection = await prisma.providerConnection.findFirst({
-    where: { userId: input.userId, providerId: input.providerId },
+    where: { userId: input.userId, providerId: input.providerId, ...(input.connectionId ? { id: input.connectionId } : {}) },
     orderBy: { updatedAt: "desc" }
   });
   if (!connection) return null;

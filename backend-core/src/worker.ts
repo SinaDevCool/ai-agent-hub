@@ -5,10 +5,12 @@ import { disconnectPrisma } from "./db/prisma.js";
 import { processDurableJobBatch } from "./services/durableJobService.js";
 import { registerPrivacyExportJobHandler } from "./services/privacyExportJobService.js";
 import { registerCalComWebhookJobHandler } from "./services/calComWebhookService.js";
+import { registerPlaidJobHandlers } from "./services/plaidWebhookService.js";
 
 const workerId = `durable-worker:${randomUUID()}`;
 registerPrivacyExportJobHandler();
 registerCalComWebhookJobHandler();
+registerPlaidJobHandlers();
 let stopping = false;
 
 async function run() {
