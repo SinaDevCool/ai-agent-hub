@@ -3,6 +3,7 @@ import { z } from "zod";
 import { httpError } from "../errors/httpError.js";
 import {
   completeGoogleOAuth,
+  completeMicrosoftOAuth,
   disconnectConnectedAccount,
   getConnectorStartState,
   listConnectedAccounts
@@ -43,6 +44,16 @@ publicConnectorRoutes.get("/google/callback", async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+publicConnectorRoutes.get("/microsoft/callback", async (req, res, next) => {
+  try {
+    const query = googleCallbackSchema.parse(req.query);
+    if (query.error) return res.redirect(frontendConnectorRedirect("error", "Microsoft connection was cancelled."));
+    if (!query.code || !query.state) return res.redirect(frontendConnectorRedirect("error", "Microsoft connection response was incomplete."));
+    await completeMicrosoftOAuth({ code: query.code, state: query.state });
+    return res.redirect(frontendConnectorRedirect("success", "Microsoft connected."));
+  } catch (error) { next(error); }
 });
 
 connectorRoutes.get("/", async (req, res) => {

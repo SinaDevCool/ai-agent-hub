@@ -11,7 +11,7 @@ function shouldUseWorkflow(message: string, tools: Set<string>) {
   if (!tools.has("workflow.run")) return false;
   const capabilityKey = inferWorkflowCapability({ message });
   if (capabilityKey !== "general.research") return true;
-  return /\b(workflow|research online|compare options|search online|find options)\b/i.test(message);
+  return /\b(workflow|research online|compare options|search online|find options|appointment|doctor|bank|budget|plumber|repair|shopping|restaurant|event|energy|device|wellness|fitness)\b/i.test(message);
 }
 
 function workflowReply(agent: RuntimeAgent, workflowResult: NormalizedWorkflowResult) {

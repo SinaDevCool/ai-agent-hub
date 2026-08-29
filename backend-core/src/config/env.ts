@@ -36,6 +36,10 @@ const schema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
+  MICROSOFT_CLIENT_ID: z.string().min(1).optional(),
+  MICROSOFT_CLIENT_SECRET: z.string().min(1).optional(),
+  MICROSOFT_TENANT_ID: z.string().min(1).default("common"),
+  MICROSOFT_REDIRECT_URI: z.string().url().optional(),
   EXTERNAL_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   EXTERNAL_RUNTIME_MAX_RESPONSE_BYTES: z.coerce.number().int().min(1000).max(200000).default(60000)
 }).superRefine((value, context) => {

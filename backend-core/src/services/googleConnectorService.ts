@@ -4,6 +4,8 @@ import { getValidConnectorToken } from "./connectorAccountService.js";
 const gmailReadonlyScope = "https://www.googleapis.com/auth/gmail.readonly";
 const gmailComposeScope = "https://www.googleapis.com/auth/gmail.compose";
 const calendarReadonlyScope = "https://www.googleapis.com/auth/calendar.readonly";
+const calendarEventsScope = "https://www.googleapis.com/auth/calendar.events";
+const driveMetadataScope = "https://www.googleapis.com/auth/drive.metadata.readonly";
 
 type GoogleMessageList = {
   messages?: Array<{ id: string; threadId?: string }>;
@@ -32,6 +34,7 @@ type GoogleEvents = {
     end?: { dateTime?: string; date?: string };
   }>;
 };
+type GoogleDriveFiles = { files?: Array<{ id: string; name: string; mimeType?: string; modifiedTime?: string; webViewLink?: string }> };
 
 function header(message: GoogleMessage, name: string) {
   return message.payload?.headers?.find((item) => item.name.toLowerCase() === name.toLowerCase())?.value ?? "";
@@ -109,6 +112,33 @@ export async function createGoogleEmailDraft(input: { userId: string; to: string
     messageId: response.body.message?.id,
     threadId: response.body.message?.threadId
   };
+}
+
+export async function sendGoogleEmailDraft(input: { userId: string; draftId: string }) {
+  const response = await googleFetch<GoogleDraft>({ userId: input.userId, url: "https://gmail.googleapis.com/gmail/v1/users/me/drafts/send", scopes: [gmailComposeScope], init: { method: "POST", body: JSON.stringify({ id: input.draftId }) } });
+  if (response.status === "blocked") return response;
+  return { status: "ok" as const, messageId: response.body.id ?? response.body.message?.id, threadId: response.body.message?.threadId };
+}
+
+export async function createGoogleCalendarEvent(input: { userId: string; title: string; start: string; end: string; timeZone?: string; description?: string; location?: string }) {
+  const response = await googleFetch<{ id?: string; htmlLink?: string; status?: string }>({
+    userId: input.userId,
+    url: "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    scopes: [calendarEventsScope],
+    init: { method: "POST", body: JSON.stringify({ summary: input.title, description: input.description, location: input.location, start: { dateTime: input.start, timeZone: input.timeZone }, end: { dateTime: input.end, timeZone: input.timeZone } }) }
+  });
+  if (response.status === "blocked") return response;
+  return { status: "ok" as const, eventId: response.body.id, eventUrl: response.body.htmlLink, eventStatus: response.body.status };
+}
+
+export async function searchGoogleDriveFiles(input: { userId: string; query: string; limit?: number }) {
+  const url = new URL("https://www.googleapis.com/drive/v3/files");
+  url.searchParams.set("q", `name contains '${input.query.replace(/'/g, "\\'")}' and trashed = false`);
+  url.searchParams.set("pageSize", String(Math.min(Math.max(input.limit ?? 10, 1), 25)));
+  url.searchParams.set("fields", "files(id,name,mimeType,modifiedTime,webViewLink)");
+  const response = await googleFetch<GoogleDriveFiles>({ userId: input.userId, url: url.toString(), scopes: [driveMetadataScope] });
+  if (response.status === "blocked") return response;
+  return { status: "ok" as const, files: response.body.files ?? [] };
 }
 
 export async function findGoogleCalendarFreeTime(input: { userId: string; days?: number }) {

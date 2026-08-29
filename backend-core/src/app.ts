@@ -30,6 +30,7 @@ import { providerHealthRoutes } from "./routes/providerHealthRoutes.js";
 import { providerConnectionRoutes, publicProviderConnectionRoutes } from "./routes/providerConnectionRoutes.js";
 import { providerReceiptRoutes } from "./routes/providerReceiptRoutes.js";
 import { providerDefinitionRoutes } from "./routes/providerDefinitionRoutes.js";
+import { lifePlatformRoutes } from "./routes/lifePlatformRoutes.js";
 import { loadActiveProviderDefinitionsIntoRegistry } from "./services/providerDefinitionService.js";
 
 export function createApp() {
@@ -66,6 +67,7 @@ export function createApp() {
   app.use("/api/provider-connections", providerConnectionRoutes);
   app.use("/api/provider-health", providerHealthRoutes);
   app.use("/api/provider-receipts", providerReceiptRoutes);
+  app.use("/api/life-platform", lifePlatformRoutes);
   app.use("/api/admin/providers", sensitiveActionRateLimit, providerDefinitionRoutes);
   app.use("/api/me/agents", agentRuntimeRateLimit, agentRuntimeRoutes);
   app.use("/api/me", installRoutes);

@@ -178,10 +178,183 @@ model User {
   connectedAccounts   ConnectedAccount[]
   workflowConnections WorkflowConnection[]
   agentTraces         AgentTrace[]
+  lifeTransactions    LifeTransaction[]
+  financialAccounts   FinancialAccount[]
+  appointments        Appointment[]
+  shoppingLists       ShoppingList[]
   creatorAccessRequests CreatorAccessRequest[] @relation("CreatorAccessRequestUser")
   reviewedCreatorAccessRequests CreatorAccessRequest[] @relation("CreatorAccessRequestReviewer")
 
   @@map("users")
+}
+
+model ShoppingList {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String
+  itemsJson String   @default("[]") @map("items_json")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId, updatedAt])
+  @@map("shopping_lists")
+}
+
+model Appointment {
+  id                 String   @id @default(cuid())
+  userId             String   @map("user_id")
+  providerId         String   @map("provider_id")
+  externalProviderId String   @map("external_provider_id")
+  providerName       String   @map("provider_name")
+  specialty          String
+  location           String
+  startsAt           DateTime @map("starts_at")
+  endsAt             DateTime @map("ends_at")
+  timeZone           String   @default("UTC") @map("time_zone")
+  status             String   @default("requested")
+  confirmationCode   String?  @map("confirmation_code")
+  calendarEventJson  String   @default("{}") @map("calendar_event_json")
+  idempotencyKey     String   @map("idempotency_key")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, status, startsAt])
+  @@map("appointments")
+}
+
+model FinancialAccount {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  providerId        String   @map("provider_id")
+  externalAccountId String   @map("external_account_id")
+  name              String
+  type              String
+  subtype           String?
+  mask              String?
+  currency          String   @default("EUR")
+  currentBalance    Float?   @map("current_balance")
+  availableBalance  Float?   @map("available_balance")
+  syncCursor        String?  @map("sync_cursor")
+  dataFreshAt       DateTime? @map("data_fresh_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions      FinancialTransaction[]
+
+  @@unique([userId, providerId, externalAccountId])
+  @@index([userId, updatedAt])
+  @@map("financial_accounts")
+}
+
+model FinancialTransaction {
+  id                    String   @id @default(cuid())
+  userId                String   @map("user_id")
+  financialAccountId    String   @map("financial_account_id")
+  providerTransactionId String   @map("provider_transaction_id")
+  name                  String
+  merchantName          String?  @map("merchant_name")
+  amount                Float
+  currency              String   @default("EUR")
+  date                  DateTime
+  pending               Boolean  @default(false)
+  categoryPrimary       String?  @map("category_primary")
+  categoryDetailed      String?  @map("category_detailed")
+  removedAt             DateTime? @map("removed_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  account               FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, providerTransactionId])
+  @@index([userId, date])
+  @@index([financialAccountId, date])
+  @@map("financial_transactions")
+}
+
+model LifeTransaction {
+  id                    String   @id @default(cuid())
+  userId                String   @map("user_id")
+  capabilityKey         String   @map("capability_key")
+  executionLevel        String   @map("execution_level")
+  state                 String   @default("draft")
+  region                String?
+  providerId            String?  @map("provider_id")
+  providerCandidatesJson String  @default("[]") @map("provider_candidates_json")
+  approvalRequired      Boolean  @default(false) @map("approval_required")
+  hitlRequestId         String?  @map("hitl_request_id")
+  idempotencyKey        String   @map("idempotency_key")
+  inputJson             String   @default("{}") @map("input_json")
+  resultJson            String   @default("{}") @map("result_json")
+  externalReference     String?  @map("external_reference")
+  failureReason         String?  @map("failure_reason")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  completedAt           DateTime? @map("completed_at")
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts              ProviderTransactionAttempt[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, state, createdAt])
+  @@index([providerId, state])
+  @@map("life_transactions")
+}
+
+model ProviderTransactionAttempt {
+  id                String   @id @default(cuid())
+  lifeTransactionId String   @map("life_transaction_id")
+  providerId        String   @map("provider_id")
+  action            String
+  attemptNumber     Int      @map("attempt_number")
+  status            String
+  requestJson       String   @default("{}") @map("request_json")
+  responseJson      String   @default("{}") @map("response_json")
+  externalReference String?  @map("external_reference")
+  failureCode       String?  @map("failure_code")
+  failureMessage    String?  @map("failure_message")
+  startedAt         DateTime @default(now()) @map("started_at")
+  completedAt       DateTime? @map("completed_at")
+  lifeTransaction   LifeTransaction @relation(fields: [lifeTransactionId], references: [id], onDelete: Cascade)
+
+  @@unique([lifeTransactionId, attemptNumber])
+  @@index([providerId, status, startedAt])
+  @@map("provider_transaction_attempts")
+}
+
+model ProviderWebhookEvent {
+  id              String   @id @default(cuid())
+  providerId      String   @map("provider_id")
+  externalEventId String   @map("external_event_id")
+  eventType       String   @map("event_type")
+  payloadJson     String   @default("{}") @map("payload_json")
+  status          String   @default("received")
+  failureReason   String?  @map("failure_reason")
+  receivedAt      DateTime @default(now()) @map("received_at")
+  processedAt     DateTime? @map("processed_at")
+
+  @@unique([providerId, externalEventId])
+  @@index([status, receivedAt])
+  @@map("provider_webhook_events")
+}
+
+model ProviderIdempotencyRecord {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  providerId      String   @map("provider_id")
+  idempotencyKey  String   @map("idempotency_key")
+  requestHash     String   @map("request_hash")
+  status          String   @default("processing")
+  responseJson    String   @default("{}") @map("response_json")
+  externalReference String? @map("external_reference")
+  expiresAt       DateTime @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, providerId, idempotencyKey])
+  @@index([expiresAt])
+  @@map("provider_idempotency_records")
 }
 
 model ProviderDefinition {

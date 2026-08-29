@@ -1,5 +1,6 @@
 import type { ConnectorAction } from "../connectorCapabilityService.js";
 import type { ProviderActionSchema } from "./providerAdapterTypes.js";
+import { lifeProviderActionContract } from "./lifeProviderActionContractService.js";
 
 type ContractInput = {
   capabilityKey: string;
@@ -183,6 +184,8 @@ function generic(input: ContractInput): ProviderActionSchema {
 }
 
 export function canonicalProviderActionContract(input: ContractInput): ProviderActionSchema {
+  const lifeContract = lifeProviderActionContract(input);
+  if (lifeContract) return lifeContract;
   if (input.action === "reserve" || input.action === "execute_action" || input.capabilityKey === "travel.hold_or_book") return holdOrBook(input);
   if (input.capabilityKey === "travel.search_hotels") return searchHotels(input);
   if (input.capabilityKey === "travel.search_flights") return searchFlights(input);

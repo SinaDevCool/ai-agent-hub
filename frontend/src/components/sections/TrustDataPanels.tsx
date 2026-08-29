@@ -17,6 +17,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
     connectors,
     creatorAccess,
     workflows,
+    lifePlatform,
     decidingApprovalId,
     decideHitl,
     deleteVaultItem,
@@ -149,6 +150,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         isConnectorSaving={connectors.isSaving}
         isCreatorAccessSaving={creatorAccess.isSaving}
         onConnectGoogle={connectors.connectGoogle}
+        onConnectMicrosoft={connectors.connectMicrosoft}
         onCreatorAccessReasonChange={creatorAccess.setReason}
         onDisconnectConnector={connectors.disconnectAccount}
         onExportData={exportMyData}
@@ -161,6 +163,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         userEmail={auth.session?.user.email ?? "Local development user"}
         visibleAgents={agents}
         workflows={workflows}
+        lifePlatform={lifePlatform}
       />
     </>
   );

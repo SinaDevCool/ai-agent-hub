@@ -32,14 +32,18 @@ function missingRequiredFields(definition: ToolDefinition, args: Record<string, 
 }
 
 function connectorMessage(provider: string, status?: ConnectedAccountStatus) {
-  if (!status) return `Connect ${provider} before this agent can use that service.`;
-  if (status === "expired") return `Reconnect ${provider}. The saved connection has expired.`;
-  if (status === "revoked") return `Reconnect ${provider}. Access was removed.`;
-  if (status === "error") return `Reconnect ${provider}. The saved connection needs attention.`;
-  return `Connect ${provider} before this agent can use that service.`;
+  const label = provider === "office" ? "Google or Microsoft" : provider;
+  if (!status) return `Connect ${label} before this agent can use that service.`;
+  if (status === "expired") return `Reconnect ${label}. The saved connection has expired.`;
+  if (status === "revoked") return `Reconnect ${label}. Access was removed.`;
+  if (status === "error") return `Reconnect ${label}. The saved connection needs attention.`;
+  return `Connect ${label} before this agent can use that service.`;
 }
 
 async function getConnectorStatus(userId: string, provider: string) {
+  if (provider === "office") {
+    return prisma.connectedAccount.findFirst({ where: { userId, provider: { in: ["google", "microsoft"] }, status: "active" }, orderBy: { updatedAt: "desc" }, select: { status: true, lastError: true } });
+  }
   const account = await prisma.connectedAccount.findFirst({
     where: { userId, provider },
     orderBy: { updatedAt: "desc" },

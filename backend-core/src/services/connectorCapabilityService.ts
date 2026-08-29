@@ -1,4 +1,5 @@
 import { getWorkflowCapability, listWorkflowCapabilities, normalizeWorkflowCapability } from "./workflowCapabilityCatalog.js";
+import { getLifeCapability, lifeCapabilities } from "./lifePlatformCatalog.js";
 
 export type ConnectorAction = "search" | "quote" | "reserve" | "prepare_action" | "execute_action" | "sync_status" | "status" | "cancel";
 
@@ -49,27 +50,28 @@ const riskByCapability = new Map<string, ConnectorCapability["risk"]>([
 export function normalizeConnectorCapability(key: string | undefined | null) {
   const trimmed = (key ?? "general.research").trim();
   const canonical = capabilityAliases.get(trimmed) ?? trimmed;
-  return normalizeWorkflowCapability(canonical);
+  return normalizeWorkflowCapability(canonical) ?? getLifeCapability(canonical)?.key ?? null;
 }
 
 export function getConnectorCapability(key: string | undefined | null): ConnectorCapability | null {
   const canonicalKey = normalizeConnectorCapability(key);
   if (!canonicalKey) return null;
   const workflowCapability = getWorkflowCapability(canonicalKey);
-  if (!workflowCapability) return null;
+  const lifeCapability = getLifeCapability(canonicalKey);
+  if (!workflowCapability && !lifeCapability) return null;
   return {
     key: key?.trim() || canonicalKey,
     canonicalKey,
-    label: workflowCapability.label,
-    category: workflowCapability.category,
-    description: workflowCapability.description,
-    defaultAction: actionByCapability.get(canonicalKey) ?? "search",
-    risk: riskByCapability.get(canonicalKey) ?? "medium"
+    label: workflowCapability?.label ?? lifeCapability!.label,
+    category: workflowCapability?.category ?? lifeCapability!.domain,
+    description: workflowCapability?.description ?? lifeCapability!.description,
+    defaultAction: actionByCapability.get(canonicalKey) ?? lifeCapability?.defaultAction ?? "search",
+    risk: riskByCapability.get(canonicalKey) ?? lifeCapability?.risk ?? "medium"
   };
 }
 
 export function listConnectorCapabilities() {
-  return listWorkflowCapabilities().map((capability) => ({
+  const existing = listWorkflowCapabilities().map((capability) => ({
     key: capability.key,
     canonicalKey: capability.key,
     label: capability.label,
@@ -81,4 +83,15 @@ export function listConnectorCapabilities() {
       .filter(([, canonical]) => canonical === capability.key)
       .map(([alias]) => alias)
   }));
+  const existingKeys = new Set(existing.map((item) => item.key));
+  return existing.concat(lifeCapabilities.filter((item) => !existingKeys.has(item.key)).map((capability) => ({
+    key: capability.key,
+    canonicalKey: capability.key,
+    label: capability.label,
+    category: capability.domain,
+    description: capability.description,
+    defaultAction: capability.defaultAction,
+    risk: capability.risk,
+    aliases: [] as string[]
+  })));
 }

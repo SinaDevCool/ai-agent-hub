@@ -4,6 +4,7 @@ import { consumeApprovedHitlRequest, isContinueApprovedActionMessage, resumeAppr
 import { friendlyActionName } from "./runtimeIntentService.js";
 import { getProviderReceiptForToolRun } from "./providerReceiptService.js";
 import type { NormalizedWorkflowResult } from "./workflowResultNormalizer.js";
+import { finishLifeTransactionForApproval } from "./lifeTransactionService.js";
 
 export { isContinueApprovedActionMessage };
 
@@ -81,6 +82,7 @@ export async function runApprovalContinuation(input: {
   }
 
   if (resumed.result.status === "blocked") {
+    await finishLifeTransactionForApproval({ userId: input.userId, hitlRequestId: approvedRequest.id, succeeded: false, failureReason: resumed.result.reason });
     const providerReceipt = await getProviderReceiptForToolRun({
       userId: input.userId,
       toolRunId: resumed.result.toolRunId
@@ -132,6 +134,7 @@ export async function runApprovalContinuation(input: {
     }
   });
   const workflowResult = resumed.result.result?.workflowResult as NormalizedWorkflowResult | undefined;
+  await finishLifeTransactionForApproval({ userId: input.userId, hitlRequestId: approvedRequest.id, succeeded: true, result: resumed.result.result });
   const providerReceipt = await getProviderReceiptForToolRun({
     userId: input.userId,
     toolRunId: resumed.result.toolRunId

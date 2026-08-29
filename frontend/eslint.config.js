@@ -17,6 +17,9 @@ export default [
         document: "readonly",
         fetch: "readonly",
         HTMLFormElement: "readonly",
+        navigator: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
         WebSocket: "readonly",
         window: "readonly"
       }

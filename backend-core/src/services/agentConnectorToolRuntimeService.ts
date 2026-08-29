@@ -1,9 +1,9 @@
 import type { RuntimeAgent, RuntimeBranchResult, RuntimeIntent, RuntimeResult } from "./agentRuntimeTypes.js";
-import { getCalendarLookupDays, getEmailDraftInput, getEmailSearchQuery } from "./runtimeIntentService.js";
+import { getCalendarLookupDays, getDriveSearchQuery, getEmailDraftInput, getEmailSearchQuery } from "./runtimeIntentService.js";
 import { executeTool } from "./toolExecutionService.js";
 
 export function isConnectorToolIntent(intent: RuntimeIntent) {
-  return intent === "email_search" || intent === "email_draft" || intent === "calendar_free_time";
+  return intent === "email_search" || intent === "email_draft" || intent === "calendar_free_time" || intent === "document_search" || intent === "action";
 }
 
 function hasRuntimeTool(tools: Set<string>, toolName: string) {
@@ -15,13 +15,16 @@ function friendlyToolRequirement(toolName: string) {
   if (toolName === "email.search") return "read email";
   if (toolName === "email.draft_reply") return "create email drafts";
   if (toolName === "calendar.find_free_time") return "check calendar availability";
+  if (toolName === "drive.search") return "search connected cloud files";
+  if (toolName === "email.send") return "send an approved email draft";
+  if (toolName === "calendar.create_event") return "create an approved calendar event";
   return toolName;
 }
 
 function buildConnectorBlockedReply(agent: RuntimeAgent, toolName: string, reason?: string) {
-  const needsGoogle = /google|connect/i.test(reason ?? "");
-  if (needsGoogle) {
-    return `${agent.name} needs Google connected before it can ${friendlyToolRequirement(toolName)}.`;
+  const needsOffice = /google|microsoft|connect/i.test(reason ?? "");
+  if (needsOffice) {
+    return `${agent.name} needs Google or Microsoft connected before it can ${friendlyToolRequirement(toolName)}.`;
   }
   return `${agent.name} cannot ${friendlyToolRequirement(toolName)} right now.`;
 }
@@ -29,7 +32,7 @@ function buildConnectorBlockedReply(agent: RuntimeAgent, toolName: string, reaso
 function formatEmailSearchReply(agent: RuntimeAgent, result: Record<string, unknown> | undefined) {
   const messages = Array.isArray(result?.messages) ? result.messages : [];
   if (!messages.length) {
-    return `${agent.name} checked Gmail and did not find matching messages.`;
+    return `${agent.name} checked your connected email and did not find matching messages.`;
   }
   const lines = messages.slice(0, 3).map((message, index) => {
     const item = message as { from?: string; subject?: string; snippet?: string };
@@ -49,7 +52,7 @@ function formatCalendarReply(agent: RuntimeAgent, result: Record<string, unknown
 }
 
 function formatEmailDraftReply(agent: RuntimeAgent) {
-  return `${agent.name} created a Gmail draft. It has not been sent, so you can review it first.`;
+  return `${agent.name} created an email draft. It has not been sent, so you can review it first.`;
 }
 
 export async function runConnectorToolIntent(input: {
@@ -61,11 +64,19 @@ export async function runConnectorToolIntent(input: {
   tools: Set<string>;
 }): Promise<RuntimeBranchResult | null> {
   if (!isConnectorToolIntent(input.intent)) return null;
+  const actionTool = input.intent === "action" && /\b(send)\b.*\b(email|draft)\b/i.test(input.message) ? "email.send"
+    : input.intent === "action" && /\b(create|add|schedule)\b.*\b(calendar event|event on (?:my )?calendar)\b/i.test(input.message) ? "calendar.create_event"
+      : null;
+  if (input.intent === "action" && !actionTool) return null;
   const toolName = input.intent === "email_search"
     ? "email.search"
     : input.intent === "email_draft"
       ? "email.draft_reply"
-      : "calendar.find_free_time";
+      : input.intent === "calendar_free_time"
+        ? "calendar.find_free_time"
+        : input.intent === "document_search"
+          ? "drive.search"
+          : actionTool!;
 
   if (!hasRuntimeTool(input.tools, toolName)) {
     const result: RuntimeResult = {
@@ -90,7 +101,13 @@ export async function runConnectorToolIntent(input: {
     ? { query: getEmailSearchQuery(input.message), limit: 5 }
     : input.intent === "email_draft"
       ? getEmailDraftInput(input.message)
-      : { days: getCalendarLookupDays(input.message) };
+      : input.intent === "calendar_free_time"
+        ? { days: getCalendarLookupDays(input.message) }
+        : input.intent === "document_search"
+          ? { query: getDriveSearchQuery(input.message), limit: 10 }
+          : toolName === "email.send"
+            ? { draftId: input.message.match(/\bdraft\s+(?:id\s+)?([A-Za-z0-9_-]+)/i)?.[1] ?? "" }
+            : { title: input.message.match(/\b(?:called|titled|named)\s+["“]?([^"”]+)["”]?/i)?.[1]?.trim() ?? "Calendar event", start: input.message.match(/\bstart(?:s|ing)?\s+([^,;]+)/i)?.[1]?.trim() ?? "", end: input.message.match(/\bend(?:s|ing)?\s+([^,;]+)/i)?.[1]?.trim() ?? "" };
 
   if (input.intent === "email_draft" && (!("to" in toolArguments) || !toolArguments.to || !toolArguments.body)) {
     const result: RuntimeResult = {
@@ -109,6 +126,12 @@ export async function runConnectorToolIntent(input: {
         error: "Email draft requests need a recipient and body."
       }
     };
+  }
+  if (toolName === "email.send" && !("draftId" in toolArguments && toolArguments.draftId)) {
+    return { result: { status: "blocked", intent: input.intent, reply: `${input.agent.name} needs the Gmail draft ID before sending.`, reason: "A saved draft ID is required.", runtimeState: "blocked", nextStep: "Try: Send email draft ID abc123." }, step: { title: "Prepare approved email send", input: { message: input.message }, error: "A saved draft ID is required." } };
+  }
+  if (toolName === "calendar.create_event" && !("start" in toolArguments && toolArguments.start && "end" in toolArguments && toolArguments.end)) {
+    return { result: { status: "blocked", intent: input.intent, reply: `${input.agent.name} needs an exact start and end before creating the event.`, reason: "Calendar event start and end are required.", runtimeState: "blocked", nextStep: "Include ISO date-times, for example: start 2026-09-02T10:00:00+02:00, end 2026-09-02T10:30:00+02:00." }, step: { title: "Prepare calendar event", input: { message: input.message }, error: "Calendar event start and end are required." } };
   }
 
   const toolResult = await executeTool({
@@ -140,14 +163,14 @@ export async function runConnectorToolIntent(input: {
   }
 
   if (toolResult.status === "blocked") {
-    const needsGoogle = /connect|google/i.test(toolResult.reason);
+    const needsGoogle = /connect|google|microsoft/i.test(toolResult.reason);
     const result: RuntimeResult = {
       status: "blocked",
       intent: input.intent,
       reply: buildConnectorBlockedReply(input.agent, toolName, toolResult.reason),
       reason: toolResult.reason,
       runtimeState: "blocked",
-      nextStep: needsGoogle ? "Connect Google in Settings, then try again." : "Try again or choose a different agent."
+      nextStep: needsGoogle ? "Connect Google or Microsoft in Settings, then try again." : "Try again or choose a different agent."
     };
     return {
       result,
@@ -164,13 +187,17 @@ export async function runConnectorToolIntent(input: {
     ? formatEmailSearchReply(input.agent, toolResult.result)
     : input.intent === "email_draft"
       ? formatEmailDraftReply(input.agent)
-      : formatCalendarReply(input.agent, toolResult.result);
+      : input.intent === "calendar_free_time"
+        ? formatCalendarReply(input.agent, toolResult.result)
+        : input.intent === "document_search"
+          ? `${input.agent.name} searched connected cloud files and found ${Array.isArray(toolResult.result?.files) ? toolResult.result.files.length : 0} matching file${Array.isArray(toolResult.result?.files) && toolResult.result.files.length === 1 ? "" : "s"}.`
+          : `${input.agent.name} completed the approved office action.`;
   const result: RuntimeResult = {
     status: "ok",
     intent: input.intent,
     reply,
     runtimeState: "ready",
-    nextStep: input.intent === "email_draft" ? "Open Gmail to review and send the draft yourself." : "Ask a follow-up if you want a narrower result."
+    nextStep: input.intent === "email_draft" ? "Open your connected email service to review the draft." : "Ask a follow-up if you want a narrower result."
   };
   return {
     result,

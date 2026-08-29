@@ -1,3 +1,5 @@
+import { lifeCapabilities } from "./lifePlatformCatalog.js";
+
 export type WorkflowCapability = {
   key: string;
   label: string;
@@ -253,10 +255,35 @@ export const workflowCapabilities: WorkflowCapability[] = [
   }
 ];
 
-const capabilityMap = new Map(workflowCapabilities.map((capability) => [capability.key, capability]));
+const lifeWorkflowCapabilities: WorkflowCapability[] = lifeCapabilities
+  .filter((life) => !workflowCapabilities.some((current) => current.key === life.key))
+  .map((life) => ({
+    key: life.key,
+    label: life.label,
+    category: life.domain.replace(/_/g, " ").replace(/\b\w/g, (value) => value.toUpperCase()),
+    description: life.description,
+    contract: {
+      receives: {
+        capabilityKey: life.key,
+        input: { message: `Help me ${life.label.toLowerCase()}` },
+        context: { approvedOnly: life.approvalRequired, source: "ai-agent-hub" }
+      },
+      returns: { summary: "A provider-safe summary.", items: [] },
+      requiredFields: ["summary"],
+      optionalFields: ["items", "confirmation", "providerReference", "checkoutUrl"],
+      outputKeys: ["summary", "items"],
+      tips: [
+        `Execution levels: ${life.executionLevels.join(", ")}.`,
+        life.approvalRequired ? "Do not execute until the matching approval is verified." : "Return normalized provider results."
+      ]
+    }
+  }));
+
+const allWorkflowCapabilities = [...workflowCapabilities, ...lifeWorkflowCapabilities];
+const capabilityMap = new Map(allWorkflowCapabilities.map((capability) => [capability.key, capability]));
 
 export function listWorkflowCapabilities() {
-  return workflowCapabilities;
+  return allWorkflowCapabilities;
 }
 
 export function getWorkflowCapability(key: string | undefined | null) {
@@ -284,6 +311,27 @@ export function inferWorkflowCapability(input: Record<string, unknown>) {
   if (/\b(car rental|rent a car|rental car|vehicle rental)\b/.test(haystack)) return "travel.search_cars";
   if (/\b(trip|itinerary|travel plan|vacation|holiday)\b/.test(haystack)) return "travel.plan_trip";
   if (/\b(email|reply|follow up|follow-up|inbox)\b/.test(haystack)) return "email.follow_up";
+  if (/\b(doctor|dentist|clinic|specialist|medical appointment|health appointment|dermatologist|cardiologist)\b/.test(haystack)) return "appointments.provider.search";
+  if (/\b(appointment slot|appointment availability|available appointment)\b/.test(haystack)) return "appointments.availability.search";
+  if (/\b(book appointment|reschedule appointment|cancel appointment)\b/.test(haystack)) return "appointments.booking.manage";
+  if (/\b(bank account|account balance|balances)\b/.test(haystack)) return "finance.accounts.read";
+  if (/\b(bank transactions|categorize transactions|sync transactions)\b/.test(haystack)) return "finance.transactions.read";
+  if (/\b(cash flow|recurring charge|subscription spending|analyze budget)\b/.test(haystack)) return "finance.budget.analyze";
+  if (/\b(bank payment|payee|send money)\b/.test(haystack)) return "finance.payment.create";
   if (/\b(spending|budget|transaction|transactions|expense|expenses)\b/.test(haystack)) return "finance.review_spending";
+  if (/\b(plumber|electrician|cleaner|handyman|home service|repair provider)\b/.test(haystack)) return "household.provider.search";
+  if (/\b(request quote|compare quotes|service quote)\b/.test(haystack)) return "household.quote.manage";
+  if (/\b(book (?:the )?(?:plumber|electrician|cleaner|handyman|home service))\b/.test(haystack)) return "household.service.book";
+  if (/\b(shopping list|grocery list|add to (?:my )?list)\b/.test(haystack)) return "shopping.list.manage";
+  if (/\b(product|products|buying options|compare prices)\b/.test(haystack)) return "shopping.product.search";
+  if (/\b(place order|checkout cart|buy cart)\b/.test(haystack)) return "shopping.order.create";
+  if (/\b(restaurant|dinner reservation|reserve a table|book a table)\b/.test(haystack)) return "leisure.restaurant.reserve";
+  if (/\b(event|concert|festival|theatre|theater|tickets?)\b/.test(haystack)) return "leisure.event.search";
+  if (/\b(energy use|energy usage|electricity price|power consumption)\b/.test(haystack)) return "home.energy.analyze";
+  if (/\b(turn on|turn off|smart home|device command|set temperature)\b/.test(haystack)) return "home.device.control";
+  if (/\b(device status|sensor status|home status)\b/.test(haystack)) return "home.device.read";
+  if (/\b(activity|steps|sleep|heart rate|fitness data)\b/.test(haystack)) return "wellness.activity.read";
+  if (/\b(wellness plan|fitness goal|sleep goal|activity goal)\b/.test(haystack)) return "wellness.plan.prepare";
+  if (/\b(document|documents|drive file|find file)\b/.test(haystack)) return "admin.documents.search";
   return "general.research";
 }

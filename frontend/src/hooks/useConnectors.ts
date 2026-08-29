@@ -24,12 +24,12 @@ export function useConnectors(input: { formatError: (error: unknown) => string }
     }
   }, [input]);
 
-  async function connectGoogle() {
+  async function connect(provider: "google" | "microsoft") {
     setIsSaving(true);
     setError("");
     setMessage("");
     try {
-      const result = await startConnector("google");
+      const result = await startConnector(provider);
       if (result.status === "ready" && result.authorizationUrl) {
         window.location.assign(result.authorizationUrl);
         return;
@@ -59,7 +59,8 @@ export function useConnectors(input: { formatError: (error: unknown) => string }
 
   return {
     accounts,
-    connectGoogle,
+    connectGoogle: () => connect("google"),
+    connectMicrosoft: () => connect("microsoft"),
     disconnectAccount,
     error,
     isLoading,

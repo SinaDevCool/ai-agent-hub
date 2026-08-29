@@ -2,7 +2,7 @@ import type { NormalizedWorkflowResult } from "./workflowResultNormalizer.js";
 import type { SerializedProviderReceipt } from "./providerReceiptService.js";
 import type { RuntimeChatDisplay } from "./runtimeChatDisplayService.js";
 
-export type RuntimeIntent = "search" | "action" | "workflow" | "email_search" | "email_draft" | "calendar_free_time" | "blocked";
+export type RuntimeIntent = "search" | "action" | "workflow" | "email_search" | "email_draft" | "calendar_free_time" | "document_search" | "blocked";
 
 export type RuntimeAgent = {
   id: string;
@@ -17,6 +17,7 @@ export type AgentCapabilityManifest = {
   verificationStatus?: "declared" | "verified" | "blocked";
   verificationSummary?: string[];
   tools?: string[];
+  capabilities?: string[];
   requestedSchemas?: string[];
   highRiskActions?: string[];
   description?: string;

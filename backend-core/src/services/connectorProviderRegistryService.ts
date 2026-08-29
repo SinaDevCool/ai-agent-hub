@@ -12,6 +12,12 @@ import type {
   ProviderRiskLevel,
   ProviderRuntimeConfig
 } from "./providers/providerAdapterTypes.js";
+import { lifeCapabilities } from "./lifePlatformCatalog.js";
+import { lifeSandboxProvider } from "./providers/lifeSandboxProvider.js";
+import { duffelProvider } from "./providers/duffelProvider.js";
+import { amadeusProvider } from "./providers/amadeusProvider.js";
+import { plaidProvider } from "./providers/plaidProvider.js";
+import { financeSandboxProvider } from "./providers/financeSandboxProvider.js";
 
 export type ConnectorProviderDefinition = {
   providerId: string;
@@ -37,7 +43,7 @@ const workflowProvider: ConnectorProviderDefinition = {
   label: "Connected workflow",
   kind: "workflow",
   toolName: "workflow.run",
-  capabilities: [
+  capabilities: Array.from(new Set([
     "travel.search_hotels",
     "travel.search_flights",
     "travel.search_cars",
@@ -46,9 +52,10 @@ const workflowProvider: ConnectorProviderDefinition = {
     "email.follow_up",
     "finance.review_spending",
     "health.organize_notes",
-    "general.research"
-  ],
-  actions: ["search", "prepare_action", "reserve"],
+    "general.research",
+    ...lifeCapabilities.map((item) => item.key)
+  ])),
+  actions: ["search", "quote", "prepare_action", "reserve", "execute_action", "sync_status", "status", "cancel"],
   requiresConnectedAccount: false,
   credentialType: "none",
   credentialFields: [],
@@ -59,7 +66,7 @@ const workflowProvider: ConnectorProviderDefinition = {
   description: "Runs a verified webhook workflow from n8n, Make, Zapier, or a custom provider."
 };
 
-const providerRegistry: ProviderAdapter[] = [createToolProviderAdapter(workflowProvider)];
+const providerRegistry: ProviderAdapter[] = [createToolProviderAdapter(workflowProvider), normalizeProviderManifest(lifeSandboxProvider), normalizeProviderManifest(financeSandboxProvider), normalizeProviderManifest(duffelProvider), normalizeProviderManifest(amadeusProvider), normalizeProviderManifest(plaidProvider)];
 
 export function listConnectorProviders() {
   return providerRegistry;
@@ -102,6 +109,10 @@ export function resolveConnectorProvider(input: {
     capabilityKey: capability.canonicalKey,
     action,
     preferredProviderId: input.preferredProviderId
-  }));
+  }) || (input.capabilityKey !== capability.canonicalKey && provider.canHandle({
+    capabilityKey: input.capabilityKey,
+    action,
+    preferredProviderId: input.preferredProviderId
+  })));
   return candidates[0] ?? null;
 }

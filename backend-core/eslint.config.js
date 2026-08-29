@@ -15,11 +15,17 @@ export default [
       parser: tsParser,
       globals: {
         Buffer: "readonly",
+        clearTimeout: "readonly",
         console: "readonly",
         fetch: "readonly",
+        Headers: "readonly",
         process: "readonly",
+        RequestInit: "readonly",
+        Response: "readonly",
         setInterval: "readonly",
-        setTimeout: "readonly"
+        setTimeout: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly"
       }
     },
     plugins: {

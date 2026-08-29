@@ -67,6 +67,25 @@ type SeedAgent = {
 
 const agents: SeedAgent[] = [
   {
+    name: "Personal Administration Assistant",
+    category: "Executive",
+    tagline: "Coordinates email, calendars, documents, reminders, and everyday paperwork.",
+    description: "Search approved inboxes and files, prepare replies, find free time, create reminders, and organize administrative work while sending and external changes remain approval-gated.",
+    trustScore: 91,
+    installCount: 0,
+    averageRating: 0,
+    capabilityManifest: {
+      protocol: "MCP",
+      tools: ["vault.search", "email.search", "email.draft_reply", "email.send", "calendar.find_free_time", "calendar.create_event", "drive.search", "workflow.run", "action.execute"],
+      capabilities: ["admin.email.read", "admin.email.draft", "admin.email.send", "admin.calendar.read", "admin.calendar.manage", "admin.documents.search"],
+      requestedSchemas: ["Personal Identity Profile", "Career Profile"],
+      highRiskActions: ["send_email", "share_document", "create_external_calendar_event", "cancel_calendar_event"],
+      description: "Coordinates email, calendars, documents, reminders, and everyday paperwork.",
+      examplePrompts: ["Summarize important messages and deadlines", "Draft replies to emails that need action", "Find time for this appointment and prepare the calendar event"],
+      trustReasons: ["Drafts before sending", "Calendar changes require approval", "Uses only connected accounts and private info you allow"]
+    }
+  },
+  {
     name: "Trip Companion",
     category: "Travel",
     tagline: "Plans trips around your preferences and pauses before bookings.",
@@ -76,7 +95,7 @@ const agents: SeedAgent[] = [
     averageRating: 4.7,
     capabilityManifest: {
       protocol: "MCP",
-      tools: ["vault.search", "action.execute"],
+      tools: ["vault.search", "workflow.run", "action.execute"],
       requestedSchemas: ["Personal Identity Profile", "Frequent Flyer Ledger"],
       highRiskActions: ["book_non_refundable_travel"],
       description: "Plans trips around your preferences and pauses before bookings.",
@@ -94,7 +113,7 @@ const agents: SeedAgent[] = [
     averageRating: 4.5,
     capabilityManifest: {
       protocol: "MCP",
-      tools: ["vault.search", "action.execute"],
+      tools: ["vault.search", "workflow.run", "action.execute"],
       requestedSchemas: ["Financial Preferences"],
       highRiskActions: ["open_credit_card", "transfer_funds"],
       description: "Helps with budgets, card choices, and spending guardrails.",
@@ -112,7 +131,7 @@ const agents: SeedAgent[] = [
     averageRating: 4.8,
     capabilityManifest: {
       protocol: "MCP",
-      tools: ["vault.search", "action.execute"],
+      tools: ["vault.search", "workflow.run", "action.execute"],
       requestedSchemas: ["Personal Identity Profile"],
       highRiskActions: ["share_personal_info"],
       description: "Turns loose errands, reminders, and follow-ups into a simple plan.",
@@ -130,7 +149,7 @@ const agents: SeedAgent[] = [
     averageRating: 4.2,
     capabilityManifest: {
       protocol: "OpenAPI",
-      tools: ["vault.search", "action.execute"],
+      tools: ["vault.search", "workflow.run", "action.execute"],
       requestedSchemas: ["Financial Preferences", "Home Preferences"],
       highRiskActions: ["buy_item", "share_payment_info"],
       description: "Compares products and subscriptions without surprise purchases.",
@@ -148,7 +167,7 @@ const agents: SeedAgent[] = [
     averageRating: 4.6,
     capabilityManifest: {
       protocol: "MCP",
-      tools: ["vault.search"],
+      tools: ["vault.search", "workflow.run"],
       requestedSchemas: ["Medical History", "Personal Identity Profile"],
       highRiskActions: ["share_medical_record"],
       description: "Organizes health notes while keeping sensitive details tightly controlled.",
@@ -202,7 +221,7 @@ const agents: SeedAgent[] = [
     averageRating: 4.3,
     capabilityManifest: {
       protocol: "MCP",
-      tools: ["vault.search", "action.execute"],
+      tools: ["vault.search", "workflow.run", "action.execute"],
       requestedSchemas: ["Home Preferences", "Personal Identity Profile"],
       highRiskActions: ["book_home_service", "share_home_address"],
       description: "Keeps home tasks, repairs, and vendor notes organized.",
@@ -226,6 +245,63 @@ const agents: SeedAgent[] = [
       description: "Finds and organizes your saved private notes.",
       examplePrompts: ["Find what private info I have saved", "Show duplicate or stale notes", "Summarize what helpers could ask to read"],
       trustReasons: ["Read-only helper", "No real-world actions", "Useful before granting other helpers access"]
+    }
+  },
+  {
+    name: "Appointment Coordinator",
+    category: "Wellness",
+    tagline: "Finds suitable providers and coordinates bookings without giving medical advice.",
+    description: "Search providers and availability, prepare booking requests, track referral documents, and manage confirmations while every appointment change remains under user control.",
+    trustScore: 90,
+    installCount: 0,
+    averageRating: 0,
+    capabilityManifest: {
+      protocol: "MCP",
+      tools: ["vault.search", "email.search", "email.draft_reply", "calendar.find_free_time", "workflow.run", "action.execute"],
+      capabilities: ["appointments.provider.search", "appointments.availability.search", "appointments.booking.manage"],
+      requestedSchemas: ["Medical History", "Personal Identity Profile"],
+      highRiskActions: ["book_medical_appointment", "cancel_medical_appointment", "share_medical_record"],
+      description: "Coordinates appointments but never diagnoses or changes treatment.",
+      examplePrompts: ["Find an English-speaking dermatologist near me", "Prepare an appointment request for next week", "Add my confirmed appointment and reminders"],
+      trustReasons: ["Does not diagnose", "Health data is narrowly permissioned", "Booking and health sharing require approval"]
+    }
+  },
+  {
+    name: "Leisure Concierge",
+    category: "Domestic",
+    tagline: "Finds restaurants and events and prepares reservations safely.",
+    description: "Compare restaurants and events, open official ticket checkout, and prepare supported reservations without surprise purchases.",
+    trustScore: 84,
+    installCount: 0,
+    averageRating: 0,
+    capabilityManifest: {
+      protocol: "OpenAPI",
+      tools: ["vault.search", "workflow.run", "action.execute"],
+      capabilities: ["leisure.restaurant.reserve", "leisure.event.search"],
+      requestedSchemas: ["Personal Identity Profile", "Financial Preferences"],
+      highRiskActions: ["reserve_restaurant", "buy_event_ticket", "share_payment_info"],
+      description: "Coordinates dining and entertainment through verified providers.",
+      examplePrompts: ["Find dinner options near the theatre", "Show events this weekend", "Prepare a table reservation for four"],
+      trustReasons: ["Uses official provider links", "Reservations require approval", "Ticket purchases stay in approved checkout"]
+    }
+  },
+  {
+    name: "Smart Home and Energy Assistant",
+    category: "Maintenance",
+    tagline: "Explains home energy and controls only explicitly allowed devices.",
+    description: "Read approved sensors, summarize electricity usage, suggest lower-cost schedules, and prepare device routines with strict controls around safety-sensitive devices.",
+    trustScore: 93,
+    installCount: 0,
+    averageRating: 0,
+    capabilityManifest: {
+      protocol: "MCP",
+      tools: ["vault.search", "workflow.run", "action.execute"],
+      capabilities: ["home.device.read", "home.device.control", "home.energy.analyze"],
+      requestedSchemas: ["Home Preferences"],
+      highRiskActions: ["unlock_door", "open_garage", "control_oven", "change_security_system", "control_heating"],
+      description: "Reads approved home data and keeps physical controls tightly gated.",
+      examplePrompts: ["Explain yesterday's energy use", "Suggest a cheaper appliance schedule", "Prepare a bedtime lighting routine"],
+      trustReasons: ["Entity allowlists limit device access", "Safety-sensitive controls require approval", "Every command produces a receipt"]
     }
   }
 ];

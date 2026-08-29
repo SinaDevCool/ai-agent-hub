@@ -21,6 +21,7 @@ import { useModeration } from "./hooks/useModeration";
 import { usePermissionWorkflow } from "./hooks/usePermissionWorkflow";
 import { useVaultWorkflow } from "./hooks/useVaultWorkflow";
 import { useWorkflows } from "./hooks/useWorkflows";
+import { useLifePlatform } from "./hooks/useLifePlatform";
 import { useWorkspaceData } from "./hooks/useWorkspaceData";
 import {
   agentCannotDo,
@@ -93,6 +94,7 @@ export function App() {
   const moderation = useModeration({ formatError: friendlyAppError });
   const connectors = useConnectors({ formatError: friendlyAppError });
   const workflows = useWorkflows({ formatError: friendlyAppError });
+  const lifePlatform = useLifePlatform({ formatError: friendlyAppError });
   const {
     agentSearch,
     agentStatusFilter,
@@ -283,6 +285,7 @@ export function App() {
     void creatorAccess.refreshMyCreatorAccess();
     void connectors.refreshConnectors();
     void workflows.refreshWorkflows();
+    void lifePlatform.refreshLifePlatform();
     let socket: WebSocket | null = null;
     let reconnectTimer: number | null = null;
     let reconnectAttempt = 0;
@@ -674,6 +677,7 @@ export function App() {
             connectors,
             creatorAccess,
             workflows,
+            lifePlatform,
             decidingApprovalId,
             decideHitl,
             deleteVaultItem,

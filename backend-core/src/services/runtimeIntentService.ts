@@ -4,6 +4,9 @@ export function getRuntimeIntent(message: string): RuntimeIntent {
   const cleanMessage = message.trim();
   if (!cleanMessage) return "blocked";
 
+  if (/\b(find|search|look up|show)\b.*\b(document|file|drive)\b/i.test(cleanMessage)) return "document_search";
+  if (/\b(create|add|schedule)\b.*\b(calendar event|event on (?:my )?calendar)\b/i.test(cleanMessage)) return "action";
+
   if (/\b(calendar|schedule|meeting|meetings|availability|available|free time|free slot|when am i free|open slot)\b/i.test(cleanMessage)) {
     return "calendar_free_time";
   }
@@ -14,6 +17,10 @@ export function getRuntimeIntent(message: string): RuntimeIntent {
   }
   if (/\b(book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open)\b/i.test(message)) return "action";
   return "search";
+}
+
+export function getDriveSearchQuery(message: string) {
+  return message.replace(/\b(find|search|look up|show|my|the|document|documents|file|files|in|google|drive)\b/gi, " ").replace(/\s+/g, " ").trim() || "recent";
 }
 
 export function getEmailSearchQuery(message: string) {

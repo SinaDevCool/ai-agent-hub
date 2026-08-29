@@ -23,6 +23,7 @@ import type { useConnectors } from "../../hooks/useConnectors";
 import type { useCreatorAccess } from "../../hooks/useCreatorAccess";
 import type { useModeration } from "../../hooks/useModeration";
 import type { useWorkflows } from "../../hooks/useWorkflows";
+import type { useLifePlatform } from "../../hooks/useLifePlatform";
 import type { SectionId } from "../../lib/appNavigation";
 import type { MatcherChoice, MarketplaceFilters, MarketplaceMatch, MarketplaceNeed } from "../../lib/marketplaceMatching";
 import type { HelperPrompt, PermissionReviewItem, ToneState } from "../agent-profile/agentProfileTypes";
@@ -77,6 +78,7 @@ export type WorkspaceSectionsProps = {
   connectors: ReturnType<typeof useConnectors>;
   creatorAccess: ReturnType<typeof useCreatorAccess>;
   workflows: ReturnType<typeof useWorkflows>;
+  lifePlatform: ReturnType<typeof useLifePlatform>;
   decidingApprovalId: string;
   decideHitl: (requestId: string, approved: boolean) => void | Promise<void>;
   deleteVaultItem: (document: VaultDocument) => void;

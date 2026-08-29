@@ -11,6 +11,8 @@ import { getProviderReadinessForExecution } from "./providerHealthService.js";
 import { providerConnectionBlockDetails, providerNeedsConnection } from "./providerConnectionPolicyService.js";
 import type { ProviderReadinessCode } from "./providerReadinessMessages.js";
 import type { ToolBlockDetails, ToolExecutionInput } from "./tools/toolExecutionTypes.js";
+import { getLifeCapability } from "./lifePlatformCatalog.js";
+import { persistAwaitingLifeApproval } from "./lifeTransactionService.js";
 
 export type ConnectorExecutionInput = {
   userId: string;
@@ -244,6 +246,17 @@ export async function executeConnector(input: ConnectorExecutionInput): Promise<
         nextAction: "approve_action",
         metadata: { toolName: provider.toolName, schemaApproval: true }
       });
+      const lifeCapability = getLifeCapability(capability.canonicalKey);
+      if (lifeCapability?.approvalRequired && lifeCapability.executionLevels.includes("transact")) {
+        await persistAwaitingLifeApproval({
+          userId: input.userId,
+          capabilityKey: capability.canonicalKey,
+          providerId: provider.providerId,
+          values: inputValidation.values,
+          idempotencyKey: input.idempotencyKey ?? `${approval.toolRunId}:life`,
+          hitlRequestId: approval.requestId
+        });
+      }
     }
     return {
       status: "awaiting_human_approval",

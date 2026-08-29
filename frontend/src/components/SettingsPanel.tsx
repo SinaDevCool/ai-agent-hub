@@ -2,6 +2,7 @@ import { Clipboard, Download, KeyRound, Link2, LogOut, Pencil, Play, ShieldOff, 
 import { useState, type FormEvent } from "react";
 import type { Agent, ConnectedAccount, CreatorAccessRequest, WorkflowProvider } from "../api/types";
 import type { useWorkflows } from "../hooks/useWorkflows";
+import type { useLifePlatform } from "../hooks/useLifePlatform";
 
 function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -25,6 +26,7 @@ export function SettingsPanel(props: {
   isConnectorSaving: boolean;
   isCreatorAccessSaving: boolean;
   onConnectGoogle: () => void | Promise<void>;
+  onConnectMicrosoft: () => void | Promise<void>;
   onDisconnectConnector: (accountId: string) => void | Promise<void>;
   onExportData: () => void;
   onManageAccess: () => void;
@@ -37,6 +39,7 @@ export function SettingsPanel(props: {
   userEmail: string;
   visibleAgents: Agent[];
   workflows: ReturnType<typeof useWorkflows>;
+  lifePlatform: ReturnType<typeof useLifePlatform>;
 }) {
   const [exportNotice, setExportNotice] = useState("");
   const [creatorValidation, setCreatorValidation] = useState("");
@@ -49,6 +52,22 @@ export function SettingsPanel(props: {
     agentId: ""
   });
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [travelSearch, setTravelSearch] = useState({ origin: "BER", destination: "LHR", departureDate: "" });
+  const [passengerName, setPassengerName] = useState("");
+  const [appointmentSearch, setAppointmentSearch] = useState({ specialty: "Dentist", location: "Berlin", date: "" });
+  const [rescheduleAppointmentId, setRescheduleAppointmentId] = useState<string | null>(null);
+  const [productQuery, setProductQuery] = useState("noise cancelling headphones");
+  const [productQuantity, setProductQuantity] = useState(1);
+  const [householdSearch, setHouseholdSearch] = useState({ serviceType: "Plumber", location: "Berlin", description: "Repair a leaking kitchen tap" });
+  const [restaurantSearch, setRestaurantSearch] = useState({ location: "Berlin", cuisine: "Italian", dateTime: "", partySize: 2 });
+  const [eventSearch, setEventSearch] = useState({ location: "Berlin", startDate: "", endDate: "" });
+  const [energyDates, setEnergyDates] = useState({ startDate: "", endDate: "" });
+  const [wellnessDates, setWellnessDates] = useState({ startDate: "", endDate: "" });
+  const [wellnessPlan, setWellnessPlan] = useState({ goal: "Build a consistent gentle walking routine", startDate: "" });
+  const [hotelSearch, setHotelSearch] = useState({ destination: "Paris", checkInDate: "", checkOutDate: "", guests: 2, rooms: 1 });
+  const [groundSearch, setGroundSearch] = useState({ origin: "Paris", destination: "Lyon", departureDate: "" });
+  const [shoppingListDraft, setShoppingListDraft] = useState({ name: "Weekly groceries", items: "Oats, apples, milk" });
+  const [paymentSimulation, setPaymentSimulation] = useState({ payee: "Example Utility", amount: 42.5, currency: "EUR" });
 
   function submitCreatorRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -91,6 +110,7 @@ export function SettingsPanel(props: {
 
   const showCreatorRequestForm = !props.canUseCreatorTools && props.creatorAccessRequest?.status !== "pending";
   const googleAccount = props.connectedAccounts.find((account) => account.provider === "google" && account.status === "active");
+  const microsoftAccount = props.connectedAccounts.find((account) => account.provider === "microsoft" && account.status === "active");
   const selectedCapability = props.workflows.capabilities.find((capability) => capability.key === workflowDraft.capabilityKey)
     ?? props.workflows.capabilities.find((capability) => capability.key === "general.research");
   const workflowStatusLabel = {
@@ -148,6 +168,10 @@ export function SettingsPanel(props: {
             </button>
           )}
         </div>
+        <div className="connector-row">
+          <div><strong>Microsoft</strong><span>{microsoftAccount ? `${microsoftAccount.accountLabel} connected` : "Connect Outlook, Calendar, and OneDrive"}</span></div>
+          {microsoftAccount ? <button disabled={props.isConnectorSaving} onClick={() => void props.onDisconnectConnector(microsoftAccount.id)} type="button"><Unplug size={16} /> Disconnect</button> : <button disabled={props.isConnectorSaving} onClick={() => void props.onConnectMicrosoft()} type="button"><Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : "Connect Microsoft"}</button>}
+        </div>
         {props.connectorMessage ? <small className="settings-action-note" role="status" aria-live="polite">{props.connectorMessage}</small> : null}
         {props.connectorError ? <small className="form-error">{props.connectorError}</small> : null}
       </section>
@@ -158,6 +182,194 @@ export function SettingsPanel(props: {
           <span>Remove every agent's saved-info access if you want to reset permissions. Agents stop using saved info until you allow access again.</span>
         </div>
         <button onClick={props.onRevokeAllAccess} type="button"><ShieldOff size={16} /> Remove all agent access</button>
+      </section>
+
+      <section className="settings-connector-card">
+        <div>
+          <strong>Life services</strong>
+          <span>{props.lifePlatform.capabilities.length} capabilities across {new Set(props.lifePlatform.capabilities.map((item) => item.domain)).size} areas, with provider availability shown honestly.</span>
+        </div>
+        <div className="settings-grid">
+          <div><strong>Providers</strong><span>{props.lifePlatform.providers.length}</span></div>
+          <div><strong>Ready now</strong><span>{props.lifePlatform.readiness.filter((item) => item.executable).length}</span></div>
+          <div><strong>Partner gated</strong><span>{props.lifePlatform.providers.filter((item) => item.access === "partner_approval").length}</span></div>
+          <div><strong>Regulated</strong><span>{props.lifePlatform.providers.filter((item) => item.access === "regulated_partner").length}</span></div>
+        </div>
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.searchTravel(travelSearch); }}>
+          <label><span>From</span><input aria-label="Origin airport" maxLength={3} onChange={(event) => setTravelSearch((current) => ({ ...current, origin: event.currentTarget.value.toUpperCase() }))} required value={travelSearch.origin} /></label>
+          <label><span>To</span><input aria-label="Destination airport" maxLength={3} onChange={(event) => setTravelSearch((current) => ({ ...current, destination: event.currentTarget.value.toUpperCase() }))} required value={travelSearch.destination} /></label>
+          <label><span>Departure</span><input aria-label="Departure date" min={new Date().toISOString().slice(0, 10)} onChange={(event) => setTravelSearch((current) => ({ ...current, departureDate: event.currentTarget.value }))} required type="date" value={travelSearch.departureDate} /></label>
+          <label><span>Passenger name</span><input aria-label="Passenger name" onChange={(event) => setPassengerName(event.currentTarget.value)} placeholder="As shown on ID" required value={passengerName} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Search sandbox flights</button>
+        </form>
+        {props.lifePlatform.travelOffers.length ? <div className="workflow-list" aria-label="Sandbox flight offers">
+          {props.lifePlatform.travelOffers.map((offer) => <div className="workflow-row" key={offer.id}>
+            <div><strong>{offer.carrier}: {offer.origin} → {offer.destination}</strong><span>{offer.departureDate} · {offer.amount} {offer.currency}</span><small>{offer.refundable ? "Refundable sandbox fare" : "Non-refundable sandbox fare"} · expires {new Date(offer.expiresAt).toLocaleTimeString()}</small></div>
+            <button disabled={props.lifePlatform.isSaving || !passengerName.trim()} onClick={() => void props.lifePlatform.bookTravel(offer, passengerName)} type="button">Confirm {offer.amount} {offer.currency} sandbox booking</button>
+          </div>)}
+        </div> : null}
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.searchHotels(hotelSearch); }}>
+          <label><span>Hotel destination</span><input aria-label="Hotel destination" onChange={(event) => setHotelSearch((current) => ({ ...current, destination: event.currentTarget.value }))} required value={hotelSearch.destination} /></label>
+          <label><span>Check in</span><input aria-label="Hotel check in" onChange={(event) => setHotelSearch((current) => ({ ...current, checkInDate: event.currentTarget.value }))} required type="date" value={hotelSearch.checkInDate} /></label>
+          <label><span>Check out</span><input aria-label="Hotel check out" min={hotelSearch.checkInDate || undefined} onChange={(event) => setHotelSearch((current) => ({ ...current, checkOutDate: event.currentTarget.value }))} required type="date" value={hotelSearch.checkOutDate} /></label>
+          <label><span>Guests</span><input aria-label="Hotel guests" min={1} onChange={(event) => setHotelSearch((current) => ({ ...current, guests: Number(event.currentTarget.value) }))} required type="number" value={hotelSearch.guests} /></label>
+          <label><span>Rooms</span><input aria-label="Hotel rooms" min={1} onChange={(event) => setHotelSearch((current) => ({ ...current, rooms: Number(event.currentTarget.value) }))} required type="number" value={hotelSearch.rooms} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Search sandbox hotels</button>
+        </form>
+        {props.lifePlatform.hotelOffers.length ? <div className="workflow-list" aria-label="Sandbox hotel offers">{props.lifePlatform.hotelOffers.map((offer) => <div className="workflow-row" key={offer.id}><div><strong>{offer.propertyName}</strong><span>{offer.checkInDate}–{offer.checkOutDate} · {offer.amount} {offer.currency}</span><small>{offer.refundable ? "Refundable" : "Non-refundable"} sandbox stay</small></div><button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.bookHotel(offer)} type="button">Confirm sandbox hotel booking</button></div>)}</div> : null}
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.searchGround(groundSearch); }}>
+          <label><span>Ground from</span><input aria-label="Ground origin" onChange={(event) => setGroundSearch((current) => ({ ...current, origin: event.currentTarget.value }))} required value={groundSearch.origin} /></label>
+          <label><span>Ground to</span><input aria-label="Ground destination" onChange={(event) => setGroundSearch((current) => ({ ...current, destination: event.currentTarget.value }))} required value={groundSearch.destination} /></label>
+          <label><span>Departure</span><input aria-label="Ground departure date" onChange={(event) => setGroundSearch((current) => ({ ...current, departureDate: event.currentTarget.value }))} required type="date" value={groundSearch.departureDate} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Search sandbox ground transport</button>
+        </form>
+        {props.lifePlatform.groundOffers.length ? <div className="workflow-list" aria-label="Sandbox ground offers">{props.lifePlatform.groundOffers.map((offer) => <div className="workflow-row" key={offer.id}><div><strong>{offer.operator} · {offer.mode}</strong><span>{offer.origin} → {offer.destination} · {offer.amount} {offer.currency}</span><small>{new Date(offer.departureAt).toLocaleString()} · discovery only</small></div></div>)}</div> : null}
+        {props.lifePlatform.itinerary?.items.length ? <div className="workflow-list" aria-label="Sandbox itinerary">{props.lifePlatform.itinerary.items.map((item) => <div className="workflow-row" key={item.transactionId}><div><strong>{item.capabilityKey.replace(/\./g, " ")}</strong><span>{item.reference ?? "Reference pending"}</span><small>Confirmed sandbox itinerary item</small></div></div>)}</div> : <small>No confirmed sandbox itinerary yet.</small>}
+        <div>
+          <strong>Appointments</strong>
+          <span>Search and manage deterministic sandbox appointments. No clinic is contacted and no medical advice is provided.</span>
+        </div>
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.searchAppointments(appointmentSearch); }}>
+          <label><span>Specialty</span><input aria-label="Appointment specialty" onChange={(event) => setAppointmentSearch((current) => ({ ...current, specialty: event.currentTarget.value }))} required value={appointmentSearch.specialty} /></label>
+          <label><span>Location</span><input aria-label="Appointment location" onChange={(event) => setAppointmentSearch((current) => ({ ...current, location: event.currentTarget.value }))} required value={appointmentSearch.location} /></label>
+          <label><span>Date</span><input aria-label="Appointment date" min={new Date().toISOString().slice(0, 10)} onChange={(event) => setAppointmentSearch((current) => ({ ...current, date: event.currentTarget.value }))} required type="date" value={appointmentSearch.date} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Search sandbox appointments</button>
+        </form>
+        {rescheduleAppointmentId ? <small role="status">Choose a slot below to reschedule. <button onClick={() => setRescheduleAppointmentId(null)} type="button">Cancel rescheduling</button></small> : null}
+        {props.lifePlatform.appointmentSlots.length ? <div className="workflow-list" aria-label="Sandbox appointment slots">
+          {props.lifePlatform.appointmentSlots.map((slot) => <div className="workflow-row" key={slot.id}>
+            <div><strong>{slot.providerName}</strong><span>{slot.specialty} · {new Date(slot.startsAt).toLocaleString()} · {slot.location}</span><small>Sandbox availability only</small></div>
+            <button disabled={props.lifePlatform.isSaving} onClick={() => { if (rescheduleAppointmentId) { void props.lifePlatform.rescheduleAppointment(rescheduleAppointmentId, slot).then((value) => { if (value) setRescheduleAppointmentId(null); }); } else { void props.lifePlatform.bookAppointment(slot); } }} type="button">{rescheduleAppointmentId ? "Confirm new sandbox time" : "Confirm sandbox appointment"}</button>
+          </div>)}
+        </div> : null}
+        {props.lifePlatform.appointments.length ? <div className="workflow-list" aria-label="My appointments">
+          {props.lifePlatform.appointments.map((appointment) => <div className="workflow-row" key={appointment.id}>
+            <div><strong>{appointment.specialty} with {appointment.providerName}</strong><span>{new Date(appointment.startsAt).toLocaleString()} · {appointment.location}</span><small>{appointment.confirmationCode} · {appointment.providerId === "appointment-sandbox" ? "sandbox" : "connected provider"}</small></div>
+            <span className={`status-pill ${appointment.status === "confirmed" ? "green" : "amber"}`}>{appointment.status}</span>
+            {appointment.status === "confirmed" ? <button disabled={props.lifePlatform.isSaving} onClick={() => setRescheduleAppointmentId(appointment.id)} type="button">Reschedule</button> : null}
+            {appointment.status === "confirmed" && !Object.keys(appointment.calendarEvent).length ? <button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.syncAppointmentCalendar(appointment.id)} type="button">Add to Google Calendar</button> : null}
+            {appointment.status === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelAppointment(appointment.id)} type="button">Confirm cancellation</button> : null}
+          </div>)}
+        </div> : <small>No appointments booked.</small>}
+        <div><strong>Shopping sandbox</strong><span>Compare example products and practice approval-gated ordering. No merchant is contacted and no payment is taken.</span></div>
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.saveList(shoppingListDraft.name, shoppingListDraft.items.split(",").map((item) => item.trim()).filter(Boolean)); }}>
+          <label><span>List name</span><input aria-label="Shopping list name" onChange={(event) => setShoppingListDraft((current) => ({ ...current, name: event.currentTarget.value }))} required value={shoppingListDraft.name} /></label>
+          <label><span>Items, comma separated</span><input aria-label="Shopping list items" onChange={(event) => setShoppingListDraft((current) => ({ ...current, items: event.currentTarget.value }))} required value={shoppingListDraft.items} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Save shopping list</button>
+        </form>
+        {props.lifePlatform.shoppingLists.length ? <div className="workflow-list" aria-label="Saved shopping lists">{props.lifePlatform.shoppingLists.map((list) => <div className="workflow-row" key={list.id}><div><strong>{list.name}</strong><span>{list.items.map((item) => `${item.quantity}× ${item.name}`).join(", ") || "No items"}</span><small>Updated {new Date(list.updatedAt).toLocaleString()}</small></div><button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.removeList(list.id)} type="button">Delete list</button></div>)}</div> : <small>No shopping lists saved.</small>}
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.searchProducts(productQuery); }}>
+          <label><span>Product</span><input aria-label="Product search" onChange={(event) => setProductQuery(event.currentTarget.value)} required value={productQuery} /></label>
+          <label><span>Quantity</span><input aria-label="Product quantity" max={20} min={1} onChange={(event) => setProductQuantity(Number(event.currentTarget.value))} required type="number" value={productQuantity} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Search sandbox products</button>
+        </form>
+        {props.lifePlatform.productOffers.length ? <div className="workflow-list" aria-label="Sandbox product offers">{props.lifePlatform.productOffers.map((offer) => <div className="workflow-row" key={offer.id}><div><strong>{offer.title}</strong><span>{offer.merchant} · {offer.amount} {offer.currency}</span><small>Sandbox offer · no real checkout</small></div><button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.orderProduct(offer, productQuantity)} type="button">Confirm sandbox order</button></div>)}</div> : null}
+        <div><strong>Household services sandbox</strong><span>Find example providers, request a deterministic quote, and practice approval-gated booking. No professional is contacted.</span></div>
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.searchHousehold(householdSearch); }}>
+          <label><span>Service</span><input aria-label="Household service" onChange={(event) => setHouseholdSearch((current) => ({ ...current, serviceType: event.currentTarget.value }))} required value={householdSearch.serviceType} /></label>
+          <label><span>Location</span><input aria-label="Household service location" onChange={(event) => setHouseholdSearch((current) => ({ ...current, location: event.currentTarget.value }))} required value={householdSearch.location} /></label>
+          <label><span>Problem</span><input aria-label="Household service description" onChange={(event) => setHouseholdSearch((current) => ({ ...current, description: event.currentTarget.value }))} required value={householdSearch.description} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Find sandbox providers</button>
+        </form>
+        {props.lifePlatform.householdProviders.length ? <div className="workflow-list" aria-label="Sandbox household providers">{props.lifePlatform.householdProviders.map((provider) => <div className="workflow-row" key={provider.id}><div><strong>{provider.name}</strong><span>{provider.serviceType} · {provider.location} · {provider.rating.toFixed(1)} ({provider.reviewCount})</span><small>Verified sandbox profile</small></div><button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.quoteHousehold(provider, householdSearch.description)} type="button">Request sandbox quote</button></div>)}</div> : null}
+        {props.lifePlatform.householdQuote ? <div className="settings-consumer-card"><div><strong>{props.lifePlatform.householdQuote.amount} {props.lifePlatform.householdQuote.currency} quote</strong><span>{props.lifePlatform.householdQuote.provider.name} · about {props.lifePlatform.householdQuote.estimatedMinutes} minutes</span><small>Sandbox quote; expires {new Date(props.lifePlatform.householdQuote.expiresAt).toLocaleTimeString()}</small></div><button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.bookHousehold()} type="button">Confirm sandbox service booking</button></div> : null}
+        <div><strong>Leisure sandbox</strong><span>Discover example events and practice restaurant reservations. No venue is contacted and no ticket is purchased.</span></div>
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.searchRestaurants({ ...restaurantSearch, dateTime: new Date(restaurantSearch.dateTime).toISOString() }); }}>
+          <label><span>Restaurant area</span><input aria-label="Restaurant location" onChange={(event) => setRestaurantSearch((current) => ({ ...current, location: event.currentTarget.value }))} required value={restaurantSearch.location} /></label>
+          <label><span>Cuisine</span><input aria-label="Restaurant cuisine" onChange={(event) => setRestaurantSearch((current) => ({ ...current, cuisine: event.currentTarget.value }))} required value={restaurantSearch.cuisine} /></label>
+          <label><span>Date and time</span><input aria-label="Restaurant date and time" onChange={(event) => setRestaurantSearch((current) => ({ ...current, dateTime: event.currentTarget.value }))} required type="datetime-local" value={restaurantSearch.dateTime} /></label>
+          <label><span>Party size</span><input aria-label="Restaurant party size" max={20} min={1} onChange={(event) => setRestaurantSearch((current) => ({ ...current, partySize: Number(event.currentTarget.value) }))} required type="number" value={restaurantSearch.partySize} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Find sandbox tables</button>
+        </form>
+        {props.lifePlatform.restaurantSlots.length ? <div className="workflow-list" aria-label="Sandbox restaurant availability">{props.lifePlatform.restaurantSlots.map((slot) => <div className="workflow-row" key={slot.id}><div><strong>{slot.restaurantName}</strong><span>{slot.cuisine} · {new Date(slot.dateTime).toLocaleString()} · table for {slot.partySize}</span><small>Sandbox availability only</small></div><button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.reserveRestaurant(slot)} type="button">Confirm sandbox reservation</button></div>)}</div> : null}
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.searchEvents(eventSearch); }}>
+          <label><span>Event location</span><input aria-label="Event location" onChange={(event) => setEventSearch((current) => ({ ...current, location: event.currentTarget.value }))} required value={eventSearch.location} /></label>
+          <label><span>From</span><input aria-label="Event start date" onChange={(event) => setEventSearch((current) => ({ ...current, startDate: event.currentTarget.value }))} required type="date" value={eventSearch.startDate} /></label>
+          <label><span>Until</span><input aria-label="Event end date" min={eventSearch.startDate || undefined} onChange={(event) => setEventSearch((current) => ({ ...current, endDate: event.currentTarget.value }))} required type="date" value={eventSearch.endDate} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Discover sandbox events</button>
+        </form>
+        {props.lifePlatform.events.length ? <div className="workflow-list" aria-label="Sandbox events">{props.lifePlatform.events.map((item) => <div className="workflow-row" key={item.id}><div><strong>{item.name}</strong><span>{new Date(item.startsAt).toLocaleString()} · from {item.priceFrom} {item.currency}</span><small>Discovery only · no purchase link in sandbox</small></div><span className="status-pill blue">{item.category}</span></div>)}</div> : null}
+        <div><strong>Smart home and energy sandbox</strong><span>Control only the example allowlisted devices below. Commands are approval-gated and never reach physical hardware.</span></div>
+        <div className="workflow-list" aria-label="Sandbox smart home devices">{props.lifePlatform.homeDevices.map((device) => <div className="workflow-row" key={device.entityId}><div><strong>{device.name}</strong><span>{device.room} · {device.kind} · state: {device.state}</span><small>Sandbox entity {device.entityId}</small></div>{device.allowedCommands.map((command) => <button disabled={props.lifePlatform.isSaving || (command === "turn_on" && device.state === "on") || (command === "turn_off" && device.state === "off")} key={command} onClick={() => void props.lifePlatform.controlHomeDevice(device.entityId, command)} type="button">Confirm {command.replace(/_/g, " ")}</button>)}</div>)}</div>
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.analyzeEnergy(energyDates); }}>
+          <label><span>Energy from</span><input aria-label="Energy start date" onChange={(event) => setEnergyDates((current) => ({ ...current, startDate: event.currentTarget.value }))} required type="date" value={energyDates.startDate} /></label>
+          <label><span>Energy until</span><input aria-label="Energy end date" min={energyDates.startDate || undefined} onChange={(event) => setEnergyDates((current) => ({ ...current, endDate: event.currentTarget.value }))} required type="date" value={energyDates.endDate} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Analyze sandbox energy</button>
+        </form>
+        {props.lifePlatform.energyAnalysis ? <div className="settings-grid"><div><strong>Usage</strong><span>{props.lifePlatform.energyAnalysis.totalKwh} kWh</span></div><div><strong>Estimated cost</strong><span>{props.lifePlatform.energyAnalysis.estimatedCost.toFixed(2)} {props.lifePlatform.energyAnalysis.currency}</span></div><div><strong>Carbon</strong><span>{props.lifePlatform.energyAnalysis.carbonKg} kg</span></div><div><strong>Mode</strong><span>Read-only sandbox</span></div></div> : null}
+        <div><strong>Wellness sandbox</strong><span>Review deterministic sample activity and prepare general, non-diagnostic routines. This is not medical advice or an emergency service.</span></div>
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.readWellnessActivity(wellnessDates); }}>
+          <label><span>Activity from</span><input aria-label="Wellness activity start date" onChange={(event) => setWellnessDates((current) => ({ ...current, startDate: event.currentTarget.value }))} required type="date" value={wellnessDates.startDate} /></label>
+          <label><span>Activity until</span><input aria-label="Wellness activity end date" min={wellnessDates.startDate || undefined} onChange={(event) => setWellnessDates((current) => ({ ...current, endDate: event.currentTarget.value }))} required type="date" value={wellnessDates.endDate} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Read sample activity</button>
+        </form>
+        {props.lifePlatform.wellnessActivity ? <><div className="settings-grid"><div><strong>Steps</strong><span>{props.lifePlatform.wellnessActivity.totals.steps.toLocaleString()}</span></div><div><strong>Active time</strong><span>{props.lifePlatform.wellnessActivity.totals.activeMinutes} min</span></div><div><strong>Sleep</strong><span>{props.lifePlatform.wellnessActivity.totals.sleepHours} hours</span></div><div><strong>Mode</strong><span>Read-only sample</span></div></div><small>{props.lifePlatform.wellnessActivity.notice}</small></> : null}
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.prepareWellnessPlan(wellnessPlan); }}>
+          <label><span>General wellness goal</span><input aria-label="Wellness goal" onChange={(event) => setWellnessPlan((current) => ({ ...current, goal: event.currentTarget.value }))} required value={wellnessPlan.goal} /></label>
+          <label><span>Start date</span><input aria-label="Wellness plan start date" onChange={(event) => setWellnessPlan((current) => ({ ...current, startDate: event.currentTarget.value }))} required type="date" value={wellnessPlan.startDate} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Prepare non-diagnostic plan</button>
+        </form>
+        <div className="workflow-list" aria-label="Life service provider readiness">
+          {props.lifePlatform.providers.map((provider) => {
+            const readiness = props.lifePlatform.readiness.find((item) => item.providerId === provider.id);
+            const state = readiness?.state ?? "adapter_required";
+            const statusClass = readiness?.executable ? "green" : state === "reconnect_required" || state === "connection_error" ? "red" : "amber";
+            return <div className="workflow-row" key={provider.id}>
+              <div>
+                <strong>{provider.label}</strong>
+                <span>{provider.domains.join(", ")} · {provider.access.replace(/_/g, " ")} · {provider.regions.join(", ")}</span>
+                <small>{readiness?.nextStep ?? "A native adapter and provider configuration are required."}</small>
+                <a href={provider.officialDocs} rel="noreferrer" target="_blank">Provider documentation</a>
+              </div>
+              <span className={`status-pill ${statusClass}`}>{state.replace(/_/g, " ")}</span>
+            </div>;
+          })}
+        </div>
+        {props.lifePlatform.transactions.length ? (
+          <div className="workflow-list">
+            {props.lifePlatform.transactions.slice(0, 5).map((transaction) => {
+              const capability = props.lifePlatform.capabilities.find((item) => item.key === transaction.capabilityKey);
+              return <div className="workflow-row" key={transaction.id}>
+                <div><strong>{capability?.label ?? transaction.capabilityKey}</strong><span>{transaction.providerId ?? transaction.providerCandidates[0] ?? "Provider selection pending"}</span>{transaction.failureReason ? <small>{transaction.failureReason}</small> : null}</div>
+                <span className={`status-pill ${transaction.state === "confirmed" ? "green" : transaction.state === "failed" ? "red" : transaction.state === "uncertain" || transaction.state === "reconciliation_required" ? "amber" : "blue"}`}>{transaction.state.replace(/_/g, " ")}</span>
+                {transaction.capabilityKey === "travel.flight.book" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.quoteCancellation(transaction.id)} type="button">Get cancellation quote</button> : null}
+                {transaction.capabilityKey === "travel.flight.book" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" && !transaction.result.calendarEvent ? <button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.syncTravelCalendar(transaction.id)} type="button">Add itinerary to Google Calendar</button> : null}
+                {transaction.capabilityKey === "travel.hotel.book" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelHotel(transaction.id)} type="button">Cancel sandbox hotel</button> : null}
+                {transaction.capabilityKey === "shopping.order.create" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelOrder(transaction.id)} type="button">Cancel sandbox order</button> : null}
+                {transaction.capabilityKey === "household.service.book" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelHousehold(transaction.id)} type="button">Cancel sandbox service</button> : null}
+                {transaction.capabilityKey === "leisure.restaurant.reserve" && transaction.providerId === "life-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelRestaurant(transaction.id)} type="button">Cancel sandbox reservation</button> : null}
+                {transaction.capabilityKey === "finance.payment.create" && transaction.providerId === "finance-sandbox" && transaction.state === "confirmed" ? <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.cancelPayment(transaction.id)} type="button">Cancel payment simulation</button> : null}
+              </div>;
+            })}
+          </div>
+        ) : <small>No prepared bookings, payments, orders, or reservations yet.</small>}
+        {props.lifePlatform.cancellationQuote ? <div className="settings-consumer-card">
+          <div><strong>Cancellation quote</strong><span>{props.lifePlatform.cancellationQuote.refundable ? `${props.lifePlatform.cancellationQuote.refundAmount} ${props.lifePlatform.cancellationQuote.currency} refund` : "No monetary refund"}</span><small>Sandbox booking {props.lifePlatform.cancellationQuote.bookingReference}</small></div>
+          <button className="danger" disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.confirmCancellation(props.lifePlatform.cancellationQuote!.transactionId)} type="button">Confirm cancellation</button>
+        </div> : null}
+        {props.lifePlatform.error ? <small className="form-error">{props.lifePlatform.error}</small> : null}
+      </section>
+
+      <section className="settings-connector-card">
+        <div><strong>Read-only finance</strong><span>Synchronize deterministic sandbox accounts and transactions. This feature cannot transfer money, trade, or change a bank account.</span></div>
+        <button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.syncFinance()} type="button">{props.lifePlatform.financeSummary?.sandbox ? "Refresh finance sandbox" : "Load finance sandbox"}</button>
+        {props.lifePlatform.financeSummary ? <>
+          <div className="settings-grid">
+            <div><strong>Income</strong><span>{props.lifePlatform.financeSummary.totals.income.toFixed(2)} {props.lifePlatform.financeSummary.totals.currency}</span></div>
+            <div><strong>Spending</strong><span>{props.lifePlatform.financeSummary.totals.spending.toFixed(2)} {props.lifePlatform.financeSummary.totals.currency}</span></div>
+            <div><strong>Net cash flow</strong><span>{props.lifePlatform.financeSummary.totals.netCashFlow.toFixed(2)} {props.lifePlatform.financeSummary.totals.currency}</span></div>
+            <div><strong>Mode</strong><span>Read only · {props.lifePlatform.financeSummary.sandbox ? "sandbox" : "connected"}</span></div>
+          </div>
+          <div className="workflow-list" aria-label="Recent financial transactions">{props.lifePlatform.financeSummary.transactions.slice(0, 6).map((transaction) => <div className="workflow-row" key={transaction.id}><div><strong>{transaction.merchantName ?? transaction.name}</strong><span>{new Date(transaction.date).toLocaleDateString()} · {transaction.categoryPrimary?.replace(/_/g, " ") ?? "Uncategorized"}</span></div><span>{transaction.amount.toFixed(2)} {transaction.currency}</span></div>)}</div>
+        </> : <small>No financial information has been loaded.</small>}
+        <form className="workflow-form" onSubmit={(event) => { event.preventDefault(); void props.lifePlatform.simulatePayment(paymentSimulation); }}>
+          <div><strong>Payment safety simulation</strong><span>Practice an approval-gated payment without contacting a bank, payee, account, or payment network. No money can move.</span></div>
+          <label><span>Example payee</span><input maxLength={120} required value={paymentSimulation.payee} onChange={(event) => setPaymentSimulation((value) => ({ ...value, payee: event.target.value }))} /></label>
+          <label><span>Amount</span><input min="0.01" max="10000" required step="0.01" type="number" value={paymentSimulation.amount} onChange={(event) => setPaymentSimulation((value) => ({ ...value, amount: Number(event.target.value) }))} /></label>
+          <label><span>Currency</span><input maxLength={3} minLength={3} pattern="[A-Za-z]{3}" required value={paymentSimulation.currency} onChange={(event) => setPaymentSimulation((value) => ({ ...value, currency: event.target.value.toUpperCase() }))} /></label>
+          <button disabled={props.lifePlatform.isSaving} type="submit">Confirm simulated payment</button>
+          <small>Simulation only. The resulting reference is synthetic and cannot be used as proof of payment.</small>
+        </form>
       </section>
 
       <div className="settings-section-grid">

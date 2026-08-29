@@ -269,7 +269,7 @@ export type AgentConversation = {
 
 export type AgentRunResult = {
   status: "ok" | "blocked" | "awaiting_human_approval";
-  intent: "search" | "action" | "workflow" | "email_search" | "email_draft" | "calendar_free_time" | "blocked";
+  intent: "search" | "action" | "workflow" | "email_search" | "email_draft" | "calendar_free_time" | "document_search" | "blocked";
   reply: string;
   display?: ChatMessageDisplay;
   reason?: string;
@@ -448,3 +448,27 @@ export type WorkflowCreateResponse = {
 export type WorkflowTestResponse =
   | { ok: true; workflow: WorkflowConnection | null; result: Record<string, unknown> & { workflowResult?: WorkflowResultCard } }
   | { ok: false; workflow: WorkflowConnection | null; reason: string };
+
+export type LifeExecutionLevel = "discover" | "compare" | "prepare" | "redirect" | "transact" | "manage";
+export type LifeTransactionState = "draft" | "validated" | "awaiting_approval" | "executing" | "confirmed" | "failed" | "uncertain" | "reconciliation_required" | "cancelled" | "expired";
+export type LifeCapability = { key: string; label: string; domain: string; description: string; executionLevels: LifeExecutionLevel[]; defaultAction: string; risk: "low" | "medium" | "high"; dataClass: "standard" | "personal" | "financial" | "health" | "high_risk"; approvalRequired: boolean };
+export type LifeProvider = { id: string; label: string; domains: string[]; capabilities: string[]; regions: string[]; executionLevels: LifeExecutionLevel[]; auth: string; access: "public" | "developer_account" | "partner_approval" | "regulated_partner" | "local_user"; officialDocs: string; notes: string };
+export type LifeProviderReadiness = { providerId: string; state: "ready" | "adapter_required" | "adapter_disabled" | "connection_required" | "reconnect_required" | "connection_error"; executable: boolean; adapterStatus: string; connectionStatus: string; healthStatus: string; nextStep: string };
+export type SandboxFlightOffer = { id: string; carrier: string; origin: string; destination: string; departureDate: string; amount: string; currency: string; refundable: boolean; expiresAt: string };
+export type SandboxHotelOffer = { id: string; propertyName: string; destination: string; checkInDate: string; checkOutDate: string; guests: number; rooms: number; amount: string; currency: string; refundable: boolean; expiresAt: string };
+export type SandboxGroundOffer = { id: string; mode: "rail" | "bus" | "transfer"; operator: string; origin: string; destination: string; departureAt: string; arrivalAt: string; amount: string; currency: string; redirectUrl: null };
+export type SandboxItinerary = { sandbox: true; items: Array<{ transactionId: string; capabilityKey: string; reference: string | null; status: string; details: Record<string, unknown>; calendarEvent: unknown }> };
+export type SandboxCancellationQuote = { transactionId: string; bookingReference: string | null; refundable: boolean; refundAmount: string; currency: string; expiresAt: string };
+export type FinanceSummary = { sandbox: boolean; readOnly: true; accounts: Array<{ id: string; name: string; mask: string | null; currency: string; currentBalance: number | null; availableBalance: number | null; dataFreshAt: string | null }>; transactions: Array<{ id: string; name: string; merchantName: string | null; amount: number; currency: string; date: string; pending: boolean; categoryPrimary: string | null }>; totals: { spending: number; income: number; netCashFlow: number; currency: string }; categories: Array<{ category: string; amount: number }>; recurring: Array<{ id: string; name: string; amount: number; currency: string }>; dataFreshAt: string | null };
+export type SandboxAppointmentSlot = { id: string; externalProviderId: string; providerName: string; specialty: string; location: string; startsAt: string; endsAt: string; timeZone: string; bookingMode: "sandbox" };
+export type SandboxProductOffer = { id: string; title: string; merchant: string; amount: string; currency: string; inStock: boolean; checkoutMode: "sandbox"; expiresAt: string };
+export type ShoppingList = { id: string; name: string; items: Array<{ id: string; name: string; quantity: number; checked: boolean }>; createdAt: string; updatedAt: string };
+export type SandboxHouseholdProvider = { id: string; name: string; serviceType: string; location: string; rating: number; reviewCount: number; verified: boolean; mode: "sandbox" };
+export type SandboxHouseholdQuote = { id: string; provider: SandboxHouseholdProvider; description: string; amount: string; currency: string; estimatedMinutes: number; availableAt: string; expiresAt: string; mode: "sandbox" };
+export type SandboxRestaurantSlot = { id: string; restaurantId: string; restaurantName: string; cuisine: string; location: string; dateTime: string; partySize: number; mode: "sandbox" };
+export type SandboxEvent = { id: string; name: string; location: string; startsAt: string; category: string; priceFrom: string; currency: string; purchaseUrl: null; mode: "sandbox" };
+export type SandboxHomeDevice = { entityId: string; name: string; room: string; kind: "light" | "thermostat" | "plug"; state: string; allowedCommands: string[]; mode: "sandbox" };
+export type SandboxEnergyAnalysis = { sandbox: true; readOnly: true; startDate: string; endDate: string; currency: string; totalKwh: number; estimatedCost: number; carbonKg: number; peakHour: string; recommendations: string[]; source: string };
+export type SandboxWellnessActivity = { sandbox: true; readOnly: true; healthAdvice: false; source: string; startDate: string; endDate: string; days: number; totals: { steps: number; activeMinutes: number; distanceKm: number; sleepHours: number }; dailyAverages: { steps: number; activeMinutes: number; sleepHours: number }; notice: string };
+export type Appointment = { id: string; providerId: string; externalProviderId: string; providerName: string; specialty: string; location: string; startsAt: string; endsAt: string; timeZone: string; status: "requested" | "confirmed" | "cancelled"; confirmationCode: string | null; calendarEvent: Record<string, unknown>; createdAt: string; updatedAt: string };
+export type LifeTransaction = { id: string; capabilityKey: string; executionLevel: LifeExecutionLevel; state: LifeTransactionState; region: string | null; providerId: string | null; providerCandidates: string[]; approvalRequired: boolean; hitlRequestId: string | null; idempotencyKey: string; input: Record<string, unknown>; result: Record<string, unknown>; externalReference: string | null; failureReason: string | null; createdAt: string; updatedAt: string; completedAt: string | null };

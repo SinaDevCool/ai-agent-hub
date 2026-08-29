@@ -100,8 +100,8 @@ export const toolRegistry: ToolDefinition[] = [
     riskLevel: "medium",
     requiresApproval: false,
     adapterType: "oauth_api",
-    adapterConfig: { provider: "google" },
-    requiredConnector: "google",
+    adapterConfig: { provider: "office" },
+    requiredConnector: "office",
     inputSchema: { type: "object" },
     outputSchema: { type: "object" }
   },
@@ -112,8 +112,8 @@ export const toolRegistry: ToolDefinition[] = [
     riskLevel: "medium",
     requiresApproval: false,
     adapterType: "oauth_api",
-    adapterConfig: { provider: "google" },
-    requiredConnector: "google",
+    adapterConfig: { provider: "office" },
+    requiredConnector: "office",
     inputSchema: { type: "object" },
     outputSchema: { type: "object" }
   },
@@ -124,8 +124,8 @@ export const toolRegistry: ToolDefinition[] = [
     riskLevel: "high",
     requiresApproval: true,
     adapterType: "oauth_api",
-    adapterConfig: { provider: "google" },
-    requiredConnector: "google",
+    adapterConfig: { provider: "office" },
+    requiredConnector: "office",
     inputSchema: { type: "object" },
     outputSchema: { type: "object" }
   },
@@ -136,8 +136,8 @@ export const toolRegistry: ToolDefinition[] = [
     riskLevel: "medium",
     requiresApproval: false,
     adapterType: "oauth_api",
-    adapterConfig: { provider: "google" },
-    requiredConnector: "google",
+    adapterConfig: { provider: "office" },
+    requiredConnector: "office",
     inputSchema: { type: "object" },
     outputSchema: { type: "object" }
   },
@@ -148,10 +148,22 @@ export const toolRegistry: ToolDefinition[] = [
     riskLevel: "high",
     requiresApproval: true,
     adapterType: "oauth_api",
-    adapterConfig: { provider: "google" },
-    requiredConnector: "google",
+    adapterConfig: { provider: "office" },
+    requiredConnector: "office",
     inputSchema: { type: "object" },
     outputSchema: { type: "object" }
+  },
+  {
+    name: "drive.search",
+    description: "Search Google Drive file metadata after the user connects Google.",
+    category: "email",
+    riskLevel: "medium",
+    requiresApproval: false,
+    adapterType: "oauth_api",
+    adapterConfig: { provider: "office" },
+    requiredConnector: "office",
+    inputSchema: { type: "object", properties: { query: textProperty }, required: ["query"] },
+    outputSchema: { type: "object", properties: { files: { type: "array" } } }
   },
   {
     name: "jobs.prepare_application",

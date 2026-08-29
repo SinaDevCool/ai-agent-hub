@@ -8,6 +8,8 @@ AI Agent Hub is scaffolded as a local-first, privacy-centric Personal AI Operati
 - `backend-core/` - Express, Prisma, SQLite/PostgreSQL-ready backend.
 - `backend-core/vault-samples/personal-vault/` - Obsidian-compatible Markdown seed vault.
 
+The personal-life capability/provider catalogue, durable approval-aware transaction lifecycle, supported domains, and provider activation procedure are documented in [`docs/life-platform.md`](docs/life-platform.md).
+
 ## Quick Start
 
 ```bash
