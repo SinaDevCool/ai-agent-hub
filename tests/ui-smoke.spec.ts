@@ -213,7 +213,7 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "AI Agent Hub" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "What do you want help with?", exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "First agent setup" })).toBeVisible();
+  await expect(page.locator(".home-section")).toBeVisible();
   await expect(page.locator(".mobile-home")).toBeHidden();
   const nav = page.locator(".nav-rail");
   await expect(nav.getByRole("button", { name: "Agent Pool", exact: true })).toHaveAttribute("data-mobile-label", "Pool");
