@@ -77,6 +77,16 @@ permissionRoutes.post("/clearance", async (req, res) => {
   const permission = existing
     ? await prisma.agentPermission.update({ where: { id: existing.id }, data })
     : await prisma.agentPermission.create({ data });
+  // Granting fresh access also renews the user's installed-agent session. This
+  // prevents a valid clearance ticket from being blocked by a stale install
+  // token while preserving the explicit revoked state handled above.
+  await prisma.userConnection.update({
+    where: { id: connection.id },
+    data: {
+      connectionStatus: "active",
+      tokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    }
+  });
   const schema = input.vaultSchemaId
     ? await prisma.vaultSchema.findUnique({ where: { id: input.vaultSchemaId }, select: { name: true } })
     : null;

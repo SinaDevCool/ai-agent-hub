@@ -1,6 +1,6 @@
 # Phase 5 Durable Jobs Foundation
 
-Status: **implemented behind a disabled feature flag; staging failure drills and integration handlers remain pending**
+Status: **implemented behind a disabled feature flag; local automation is complete and staging acceptance remains pending**
 
 This foundation is intentionally being developed before formal Phase 5 acceptance because Phase 3 live OAuth acceptance requires account-owner interaction. It does not advance the formal phase sequence.
 
@@ -25,11 +25,13 @@ This foundation is intentionally being developed before formal Phase 5 acceptanc
 - Moderator-only list, statistics, cancel, reschedule, safe retry, and reconcile-now endpoints.
 - Operator mutations create `ActivityLog` entries; API responses redact payload contents.
 - Worker processing is disabled unless `DURABLE_JOBS_ENABLED=true`.
+- Moderator-only Operations UI shows the activation gate, alerts, queue health, redacted jobs, and safe cancel/retry/reconcile controls.
+- `npm run drill:phase5` runs the local deterministic failure suite and writes dated JSON and Markdown evidence under `release-evidence/phase-5`.
 
 ## Remaining acceptance work
 
 - Register real handlers as provider callbacks, checkout confirmation, connector renewal, notifications, and privacy orchestration are implemented.
-- Add an operator UI and alert delivery for queue age, failures, expired leases, reconciliation age, and dead letters.
+- Connect operational alerts to the staging notification/on-call channel.
 - Deploy a separate staging worker and apply migration `0020_durable_jobs`.
 - Run the complete crash, duplicate, concurrency, rate-limit, timeout, database-reconnect, deployment, stale-event, and dead-letter drills from the execution plan.
 - Prove end-to-end correlation across jobs, domain transactions, attempts, webhooks, receipts, and logs.

@@ -36,9 +36,12 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
   const permissionReview = useMemo(() => {
     if (!selectedAgent) return [];
     const requestedSchemas = selectedAgent.capabilityManifest.requestedSchemas ?? [];
+    const now = Date.now();
     const grantedSchemaIds = new Set(
       selectedAgent.permissions
-        .filter((permission) => permission.permissionType === "read" && permission.vaultSchemaId)
+        .filter((permission) => permission.permissionType === "read"
+          && permission.vaultSchemaId
+          && (!permission.expiresAt || Date.parse(permission.expiresAt) > now))
         .map((permission) => permission.vaultSchemaId)
     );
     return requestedSchemas.map((schemaName) => {

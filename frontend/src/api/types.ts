@@ -9,6 +9,7 @@ export type AgentPermission = {
   id: string;
   vaultSchemaId: string | null;
   permissionType: "read" | "write" | "execute_action";
+  expiresAt?: string | null;
   restrictionRules: Record<string, unknown>;
   vaultSchema?: VaultSchema | null;
 };

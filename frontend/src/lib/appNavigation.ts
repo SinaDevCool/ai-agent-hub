@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Database,
   KeyRound,
+  MonitorCog,
   Pencil,
   Search,
   Settings,
@@ -11,7 +12,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 
-export type SectionId = "home" | "marketplace" | "helpers" | "creator" | "moderation" | "vault" | "clearance" | "activity" | "settings";
+export type SectionId = "home" | "marketplace" | "helpers" | "creator" | "moderation" | "operations" | "vault" | "clearance" | "activity" | "settings";
 
 export type SectionHeading = {
   title: string;
@@ -23,6 +24,7 @@ export const navItems: Array<{ id: SectionId; label: string; mobileLabel: string
   { id: "marketplace", label: "Agent Pool", mobileLabel: "Pool", icon: Search },
   { id: "helpers", label: "My Agents", mobileLabel: "Agents", icon: Bot },
   { id: "moderation", label: "Review Queue", mobileLabel: "Review", icon: ClipboardCheck },
+  { id: "operations", label: "Operations", mobileLabel: "Ops", icon: MonitorCog },
   { id: "vault", label: "Private Info", mobileLabel: "Info", icon: Database },
   { id: "clearance", label: "Access", mobileLabel: "Access", icon: KeyRound },
   { id: "activity", label: "Activity", mobileLabel: "Activity", icon: Activity },
@@ -52,6 +54,10 @@ export const sectionHeadings: Record<SectionId, SectionHeading> = {
   moderation: {
     title: "Review Queue",
     description: "Approve agents that need a closer platform review before marketplace discovery."
+  },
+  operations: {
+    title: "Operations",
+    description: "Review release readiness, queue health, and recover durable background work."
   },
   vault: {
     title: "Private Info",

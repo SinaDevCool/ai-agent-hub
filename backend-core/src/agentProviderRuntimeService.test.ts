@@ -13,7 +13,28 @@ test("flight search prompts provide the structured provider fields", () => {
       origin: "Berlin",
       destination: "Paris",
       departureDate: "2026-09-05",
-      passengers: 1
+      passengers: 1,
+      adults: 1
+    }
+  );
+});
+
+test("flight search prompts parse named dates, cabin, and result limits", () => {
+  assert.deepEqual(
+    structuredWorkflowInput(
+      "travel.search_flights",
+      "Using Duffel, find 5 one-way economy flights from BER to LHR on September 19, 2026, for 1 adult."
+    ),
+    {
+      message: "Using Duffel, find 5 one-way economy flights from BER to LHR on September 19, 2026, for 1 adult.",
+      origin: "BER",
+      destination: "LHR",
+      departureDate: "2026-09-19",
+      passengers: 1,
+      adults: 1,
+      max: 5,
+      cabin: "economy",
+      cabinClass: "economy"
     }
   );
 });

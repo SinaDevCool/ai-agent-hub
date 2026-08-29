@@ -4,6 +4,11 @@ export function getRuntimeIntent(message: string): RuntimeIntent {
   const cleanMessage = message.trim();
   if (!cleanMessage) return "blocked";
 
+  const explicitlySearchOnly = /\bsearch\s+only\b/i.test(cleanMessage)
+    || /\b(?:do\s+not|don't|never)\s+(?:book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open)\b/i.test(cleanMessage)
+    || /\bwithout\s+(?:booking|buying|purchasing|transferring|paying|reserving|sending|sharing|signing|executing|applying|opening)\b/i.test(cleanMessage);
+  const asksForResults = /\b(find|search|show|compare|list|options?|flights?|hotels?)\b/i.test(cleanMessage);
+
   if (/\b(find|search|look up|show)\b.*\b(document|file|drive)\b/i.test(cleanMessage)) return "document_search";
   if (/\b(create|add|schedule)\b.*\b(calendar event|event on (?:my )?calendar)\b/i.test(cleanMessage)) return "action";
 
@@ -15,6 +20,7 @@ export function getRuntimeIntent(message: string): RuntimeIntent {
     if (/\b(send|sent)\b/i.test(cleanMessage) && !/\b(draft|prepare)\b/i.test(cleanMessage)) return "action";
     return "email_search";
   }
+  if (explicitlySearchOnly && asksForResults) return "search";
   if (/\b(book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open)\b/i.test(message)) return "action";
   return "search";
 }

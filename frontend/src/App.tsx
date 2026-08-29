@@ -347,7 +347,7 @@ export function App() {
 
   useEffect(() => {
     if (activeSection === "creator" && !canUseCreatorTools) setActiveSection("home");
-    if (activeSection === "moderation" && !canModerateMarketplace) setActiveSection("home");
+    if ((activeSection === "moderation" || activeSection === "operations") && !canModerateMarketplace) setActiveSection("home");
   }, [activeSection, canModerateMarketplace, canUseCreatorTools, setActiveSection]);
 
   useEffect(() => {

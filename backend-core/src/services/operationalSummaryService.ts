@@ -26,6 +26,82 @@ export function evaluateOperationalSignals(signals: OperationalSignals) {
   return { status: alerts.some((item) => item.severity === "critical") ? "critical" : alerts.length ? "degraded" : "healthy", alerts } as const;
 }
 
+export type ActivationCheck = {
+  key: string;
+  label: string;
+  status: "pass" | "warning" | "block";
+  detail: string;
+};
+
+export function phase5ActivationChecklist(input: {
+  environment: string;
+  migrationVersion: string;
+  durableJobsEnabled: boolean;
+  operationalStatus: "healthy" | "degraded" | "critical";
+  signals: OperationalSignals;
+}) {
+  const migrationNumber = Number(input.migrationVersion.match(/\d+/)?.[0] ?? 0);
+  const checks: ActivationCheck[] = [
+    {
+      key: "feature_guard",
+      label: "Worker feature guard",
+      status: input.durableJobsEnabled ? "warning" : "pass",
+      detail: input.durableJobsEnabled
+        ? "Durable jobs are enabled. Confirm staging drills before leaving the worker active."
+        : "Durable jobs remain disabled until the failure drills are evidenced."
+    },
+    {
+      key: "migration",
+      label: "Durable-job migration",
+      status: migrationNumber >= 20 ? "pass" : "block",
+      detail: migrationNumber >= 20
+        ? `Migration ${input.migrationVersion} includes the durable-job store.`
+        : `Apply migration 0020_durable_jobs in staging; reported version is ${input.migrationVersion}.`
+    },
+    {
+      key: "queue_health",
+      label: "Queue health",
+      status: input.operationalStatus === "healthy" ? "pass" : input.operationalStatus === "degraded" ? "warning" : "block",
+      detail: input.operationalStatus === "healthy"
+        ? "No queue or recovery alert is active."
+        : `${input.operationalStatus} operational signals must be resolved before activation.`
+    },
+    {
+      key: "dead_letters",
+      label: "Dead-letter backlog",
+      status: input.signals.deadLetterJobs === 0 ? "pass" : "block",
+      detail: input.signals.deadLetterJobs === 0
+        ? "No dead-letter jobs are waiting."
+        : `${input.signals.deadLetterJobs} dead-letter job(s) require operator review.`
+    },
+    {
+      key: "staging_environment",
+      label: "Staging deployment",
+      status: input.environment === "staging" ? "pass" : "warning",
+      detail: input.environment === "staging"
+        ? "This report is running in staging."
+        : `Current environment is ${input.environment}; local evidence does not replace staging acceptance.`
+    },
+    {
+      key: "failure_drills",
+      label: "Failure-drill evidence",
+      status: "block",
+      detail: "Run the Phase 5 drill runner against the deployed staging database and attach its dated evidence report."
+    },
+    {
+      key: "on_call",
+      label: "Operator and alert sign-off",
+      status: "block",
+      detail: "A named operator must validate alerts, dead-letter recovery, and escalation ownership in staging."
+    }
+  ];
+  return {
+    status: checks.some((check) => check.status === "block") ? "blocked" : checks.some((check) => check.status === "warning") ? "conditional" : "ready",
+    readyForStagingActivation: checks.every((check) => check.status !== "block"),
+    checks
+  } as const;
+}
+
 export async function getOperationalSummary(now = new Date()) {
   const jobs = await getDurableJobStats();
   const [providerFailures15m, failedPrivacyRequests, appointmentWebhookPending, appointmentWebhookDeadLetter, financeSyncPending, financeSyncDeadLetter, shoppingHandoffUncertain] = await Promise.all([
@@ -50,11 +126,20 @@ export async function getOperationalSummary(now = new Date()) {
     financeSyncDeadLetter,
     shoppingHandoffUncertain
   };
+  const operational = evaluateOperationalSignals(signals);
+  const durableJobsEnabled = env.DURABLE_JOBS_ENABLED === "true";
   return {
     generatedAt: now.toISOString(),
     release: deploymentInfo,
-    flags: { durableJobs: env.DURABLE_JOBS_ENABLED === "true", privateBeta: env.PRIVATE_BETA_ENFORCED === "true", liveTravel: env.LIVE_TRAVEL_ENABLED === "true", liveFinance: env.LIVE_FINANCE_ENABLED === "true", liveShopping: env.LIVE_SHOPPING_ENABLED === "true", liveHousehold: env.LIVE_HOUSEHOLD_ENABLED === "true", liveLeisure: env.LIVE_LEISURE_ENABLED === "true", liveSmartHomeRead: env.LIVE_SMART_HOME_READ_ENABLED === "true", liveSmartHomeControl: env.LIVE_SMART_HOME_CONTROL_ENABLED === "true", liveWellness: env.LIVE_WELLNESS_ENABLED === "true", privacyRights: env.PRIVACY_RIGHTS_ENABLED === "true", verticalReleaseGating: env.VERTICAL_RELEASE_GATING_ENABLED === "true" },
+    flags: { durableJobs: durableJobsEnabled, privateBeta: env.PRIVATE_BETA_ENFORCED === "true", liveTravel: env.LIVE_TRAVEL_ENABLED === "true", liveFinance: env.LIVE_FINANCE_ENABLED === "true", liveShopping: env.LIVE_SHOPPING_ENABLED === "true", liveHousehold: env.LIVE_HOUSEHOLD_ENABLED === "true", liveLeisure: env.LIVE_LEISURE_ENABLED === "true", liveSmartHomeRead: env.LIVE_SMART_HOME_READ_ENABLED === "true", liveSmartHomeControl: env.LIVE_SMART_HOME_CONTROL_ENABLED === "true", liveWellness: env.LIVE_WELLNESS_ENABLED === "true", privacyRights: env.PRIVACY_RIGHTS_ENABLED === "true", verticalReleaseGating: env.VERTICAL_RELEASE_GATING_ENABLED === "true" },
     signals,
-    ...evaluateOperationalSignals(signals)
+    ...operational,
+    phase5: phase5ActivationChecklist({
+      environment: deploymentInfo.environment,
+      migrationVersion: deploymentInfo.migrationVersion,
+      durableJobsEnabled,
+      operationalStatus: operational.status,
+      signals
+    })
   };
 }

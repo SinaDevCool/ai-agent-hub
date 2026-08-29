@@ -17,6 +17,7 @@
     "verify:release-evidence": "node scripts/verify_release_evidence.mjs",
     "verify:backup": "node scripts/verify_backup.mjs",
     "drill:restore": "node scripts/restore_drill.mjs",
+    "drill:phase5": "node scripts/run_phase5_drills.mjs",
     "test": "tsx --test --test-concurrency=1 src/*.test.ts",
     "test:with-generate": "npm run prisma:generate --silent && npm test",
     "typecheck": "tsc -p tsconfig.json --noEmit",

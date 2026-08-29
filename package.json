@@ -22,6 +22,7 @@
     "verify:release-evidence": "npm --workspace backend-core run verify:release-evidence",
     "verify:backup": "npm --workspace backend-core run verify:backup",
     "drill:restore": "npm --workspace backend-core run drill:restore",
+    "drill:phase5": "npm --workspace backend-core run drill:phase5",
     "db:push": "npm --workspace backend-core run db:push",
     "db:seed": "npm --workspace backend-core run db:seed",
     "db:seed:sample": "npm --workspace backend-core run db:seed:sample",

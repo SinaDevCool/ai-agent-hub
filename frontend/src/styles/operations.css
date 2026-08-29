@@ -1,0 +1,25 @@
+.operations-panel { gap: 1rem; }
+.operations-toolbar, .operations-list-heading, .operation-job, .operation-check { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.operations-toolbar h2 { margin: .15rem 0; text-transform: capitalize; }
+.operations-toolbar p, .operation-check p { margin: .25rem 0 0; color: var(--muted); }
+.operations-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+.operations-metrics article, .operations-card { border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-lg); padding: 1rem; }
+.operations-metrics span, .operation-job span, .operation-job small { display: block; color: var(--muted); font-size: .82rem; }
+.operations-metrics strong { display: block; margin-top: .35rem; font-size: 1.25rem; text-transform: capitalize; }
+.operations-grid { display: grid; grid-template-columns: minmax(280px, .9fr) minmax(420px, 1.4fr); gap: 1rem; }
+.operations-card h3 { margin-top: 0; }
+.operations-checks, .operations-jobs { display: grid; gap: .6rem; }
+.operation-check { padding: .7rem; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.operation-check > span { min-width: 4.2rem; text-align: center; border-radius: 999px; padding: .2rem .5rem; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+.operation-check.is-pass > span { color: #9ee7bd; background: #123d2c; }
+.operation-check.is-warning > span { color: #ffe29a; background: #443510; }
+.operation-check.is-block > span { color: #ffc0c0; background: #4a2020; }
+.operation-job { padding: .75rem 0; border-bottom: 1px solid var(--border); }
+.operation-job:last-child { border-bottom: 0; }
+.operation-job small { max-width: 56ch; margin-top: .25rem; }
+.operation-actions { display: flex; gap: .4rem; }
+.operation-actions button, .operations-list-heading select { border: 1px solid var(--border); border-radius: .5rem; background: var(--surface-raised); color: inherit; padding: .45rem .65rem; }
+.operations-error { padding: .75rem; border: 1px solid #934545; border-radius: .6rem; color: #ffc0c0; }
+.operations-empty { color: var(--muted); }
+@media (max-width: 900px) { .operations-metrics { grid-template-columns: repeat(2, 1fr); } .operations-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .operations-toolbar, .operations-list-heading, .operation-job { flex-direction: column; } .operations-metrics { grid-template-columns: 1fr 1fr; } }

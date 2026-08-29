@@ -134,6 +134,15 @@ export function normalizeToolBlock(input: { reason: string } & Partial<ToolBlock
     };
   }
   const reason = input.reason;
+  if (/agent connection token has expired/i.test(reason)) {
+    return {
+      code: "connector_expired",
+      userMessage: "Reconnect this agent before trying again.",
+      technicalMessage: reason,
+      nextAction: "connect_account",
+      retryable: true
+    };
+  }
   if (/not connected|connect an account|connect google|reconnect/i.test(reason)) {
     return {
       code: /expired|reconnect/i.test(reason) ? "connector_expired" : "connector_not_connected",

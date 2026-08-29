@@ -45,14 +45,17 @@ export async function runVaultSearchIntent(input: {
     arguments: { query: input.message }
   });
   if (searchResult.status === "blocked") {
+    const needsPermission = searchResult.code === "permission_denied";
     const result: RuntimeResult = {
       status: "blocked",
       intent: "search",
-      reply: `${input.agent.name} needs permission before it can use your personal info.`,
+      reply: needsPermission
+        ? `${input.agent.name} needs permission before it can use your personal info.`
+        : searchResult.userMessage ?? searchResult.reason,
       reason: searchResult.reason,
-      runtimeState: "needs_permission",
-      nextStep: "Review and allow the requested private info for this agent.",
-      missingPermissions: input.manifest.requestedSchemas ?? []
+      runtimeState: needsPermission ? "needs_permission" : "failed",
+      nextStep: needsPermission ? "Review and allow the requested private info for this agent." : "Reconnect this agent and try again.",
+      missingPermissions: needsPermission ? input.manifest.requestedSchemas ?? [] : undefined
     };
     return {
       result,

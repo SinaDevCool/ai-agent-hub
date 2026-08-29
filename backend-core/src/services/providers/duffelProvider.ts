@@ -30,14 +30,14 @@ async function request(input: ProviderExecutionInput, path: string, method: stri
 
 async function execute(input: ProviderExecutionInput): Promise<ProviderExecutionResult> {
   const toolRunId = input.previousToolRunId ?? randomUUID();
-  if (input.capability.key === "travel.flight.search" && input.action === "search") {
+  if (["travel.flight.search", "travel.search_flights"].includes(input.capability.key) && input.action === "search") {
     let search: ReturnType<typeof validateFlightSearchInput>;
     try { search = validateFlightSearchInput(input.input); } catch (error) { return blocked(input, error instanceof Error ? error.message : "Travel search details are invalid."); }
     const passengers = Array.from({ length: search.adults }, () => ({ type: "adult" }));
     const slices = [{ origin: search.origin, destination: search.destination, departure_date: search.departureDate }, ...(search.returnDate ? [{ origin: search.destination, destination: search.origin, departure_date: search.returnDate }] : [])];
     const result = await request(input, "/air/offer_requests?return_offers=true", "POST", { slices, passengers, cabin_class: search.cabinClass });
     if (result.error) return result.error;
-    const offers = normalizeDuffelFlightOffers(result.body ?? {});
+    const offers = normalizeDuffelFlightOffers(result.body ?? {}).slice(0, search.max);
     return { status: "ok", toolRunId, result: { provider: "duffel", inventoryMode: "live", contractVersion: "travel-offer.v1", offers, partial: offers.length < (((result.body?.data as Record<string, unknown> | undefined)?.offers as unknown[] | undefined)?.length ?? offers.length), fetchedAt: new Date().toISOString() } };
   }
   if (input.capability.key === "travel.flight.book" && ["reserve", "execute_action"].includes(input.action)) {

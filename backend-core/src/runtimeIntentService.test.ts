@@ -7,6 +7,8 @@ test("runtime intent helper classifies empty, search, and action messages", () =
   assert.equal(getRuntimeIntent("   "), "blocked");
   assert.equal(getRuntimeIntent("What trips do I have planned?"), "search");
   assert.equal(getRuntimeIntent("Book a hotel for next Friday"), "action");
+  assert.equal(getRuntimeIntent("Find flights using Duffel. Search only—do not book anything."), "search");
+  assert.equal(getRuntimeIntent("Show hotel options without booking anything"), "search");
   assert.equal(getRuntimeIntent("Please apply for this card"), "action");
   assert.equal(getRuntimeIntent("Find recent emails about my hotel"), "email_search");
   assert.equal(getRuntimeIntent("Draft an email to sam@example.com saying thanks"), "email_draft");

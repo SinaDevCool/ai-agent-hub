@@ -30,7 +30,7 @@ async function get(input: ProviderExecutionInput, path: string, params: Record<s
 async function execute(input: ProviderExecutionInput): Promise<ProviderExecutionResult> {
   if (input.action !== "search") return fail(input, "This Amadeus adapter currently supports discovery only.");
   const configured = credentials(input); if (!configured.clientId || !configured.clientSecret) return fail(input, "Connect Amadeus client credentials before searching live inventory.", false);
-  if (input.capability.key === "travel.flight.search") {
+  if (["travel.flight.search", "travel.search_flights"].includes(input.capability.key)) {
     let search: ReturnType<typeof validateFlightSearchInput>; try { search = validateFlightSearchInput(input.input); } catch (error) { return fail(input, error instanceof Error ? error.message : "Travel search details are invalid."); }
     const result = await get(input, "/v2/shopping/flight-offers", { originLocationCode: search.origin, destinationLocationCode: search.destination, departureDate: search.departureDate, ...(search.returnDate ? { returnDate: search.returnDate } : {}), adults: String(search.adults), currencyCode: search.currency, max: String(search.max), travelClass: search.cabinClass.toUpperCase() });
     if ("error" in result) return result.error; const offers = normalizeAmadeusFlightOffers(result.body ?? {}); return { status: "ok", toolRunId: runId(input), result: { provider: "amadeus", inventoryMode: "live", contractVersion: "travel-offer.v1", offers, partial: offers.length < (Array.isArray(result.body?.data) ? result.body.data.length : 0), fetchedAt: new Date().toISOString() } };

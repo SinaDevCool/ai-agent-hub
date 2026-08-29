@@ -39,6 +39,7 @@ function listFromRawResult(rawResult?: Record<string, unknown>) {
   const candidates = [
     rawResult?.items,
     rawResult?.options,
+    rawResult?.offers,
     rawResult?.hotels,
     rawResult?.flights,
     rawResult?.cars,
@@ -68,6 +69,27 @@ function itemText(record: Record<string, unknown>, keys: string[], fallback = ""
 function normalizeRawItems(rawResult?: Record<string, unknown>) {
   return listFromRawResult(rawResult).slice(0, 8).map((value, index) => {
     const record = value && typeof value === "object" ? value as Record<string, unknown> : { title: value };
+    if (record.kind === "flight") {
+      const slices = Array.isArray(record.slices) ? record.slices as Array<Record<string, unknown>> : [];
+      const segments = slices.flatMap((slice) => Array.isArray(slice.segments) ? slice.segments as Array<Record<string, unknown>> : []);
+      const first = segments[0];
+      const last = segments.at(-1);
+      const price = record.price && typeof record.price === "object" ? record.price as Record<string, unknown> : {};
+      const carrier = sanitize(first?.carrier || record.supplier, 120);
+      const route = first && last ? `${sanitize(first.origin)} → ${sanitize(last.destination)}` : "";
+      const schedule = first && last ? `${sanitize(first.departingAt)} → ${sanitize(last.arrivingAt)}` : "";
+      return {
+        title: carrier || `Flight option ${index + 1}`,
+        subtitle: route,
+        detail: [schedule, `${Math.max(segments.length - 1, 0)} stop${segments.length === 2 ? "" : "s"}`].filter(Boolean).join(" · "),
+        price: [sanitize(price.amount), sanitize(price.currency)].filter(Boolean).join(" "),
+        metadata: {
+          providerOfferId: sanitize(record.providerOfferId),
+          providerId: sanitize(record.providerId),
+          inventoryMode: sanitize(record.inventoryMode)
+        }
+      };
+    }
     const metadata = Object.fromEntries(
       Object.entries(record)
         .filter(([, metadataValue]) => typeof metadataValue === "string" || typeof metadataValue === "number" || typeof metadataValue === "boolean")

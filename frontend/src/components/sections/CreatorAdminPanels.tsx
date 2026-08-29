@@ -1,6 +1,7 @@
 import type { WorkspaceSectionsProps } from "./WorkspaceSections.types";
 import { CreatorPanel } from "../CreatorPanel";
 import { ModerationPanel } from "../ModerationPanel";
+import { OperationsPanel } from "../OperationsPanel";
 
 export function CreatorAdminPanels({ props }: { props: WorkspaceSectionsProps }) {
   const {
@@ -60,7 +61,7 @@ export function CreatorAdminPanels({ props }: { props: WorkspaceSectionsProps })
         />
       ) : null}
       {canModerateMarketplace ? (
-        <ModerationPanel
+        <><ModerationPanel
           className={`panel moderation-panel mobile-section desktop-section ${activeMobileClass("moderation")} ${sectionClass("moderation")}`}
           creatorAccessRequests={creatorAccess.requests}
           error={moderation.error}
@@ -94,6 +95,8 @@ export function CreatorAdminPanels({ props }: { props: WorkspaceSectionsProps })
           }}
           queue={moderation.queue}
         />
+        <OperationsPanel className={`panel operations-panel mobile-section desktop-section ${activeMobileClass("operations")} ${sectionClass("operations")}`} />
+        </>
       ) : null}
     </>
   );

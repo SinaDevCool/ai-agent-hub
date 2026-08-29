@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateOperationalSignals } from "./services/operationalSummaryService.js";
+import { evaluateOperationalSignals, phase5ActivationChecklist } from "./services/operationalSummaryService.js";
 
 test("operational signals are healthy below alert thresholds", () => {
   assert.equal(evaluateOperationalSignals({ deadLetterJobs: 0, reconciliationJobs: 0, oldestPendingMinutes: null, providerFailures15m: 0, failedPrivacyRequests: 0, appointmentWebhookPending: 0, appointmentWebhookDeadLetter: 0, financeSyncPending: 0, financeSyncDeadLetter: 0, shoppingHandoffUncertain: 0 }).status, "healthy");
@@ -16,4 +16,17 @@ test("uncertain shopping handoffs are visible to operators", () => {
   const result = evaluateOperationalSignals({ deadLetterJobs: 0, reconciliationJobs: 0, oldestPendingMinutes: null, providerFailures15m: 0, failedPrivacyRequests: 0, appointmentWebhookPending: 0, appointmentWebhookDeadLetter: 0, financeSyncPending: 0, financeSyncDeadLetter: 0, shoppingHandoffUncertain: 1 });
   assert.equal(result.status, "degraded");
   assert.equal(result.alerts[0]?.key, "shopping_handoff_uncertain");
+});
+
+test("phase 5 activation remains blocked without migration and staging drill evidence", () => {
+  const result = phase5ActivationChecklist({
+    environment: "local",
+    migrationVersion: "0018_enable_rls",
+    durableJobsEnabled: false,
+    operationalStatus: "healthy",
+    signals: { deadLetterJobs: 0, reconciliationJobs: 0, oldestPendingMinutes: null, providerFailures15m: 0, failedPrivacyRequests: 0, appointmentWebhookPending: 0, appointmentWebhookDeadLetter: 0, financeSyncPending: 0, financeSyncDeadLetter: 0, shoppingHandoffUncertain: 0 }
+  });
+  assert.equal(result.readyForStagingActivation, false);
+  assert.equal(result.checks.find((check) => check.key === "feature_guard")?.status, "pass");
+  assert.equal(result.checks.find((check) => check.key === "migration")?.status, "block");
 });
