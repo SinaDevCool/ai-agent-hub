@@ -3,7 +3,7 @@ import { sectionHeadings, type SectionId } from "../lib/appNavigation";
 
 const sectionPaths: Record<SectionId, string> = {
   home: "/", marketplace: "/marketplace", helpers: "/agents", creator: "/creator",
-  moderation: "/moderation", operations: "/operations", vault: "/private-info", clearance: "/access",
+  moderation: "/moderation", operations: "/operations", beta: "/beta", vault: "/private-info", clearance: "/access",
   activity: "/activity", settings: "/settings"
 };
 

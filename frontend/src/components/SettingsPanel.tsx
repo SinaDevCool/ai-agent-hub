@@ -4,6 +4,7 @@ import type { Agent, ConnectedAccount, CreatorAccessRequest, WorkflowProvider } 
 import type { useWorkflows } from "../hooks/useWorkflows";
 import type { useLifePlatform } from "../hooks/useLifePlatform";
 import type { ConfirmationRequest } from "./sections/WorkspaceSections.types";
+import { apiPost } from "../api/client";
 
 function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -57,6 +58,7 @@ export function SettingsPanel(props: {
   lifePlatform: ReturnType<typeof useLifePlatform>;
 }) {
   const [exportNotice, setExportNotice] = useState("");
+  const [deletionNotice, setDeletionNotice] = useState("");
   const [creatorValidation, setCreatorValidation] = useState("");
   const [workflowDraft, setWorkflowDraft] = useState({
     name: "",
@@ -147,6 +149,22 @@ export function SettingsPanel(props: {
     });
   }
 
+  function requestAccountDeletion() {
+    props.onRequestConfirmation({
+      title: "Schedule account deletion?",
+      message: "This schedules deletion after the configured recovery window. You can cancel from your data-rights history before that window closes.",
+      confirmLabel: "Schedule deletion",
+      tone: "danger",
+      onConfirm: async () => {
+        const result = await apiPost<{ request: { executeAfter: string }; deduplicated: boolean }>("/api/data-rights", {
+          requestType: "deletion",
+          confirmation: "DELETE MY ACCOUNT"
+        });
+        setDeletionNotice(`Deletion ${result.deduplicated ? "was already" : "is now"} scheduled for ${new Date(result.request.executeAfter).toLocaleString()}.`);
+      }
+    });
+  }
+
   function requestDestructiveAction(input: { title: string; message: string; confirmLabel: string; action: () => Promise<unknown> }) {
     props.onRequestConfirmation({
       title: input.title,
@@ -226,7 +244,11 @@ export function SettingsPanel(props: {
           <strong>Safety</strong>
           <span>Remove every agent's saved-info access if you want to reset permissions. Agents stop using saved info until you allow access again.</span>
         </div>
-        <button onClick={props.onRevokeAllAccess} type="button"><ShieldOff size={16} /> Remove all agent access</button>
+        <div className="settings-primary-actions">
+          <button onClick={props.onRevokeAllAccess} type="button"><ShieldOff size={16} /> Remove all agent access</button>
+          <button onClick={requestAccountDeletion} type="button"><Trash2 size={16} /> Delete my account</button>
+        </div>
+        {deletionNotice ? <small className="settings-action-note" role="status" aria-live="polite">{deletionNotice}</small> : null}
       </section>
 
       <section className="settings-connector-card">

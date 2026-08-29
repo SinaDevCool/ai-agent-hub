@@ -30,7 +30,7 @@ export function AppShell(props: {
       <aside className="nav-rail">
         <div className="brand-mark" role="heading" aria-level={1}><ShieldCheck size={22} /> AI Agent Hub</div>
         <nav>
-          {navItems.filter((item) => consumerNavIds.has(item.id) || (item.id === "creator" && props.canUseCreatorTools) || ((item.id === "moderation" || item.id === "operations") && props.canModerateMarketplace)).map(({ id, label, mobileLabel, icon: Icon, mobileVisible }) => (
+          {navItems.filter((item) => consumerNavIds.has(item.id) || (item.id === "creator" && props.canUseCreatorTools) || ((item.id === "moderation" || item.id === "operations" || item.id === "beta") && props.canModerateMarketplace)).map(({ id, label, mobileLabel, icon: Icon, mobileVisible }) => (
             <div className="nav-item-group" key={id}>
               <button
                 aria-current={props.activeSection === id ? "page" : undefined}

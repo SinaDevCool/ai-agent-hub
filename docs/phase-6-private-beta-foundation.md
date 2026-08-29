@@ -1,6 +1,6 @@
 # Phase 6 Private Beta Foundation
 
-Status: **implemented behind disabled enforcement; frontend completion and live beta evidence remain pending**
+Status: **product and moderator workflows implemented behind disabled enforcement; live beta evidence remains pending**
 
 ## Implemented
 
@@ -12,6 +12,11 @@ Status: **implemented behind disabled enforcement; frontend completion and live 
 - One privacy-safe `BetaFeedback` record rather than a second support chat. Optional run, approval-request, and transaction references are ownership checked.
 - Diagnostic intake keeps only explicitly consented release/environment/provider/capability/error identifiers; secrets and prompt/provider payloads are discarded.
 - Moderator endpoints for invite lifecycle, feedback triage, and privacy-safe funnel/safety metrics derived from canonical installs, runs, approvals, transactions, and feedback.
+- A resumable in-product beta checklist with goals, terms, connector review, first-task, approval, and support milestones.
+- A moderator-only Private Beta workspace for one-time invitations, revocation/replacement, cohort metrics, and constrained feedback triage.
+- Privacy-safe beta feedback intake with optional release/environment diagnostics and no prompt, credential, or provider-payload collection.
+- Curated beta marketplace entry points for travel, money, and daily-task agents.
+- Existing export and connector-revocation controls verified, plus self-service scheduled account deletion through the canonical data-rights workflow.
 
 ## Rollout controls
 
@@ -19,12 +24,9 @@ Status: **implemented behind disabled enforcement; frontend completion and live 
 - Rollout order remains team dogfood, five trusted users, 10–25 early users, then 50–100 only after safety and support targets hold.
 - Expansion pauses for cross-tenant exposure, unauthorized writes, duplicate transactions, reconciliation SLA breach, severe privacy issues, or support-capacity breach.
 
-## Remaining acceptance work
+## Remaining launch work
 
-- Extend the existing onboarding UI to display backend progress, terms acceptance, skip/resume, connector review, first-task completion, and support discovery.
-- Add invite administration, feedback intake, and beta metrics views to the existing moderator UI.
-- Add curated marketplace collections and readiness filters without creating another marketplace.
-- Complete export/deletion UX and verify beta-user connector revocation.
 - Configure notification delivery and support ownership/SLA escalation.
 - Run API-bypass, cohort-concurrency, onboarding, diagnostic-redaction, and end-to-end beta exercises in staging.
 - Name operational owners and record dated evidence before `PRIVATE_BETA_ENFORCED` is enabled.
+- Keep `PRIVATE_BETA_ENFORCED=false` until the invitation allowlist is populated and the staging exercises pass.

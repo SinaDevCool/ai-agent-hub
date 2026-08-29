@@ -2,6 +2,7 @@ import type { WorkspaceSectionsProps } from "./WorkspaceSections.types";
 import { CreatorPanel } from "../CreatorPanel";
 import { ModerationPanel } from "../ModerationPanel";
 import { OperationsPanel } from "../OperationsPanel";
+import { BetaAdminPanel } from "../BetaAdminPanel";
 
 export function CreatorAdminPanels({ props }: { props: WorkspaceSectionsProps }) {
   const {
@@ -96,6 +97,7 @@ export function CreatorAdminPanels({ props }: { props: WorkspaceSectionsProps })
           queue={moderation.queue}
         />
         <OperationsPanel className={`panel operations-panel mobile-section desktop-section ${activeMobileClass("operations")} ${sectionClass("operations")}`} />
+        <BetaAdminPanel className={`mobile-section desktop-section ${activeMobileClass("beta")} ${sectionClass("beta")}`} />
         </>
       ) : null}
     </>

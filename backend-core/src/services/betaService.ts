@@ -94,6 +94,12 @@ export async function createBetaFeedback(input: { userId: string; category: stri
   return prisma.betaFeedback.create({ data: { userId: input.userId, category: input.category, severity: input.severity, expectedResult: input.expectedResult.slice(0, 2000), actualResult: input.actualResult.slice(0, 2000), consentedDiagnostics: encodeJson(safeDiagnostics), contactPreference: input.contactPreference ?? "none", requestId: input.requestId, runId: input.runId, transactionId: input.transactionId } });
 }
 
+export async function updateBetaFeedbackStatus(input: { feedbackId: string; status: "open" | "triaged" | "resolved" }) {
+  const result = await prisma.betaFeedback.updateMany({ where: { id: input.feedbackId }, data: { status: input.status } });
+  if (result.count !== 1) throw httpError(404, "Beta feedback was not found.", "beta_feedback_not_found");
+  return prisma.betaFeedback.findUniqueOrThrow({ where: { id: input.feedbackId } });
+}
+
 export async function betaMetrics(cohort?: string) {
   const inviteWhere = cohort ? { cohort } : {};
   const redeemed = await prisma.betaInvite.findMany({ where: { ...inviteWhere, status: "redeemed" }, select: { redeemedByUserId: true, redeemedAt: true, createdAt: true } });

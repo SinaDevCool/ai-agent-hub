@@ -3,6 +3,7 @@ import type { Agent, HitlRequest } from "../../api/types";
 import type { SectionId } from "../../lib/appNavigation";
 import { OnboardingPanel, primaryOnboardingNeeds, type OnboardingNeed } from "../OnboardingPanel";
 import type { SetupStep } from "./WorkspaceSections.types";
+import { BetaOnboardingPanel } from "../BetaOnboardingPanel";
 
 type HomeSectionProps = {
   activeSection: SectionId;
@@ -95,6 +96,7 @@ export function HomeSection(props: HomeSectionProps) {
 
       {!shouldShowOnboarding ? (
         <section className={`home-dashboard desktop-section ${sectionClass("home")}`} id="home">
+          <BetaOnboardingPanel />
           <div className="panel home-card home-primary-card">
             <div className="panel-title">Choose a task</div>
             <p>Pick a real-life need first. The agent pool will show agents that match the task and explain what each one may read or do.</p>

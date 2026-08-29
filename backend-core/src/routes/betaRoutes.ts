@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
-import { betaMetrics, createBetaFeedback, createBetaInvite, getBetaAccess, redeemBetaInvite, replaceBetaInvite, revokeBetaInvite, updateBetaOnboarding } from "../services/betaService.js";
+import { betaMetrics, createBetaFeedback, createBetaInvite, getBetaAccess, redeemBetaInvite, replaceBetaInvite, revokeBetaInvite, updateBetaFeedbackStatus, updateBetaOnboarding } from "../services/betaService.js";
 import { requireModerateMarketplaceCapability } from "../services/userCapabilityService.js";
 
 export const betaRoutes = Router();
@@ -22,4 +22,5 @@ betaRoutes.post("/admin/invites", async (req, res) => { const actor = await requ
 betaRoutes.post("/admin/invites/:id/revoke", async (req, res) => { await requireModerateMarketplaceCapability(req.userId); res.json({ invite: await revokeBetaInvite(req.params.id) }); });
 betaRoutes.post("/admin/invites/:id/replace", async (req, res) => { const actor = await requireModerateMarketplaceCapability(req.userId); res.status(201).json(await replaceBetaInvite({ inviteId: req.params.id, inviterUserId: actor.user.id })); });
 betaRoutes.get("/admin/feedback", async (req, res) => { await requireModerateMarketplaceCapability(req.userId); const query = z.object({ status: z.string().optional(), severity: z.string().optional() }).parse(req.query); res.json({ feedback: await prisma.betaFeedback.findMany({ where: query, orderBy: { createdAt: "desc" }, take: 200 }) }); });
+betaRoutes.patch("/admin/feedback/:id", async (req, res) => { await requireModerateMarketplaceCapability(req.userId); const body = z.object({ status: z.enum(["open", "triaged", "resolved"]) }).parse(req.body); res.json({ feedback: await updateBetaFeedbackStatus({ feedbackId: req.params.id, status: body.status }) }); });
 betaRoutes.get("/admin/metrics", async (req, res) => { await requireModerateMarketplaceCapability(req.userId); const query = z.object({ cohort: z.string().optional() }).parse(req.query); res.json({ metrics: await betaMetrics(query.cohort) }); });

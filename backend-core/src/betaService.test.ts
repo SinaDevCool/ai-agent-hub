@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
 import { prisma } from "./db/prisma.js";
-import { betaMetrics, createBetaFeedback, createBetaInvite, getBetaAccess, redeemBetaInvite, replaceBetaInvite, revokeBetaInvite, updateBetaOnboarding } from "./services/betaService.js";
+import { betaMetrics, createBetaFeedback, createBetaInvite, getBetaAccess, redeemBetaInvite, replaceBetaInvite, revokeBetaInvite, updateBetaFeedbackStatus, updateBetaOnboarding } from "./services/betaService.js";
 
 const prefix = `beta-${Date.now()}`;
 const moderatorId = `${prefix}-moderator`;
@@ -71,4 +71,12 @@ test("beta metrics derive privacy-safe counts from canonical records", async () 
   assert.ok(metrics.redeemed >= 1);
   assert.ok(metrics.activationRate > 0);
   assert.ok(metrics.supportContacts >= 1);
+});
+
+test("moderator feedback triage uses a constrained lifecycle", async () => {
+  const created = await createBetaFeedback({ userId, category: "usability", severity: "low", expectedResult: "Clear next step", actualResult: "Could not find it" });
+  const triaged = await updateBetaFeedbackStatus({ feedbackId: created.id, status: "triaged" });
+  assert.equal(triaged.status, "triaged");
+  const resolved = await updateBetaFeedbackStatus({ feedbackId: created.id, status: "resolved" });
+  assert.equal(resolved.status, "resolved");
 });

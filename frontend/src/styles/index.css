@@ -3,6 +3,7 @@
 @import "./shared-panels.css";
 @import "./creator-moderation.css";
 @import "./operations.css";
+@import "./beta.css";
 @import "./marketplace.css";
 @import "./agents.css";
 @import "./access-vault-activity-settings.css";

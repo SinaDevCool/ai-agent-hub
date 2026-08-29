@@ -107,6 +107,11 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
 
       <MarketplaceNeedBanner selectedNeedContext={props.selectedNeedContext} onClearNeedContext={props.onClearNeedContext} />
 
+      <section className="beta-collections" aria-label="Curated beta collections">
+        <div><strong>Curated beta collections</strong><span>Start with agents that match the safest supported workflows.</span></div>
+        {[{label:"Safe travel planning",category:"Travel",search:"travel"},{label:"Read-only money help",category:"Money",search:"budget"},{label:"Everyday organization",category:"Daily Tasks",search:"task"}].map((collection) => <button key={collection.label} onClick={() => { props.setMarketplaceCategory(collection.category); props.setMarketplaceSearch(collection.search); }} type="button">{collection.label}</button>)}
+      </section>
+
       <section className="marketplace-discovery-card" aria-label="Find agents">
         <MarketplaceSearchControls
           isMoreNeedsOpen={isMoreNeedsOpen}

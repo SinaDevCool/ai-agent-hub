@@ -4,6 +4,7 @@ import type { WorkspaceSectionsProps } from "./WorkspaceSections.types";
 import { PermissionsPanel } from "../PermissionsPanel";
 import { ReceiptsPanel } from "../ReceiptsPanel";
 import { VaultPanel } from "../VaultPanel";
+import { BetaFeedbackPanel } from "../BetaFeedbackPanel";
 
 const SettingsPanel = lazy(() => import("../SettingsPanel").then((module) => ({ default: module.SettingsPanel })));
 
@@ -168,7 +169,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         visibleAgents={agents}
         workflows={workflows}
         lifePlatform={lifePlatform}
-      /></Suspense> : null}
+      /><BetaFeedbackPanel className={`mobile-section desktop-section ${activeMobileClass("settings")} ${sectionClass("settings")}`} /></Suspense> : null}
     </>
   );
 }
