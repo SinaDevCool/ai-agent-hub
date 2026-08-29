@@ -57,6 +57,16 @@ test("Google OAuth uses PKCE and a one-time persisted state", async () => {
   await assert.rejects(() => completeGoogleOAuth({ code: "second-code", state }), /already used|invalid|expired/i);
 });
 
+test("OAuth start supports least-privilege incremental scopes", async () => {
+  const started = await getConnectorStartState("google", userId, ["calendar_read"]);
+  assert.equal(started.status, "ready");
+  if (started.status !== "ready") throw new Error("Expected ready Google OAuth state.");
+  assert.ok(started.scopes.includes("openid"));
+  assert.ok(started.scopes.includes("https://www.googleapis.com/auth/calendar.readonly"));
+  assert.equal(started.scopes.includes("https://www.googleapis.com/auth/gmail.compose"), false);
+  assert.equal(new URL(String(started.authorizationUrl)).searchParams.get("include_granted_scopes"), "true");
+});
+
 test("disconnect revokes Google at the provider and clears local tokens", async () => {
   const account = await prisma.connectedAccount.findFirstOrThrow({ where: { userId, provider: "google" } });
   let revokeCalls = 0;

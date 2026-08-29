@@ -24,6 +24,33 @@ const googleScopes = [
 ];
 const microsoftScopes = ["openid", "profile", "email", "offline_access", "User.Read", "Mail.Read", "Mail.ReadWrite", "Mail.Send", "Calendars.ReadWrite", "Files.Read"];
 
+export const connectorCapabilityKeys = ["email_read", "email_write", "calendar_read", "calendar_write", "files_read"] as const;
+export type ConnectorCapabilityKey = typeof connectorCapabilityKeys[number];
+
+const googleIdentityScopes = ["openid", "email", "profile"];
+const microsoftIdentityScopes = ["openid", "profile", "email", "offline_access", "User.Read"];
+const googleCapabilityScopes: Record<ConnectorCapabilityKey, string[]> = {
+  email_read: ["https://www.googleapis.com/auth/gmail.readonly"],
+  email_write: ["https://www.googleapis.com/auth/gmail.compose"],
+  calendar_read: ["https://www.googleapis.com/auth/calendar.readonly"],
+  calendar_write: ["https://www.googleapis.com/auth/calendar.events"],
+  files_read: ["https://www.googleapis.com/auth/drive.metadata.readonly"]
+};
+const microsoftCapabilityScopes: Record<ConnectorCapabilityKey, string[]> = {
+  email_read: ["Mail.Read"],
+  email_write: ["Mail.ReadWrite", "Mail.Send"],
+  calendar_read: ["Calendars.Read"],
+  calendar_write: ["Calendars.ReadWrite"],
+  files_read: ["Files.Read"]
+};
+
+function requestedScopes(provider: "google" | "microsoft", capabilities?: ConnectorCapabilityKey[]) {
+  const selected = capabilities?.length ? capabilities : [...connectorCapabilityKeys];
+  const identity = provider === "google" ? googleIdentityScopes : microsoftIdentityScopes;
+  const mapping = provider === "google" ? googleCapabilityScopes : microsoftCapabilityScopes;
+  return Array.from(new Set([...identity, ...selected.flatMap((capability) => mapping[capability])]));
+}
+
 type GoogleTokenResponse = {
   access_token?: string;
   refresh_token?: string;
@@ -184,7 +211,7 @@ export async function disconnectConnectedAccount(input: { userId: string; accoun
   return result.count > 0;
 }
 
-export async function getConnectorStartState(provider: string, userId?: string) {
+export async function getConnectorStartState(provider: string, userId?: string, capabilities?: ConnectorCapabilityKey[]) {
   if (!isSupportedConnectorProvider(provider)) {
     return {
       status: "unsupported" as const,
@@ -196,11 +223,12 @@ export async function getConnectorStartState(provider: string, userId?: string) 
   if (provider === "microsoft") {
     const config = getMicrosoftConfigState();
     if (!config.configured || !userId) return { status: "not_configured" as const, provider, authorizationUrl: null, missing: config.missing, message: "Microsoft OAuth is not configured yet." };
-    const authorization = await createOAuthAuthorization({ userId, provider: "microsoft", scopes: microsoftScopes });
+    const scopes = requestedScopes("microsoft", capabilities);
+    const authorization = await createOAuthAuthorization({ userId, provider: "microsoft", scopes });
     const tenant = encodeURIComponent(env.MICROSOFT_TENANT_ID);
     const url = new URL(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize`);
-    url.searchParams.set("client_id", String(env.MICROSOFT_CLIENT_ID)); url.searchParams.set("redirect_uri", config.redirectUri); url.searchParams.set("response_type", "code"); url.searchParams.set("response_mode", "query"); url.searchParams.set("scope", microsoftScopes.join(" ")); url.searchParams.set("state", authorization.state); url.searchParams.set("code_challenge", authorization.codeChallenge); url.searchParams.set("code_challenge_method", "S256");
-    return { status: "ready" as const, provider, authorizationUrl: url.toString(), scopes: microsoftScopes, message: "Open Microsoft to connect Outlook, Calendar, and OneDrive." };
+    url.searchParams.set("client_id", String(env.MICROSOFT_CLIENT_ID)); url.searchParams.set("redirect_uri", config.redirectUri); url.searchParams.set("response_type", "code"); url.searchParams.set("response_mode", "query"); url.searchParams.set("scope", scopes.join(" ")); url.searchParams.set("state", authorization.state); url.searchParams.set("code_challenge", authorization.codeChallenge); url.searchParams.set("code_challenge_method", "S256");
+    return { status: "ready" as const, provider, authorizationUrl: url.toString(), scopes, message: "Open Microsoft to connect the selected Outlook, Calendar, and OneDrive capabilities." };
   }
   if (provider !== "google") {
     return {
@@ -220,14 +248,16 @@ export async function getConnectorStartState(provider: string, userId?: string) 
       message: "Google OAuth is not configured yet."
     };
   }
-  const authorization = await createOAuthAuthorization({ userId, provider: "google", scopes: googleScopes });
+  const scopes = requestedScopes("google", capabilities);
+  const authorization = await createOAuthAuthorization({ userId, provider: "google", scopes });
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", String(env.GOOGLE_CLIENT_ID));
   url.searchParams.set("redirect_uri", config.redirectUri);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", googleScopes.join(" "));
+  url.searchParams.set("scope", scopes.join(" "));
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("prompt", "consent");
+  url.searchParams.set("include_granted_scopes", "true");
   url.searchParams.set("state", authorization.state);
   url.searchParams.set("code_challenge", authorization.codeChallenge);
   url.searchParams.set("code_challenge_method", "S256");
@@ -235,8 +265,8 @@ export async function getConnectorStartState(provider: string, userId?: string) 
     status: "ready" as const,
     provider,
     authorizationUrl: url.toString(),
-    scopes: googleScopes,
-    message: "Open Google to connect Gmail and Calendar."
+    scopes,
+    message: "Open Google to connect the selected Gmail, Calendar, and Drive capabilities."
   };
 }
 

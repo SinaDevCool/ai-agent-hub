@@ -6,7 +6,8 @@ import {
   completeMicrosoftOAuth,
   disconnectConnectedAccount,
   getConnectorStartState,
-  listConnectedAccounts
+  listConnectedAccounts,
+  connectorCapabilityKeys
 } from "../services/connectorAccountService.js";
 import { env } from "../config/env.js";
 import { listProviderDiscovery } from "../services/providerDiscoveryService.js";
@@ -17,6 +18,9 @@ export const publicConnectorRoutes = Router();
 
 const providerParams = z.object({ provider: z.string().min(1).max(64) });
 const accountParams = z.object({ accountId: z.string().min(1) });
+const connectorStartSchema = z.object({
+  capabilities: z.array(z.enum(connectorCapabilityKeys)).min(1).max(connectorCapabilityKeys.length).optional()
+});
 const googleCallbackSchema = z.object({
   code: z.string().min(1).optional(),
   state: z.string().min(1).optional(),
@@ -107,7 +111,8 @@ connectorRoutes.get("/providers/readiness/summary", async (req, res) => {
 connectorRoutes.post("/:provider/start", async (req, res) => {
   if (!req.userId) return res.status(401).json({ error: { message: "No user context" } });
   const { provider } = providerParams.parse(req.params);
-  const state = await getConnectorStartState(provider, req.userId);
+  const { capabilities } = connectorStartSchema.parse(req.body ?? {});
+  const state = await getConnectorStartState(provider, req.userId, capabilities);
   // Readiness is an expected product state, not a transport failure. Returning
   // 200 lets clients show the provider-specific setup guidance verbatim.
   res.json(state);
