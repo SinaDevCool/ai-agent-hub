@@ -23,7 +23,7 @@ function workflowReply(agent: RuntimeAgent, workflowResult: NormalizedWorkflowRe
   return `${agent.name} used ${workflowResult.receipt.workflowName} and found results for ${workflowResult.receipt.capabilityLabel.toLowerCase()}.${countText}`;
 }
 
-function structuredWorkflowInput(capabilityKey: string, message: string) {
+export function structuredWorkflowInput(capabilityKey: string, message: string) {
   const input: Record<string, unknown> = { message };
   if (capabilityKey === "travel.search_hotels") {
     const destination = message.match(/\bin\s+([A-Z][A-Za-z\s-]{2,40})(?:\s|$)/)?.[1]?.trim();
@@ -36,6 +36,15 @@ function structuredWorkflowInput(capabilityKey: string, message: string) {
     }
     const guests = message.match(/\b(\d+)\s+(?:guest|guests|people|person|persons)\b/i)?.[1];
     if (guests) input.guests = Number(guests);
+  }
+  if (capabilityKey === "travel.search_flights") {
+    const route = message.match(/\bfrom\s+(.+?)\s+to\s+(.+?)(?=\s+(?:departing|leaving|on|returning|for)\b|$)/i);
+    const departureDate = message.match(/\b(20\d{2}-\d{2}-\d{2})\b/)?.[1];
+    const passengers = message.match(/\b(\d+)\s+(?:passenger|passengers|adult|adults|person|people)\b/i)?.[1];
+    if (route?.[1]) input.origin = route[1].trim();
+    if (route?.[2]) input.destination = route[2].trim();
+    if (departureDate) input.departureDate = departureDate;
+    if (passengers) input.passengers = Number(passengers);
   }
   return input;
 }
