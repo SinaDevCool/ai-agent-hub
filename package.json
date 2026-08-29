@@ -17,6 +17,7 @@
     "typecheck": "npm --workspaces run typecheck",
     "smoke:ui": "playwright test",
     "smoke:production": "npm --workspace backend-core run smoke:production",
+    "verify:release": "npm --workspace backend-core run verify:release",
     "db:push": "npm --workspace backend-core run db:push",
     "db:seed": "npm --workspace backend-core run db:seed",
     "db:seed:sample": "npm --workspace backend-core run db:seed:sample",

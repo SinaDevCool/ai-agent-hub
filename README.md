@@ -9,6 +9,7 @@ AI Agent Hub is scaffolded as a local-first, privacy-centric Personal AI Operati
 - `backend-core/vault-samples/personal-vault/` - Obsidian-compatible Markdown seed vault.
 
 The personal-life capability/provider catalogue, durable approval-aware transaction lifecycle, supported domains, and provider activation procedure are documented in [`docs/life-platform.md`](docs/life-platform.md).
+Release gates, closed-beta metrics, live travel requirements, and the vertical-by-vertical production rollout are documented in [`docs/release-and-rollout.md`](docs/release-and-rollout.md).
 
 ## Quick Start
 
@@ -130,6 +131,12 @@ BACKEND_BASE_URL=https://<your-render-service>.onrender.com npm run smoke:produc
 ```
 
 This checks public liveness, database readiness, and the production auth guard that rejects spoofed development identity headers.
+
+After both Blueprint services deploy, verify the complete public release surface:
+
+```bash
+BACKEND_BASE_URL=https://<api>.onrender.com FRONTEND_BASE_URL=https://<web>.onrender.com npm run verify:release
+```
 
 Optional production environment variables:
 
