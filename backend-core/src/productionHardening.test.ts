@@ -52,6 +52,19 @@ test("connector callback failures return users to frontend settings", async () =
   assert.match(invalidStateLocation.searchParams.get("message") ?? "", /try again/i);
 });
 
+test("connector start returns provider readiness as a normal response", async () => {
+  const userId = `connector-readiness-${Date.now()}`;
+  const response = await fetch(`${baseUrl}/api/connectors/google/start`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-user-id": userId, "x-user-email": `${userId}@example.test` },
+    body: "{}"
+  });
+  assert.equal(response.status, 200);
+  const body = await response.json() as { status?: string; message?: string };
+  assert.ok(["ready", "not_configured"].includes(body.status ?? ""));
+  assert.ok(body.message);
+});
+
 test("request id middleware preserves valid incoming ids and errors echo them", async () => {
   const requestIdValue = "test-request-12345";
   const response = await fetch(`${baseUrl}/api/marketplace/agents?category=NotARealCategory`, {

@@ -108,7 +108,9 @@ connectorRoutes.post("/:provider/start", async (req, res) => {
   if (!req.userId) return res.status(401).json({ error: { message: "No user context" } });
   const { provider } = providerParams.parse(req.params);
   const state = await getConnectorStartState(provider, req.userId);
-  res.status(state.status === "ready" ? 200 : 501).json(state);
+  // Readiness is an expected product state, not a transport failure. Returning
+  // 200 lets clients show the provider-specific setup guidance verbatim.
+  res.json(state);
 });
 
 connectorRoutes.delete("/:accountId", async (req, res) => {
