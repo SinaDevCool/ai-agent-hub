@@ -14,7 +14,7 @@ Production database URLs, encryption keys, OAuth clients, provider credentials, 
 
 ## Backend settings
 
-Set `NODE_ENV=production` so production security is exercised and set `APP_ENV=staging` so the deployment is visibly identified. Required release settings are `RELEASE_SHA` (or Render's `RENDER_GIT_COMMIT`), `MIGRATION_VERSION=0018_enable_rls`, `API_PUBLIC_URL`, and `FRONTEND_PUBLIC_URL`.
+Set `NODE_ENV=production` so production security is exercised and set `APP_ENV=staging` so the deployment is visibly identified. Required release settings are `RELEASE_SHA` (or Render's `RENDER_GIT_COMMIT`), `MIGRATION_VERSION=0019_connector_oauth_hardening`, `API_PUBLIC_URL`, and `FRONTEND_PUBLIC_URL`.
 
 Use these commands, unchanged from production:
 

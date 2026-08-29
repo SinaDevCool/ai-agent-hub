@@ -107,7 +107,7 @@ connectorRoutes.get("/providers/readiness/summary", async (req, res) => {
 connectorRoutes.post("/:provider/start", async (req, res) => {
   if (!req.userId) return res.status(401).json({ error: { message: "No user context" } });
   const { provider } = providerParams.parse(req.params);
-  const state = getConnectorStartState(provider, req.userId);
+  const state = await getConnectorStartState(provider, req.userId);
   res.status(state.status === "ready" ? 200 : 501).json(state);
 });
 

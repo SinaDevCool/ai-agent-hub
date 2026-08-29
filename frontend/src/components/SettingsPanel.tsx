@@ -201,7 +201,7 @@ export function SettingsPanel(props: {
         <div className="connector-row">
           <div>
             <strong>Google</strong>
-            <span>{googleAccount ? `${googleAccount.accountLabel} connected` : "Connect Gmail drafts and Calendar read access"}</span>
+            <span>{googleAccount ? `${googleAccount.accountLabel} · ${googleAccount.status}${googleAccount.lastRefreshAt ? ` · refreshed ${new Date(googleAccount.lastRefreshAt).toLocaleString()}` : ""}` : "Connect Gmail, Calendar, and Drive metadata"}</span>
           </div>
           {googleAccount ? (
             <button disabled={props.isConnectorSaving} onClick={() => requestDisconnect(googleAccount)} type="button">
@@ -214,7 +214,7 @@ export function SettingsPanel(props: {
           )}
         </div>
         <div className="connector-row">
-          <div><strong>Microsoft</strong><span>{microsoftAccount ? `${microsoftAccount.accountLabel} connected` : "Connect Outlook, Calendar, and OneDrive"}</span></div>
+          <div><strong>Microsoft</strong><span>{microsoftAccount ? `${microsoftAccount.accountLabel} · ${microsoftAccount.status}${microsoftAccount.lastRefreshAt ? ` · refreshed ${new Date(microsoftAccount.lastRefreshAt).toLocaleString()}` : ""}` : "Connect Outlook, Calendar, and your OneDrive files"}</span></div>
           {microsoftAccount ? <button disabled={props.isConnectorSaving} onClick={() => requestDisconnect(microsoftAccount)} type="button"><Unplug size={16} /> Disconnect</button> : <button disabled={props.isConnectorSaving} onClick={() => void props.onConnectMicrosoft()} type="button"><Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : "Connect Microsoft"}</button>}
         </div>
         {props.connectorMessage ? <small className="settings-action-note" role="status" aria-live="polite">{props.connectorMessage}</small> : null}

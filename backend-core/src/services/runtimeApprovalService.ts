@@ -8,6 +8,7 @@ import { decodeJson } from "./jsonService.js";
 import { createProviderReceipt } from "./providerReceiptService.js";
 import { markProviderRunBlocked, markProviderRunSucceeded } from "./providerRunService.js";
 import { executeTool, type ToolExecutionResult } from "./toolExecutionService.js";
+import { verifyConnectorState } from "./cryptoService.js";
 
 export function isContinueApprovedActionMessage(message: string) {
   return /^continue the approved action:/i.test(message) || /^continue approved action:/i.test(message);
@@ -23,6 +24,7 @@ type ApprovedToolPayload = {
   arguments: Record<string, unknown>;
   agentRunId?: string;
   executionMode?: string;
+  approvalBinding?: string;
 };
 
 export type ApprovedToolResumeResult =
@@ -100,12 +102,19 @@ export function parseApprovedToolPayload(payload: string): ApprovedToolPayload |
   const toolName = typeof decoded.toolName === "string" ? decoded.toolName.trim() : "";
   const args = decoded.arguments;
   if (!toolName || !isRecord(args)) return null;
+  const approvalBinding = typeof decoded.approvalBinding === "string" ? decoded.approvalBinding : "";
+  const verified = approvalBinding ? verifyConnectorState<Record<string, unknown>>(approvalBinding) : null;
+  if (!verified) return null;
+  const unsignedPayload = { ...decoded };
+  delete unsignedPayload.approvalBinding;
+  if (JSON.stringify(verified) !== JSON.stringify(unsignedPayload)) return null;
   return {
     toolRunId: typeof decoded.toolRunId === "string" ? decoded.toolRunId : undefined,
     toolName,
     arguments: args,
     agentRunId: typeof decoded.agentRunId === "string" ? decoded.agentRunId : undefined,
-    executionMode: typeof decoded.executionMode === "string" ? decoded.executionMode : undefined
+    executionMode: typeof decoded.executionMode === "string" ? decoded.executionMode : undefined,
+    approvalBinding
   };
 }
 

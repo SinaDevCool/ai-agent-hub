@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -132,6 +132,7 @@ enum AgentRunStepType {
 
 enum ConnectedAccountStatus {
   active
+  refreshing
   expired
   revoked
   error
@@ -155,34 +156,35 @@ enum ProviderConnectionStatus {
 }
 
 model User {
-  id                  String           @id @default(cuid())
-  email               String           @unique
-  role                UserRole         @default(user)
-  vaultLocalPath      String           @map("vault_local_path")
-  vaultEncryptionSalt String           @map("vault_encryption_salt")
-  createdAt           DateTime         @default(now()) @map("created_at")
-  creatorProfile      CreatorProfile?
-  agentInstalls       UserAgentInstall[]
-  connections         UserConnection[]
-  permissions         AgentPermission[]
-  activityLogs        ActivityLog[]
-  vaultDocuments      VaultDocument[]
-  hitlRequests        HitlRequest[]
-  notifications       Notification[]
-  conversations       AgentConversation[]
-  agentRuns           AgentRun[]
-  toolRuns            ToolRun[]
-  providerReceipts    ProviderReceipt[]
-  providerConnections ProviderConnection[]
-  providerDefinitions ProviderDefinition[]
-  connectedAccounts   ConnectedAccount[]
-  workflowConnections WorkflowConnection[]
-  agentTraces         AgentTrace[]
-  lifeTransactions    LifeTransaction[]
-  financialAccounts   FinancialAccount[]
-  appointments        Appointment[]
-  shoppingLists       ShoppingList[]
-  creatorAccessRequests CreatorAccessRequest[] @relation("CreatorAccessRequestUser")
+  id                            String                 @id @default(cuid())
+  email                         String                 @unique
+  role                          UserRole               @default(user)
+  vaultLocalPath                String                 @map("vault_local_path")
+  vaultEncryptionSalt           String                 @map("vault_encryption_salt")
+  createdAt                     DateTime               @default(now()) @map("created_at")
+  creatorProfile                CreatorProfile?
+  agentInstalls                 UserAgentInstall[]
+  connections                   UserConnection[]
+  permissions                   AgentPermission[]
+  activityLogs                  ActivityLog[]
+  vaultDocuments                VaultDocument[]
+  hitlRequests                  HitlRequest[]
+  notifications                 Notification[]
+  conversations                 AgentConversation[]
+  agentRuns                     AgentRun[]
+  toolRuns                      ToolRun[]
+  providerReceipts              ProviderReceipt[]
+  providerConnections           ProviderConnection[]
+  providerDefinitions           ProviderDefinition[]
+  connectedAccounts             ConnectedAccount[]
+  oauthAuthorizations           OAuthAuthorization[]
+  workflowConnections           WorkflowConnection[]
+  agentTraces                   AgentTrace[]
+  lifeTransactions              LifeTransaction[]
+  financialAccounts             FinancialAccount[]
+  appointments                  Appointment[]
+  shoppingLists                 ShoppingList[]
+  creatorAccessRequests         CreatorAccessRequest[] @relation("CreatorAccessRequestUser")
   reviewedCreatorAccessRequests CreatorAccessRequest[] @relation("CreatorAccessRequestReviewer")
 
   @@map("users")
@@ -227,22 +229,22 @@ model Appointment {
 }
 
 model FinancialAccount {
-  id                String   @id @default(cuid())
-  userId            String   @map("user_id")
-  providerId        String   @map("provider_id")
-  externalAccountId String   @map("external_account_id")
+  id                String                 @id @default(cuid())
+  userId            String                 @map("user_id")
+  providerId        String                 @map("provider_id")
+  externalAccountId String                 @map("external_account_id")
   name              String
   type              String
   subtype           String?
   mask              String?
-  currency          String   @default("EUR")
-  currentBalance    Float?   @map("current_balance")
-  availableBalance  Float?   @map("available_balance")
-  syncCursor        String?  @map("sync_cursor")
-  dataFreshAt       DateTime? @map("data_fresh_at")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency          String                 @default("EUR")
+  currentBalance    Float?                 @map("current_balance")
+  availableBalance  Float?                 @map("available_balance")
+  syncCursor        String?                @map("sync_cursor")
+  dataFreshAt       DateTime?              @map("data_fresh_at")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions      FinancialTransaction[]
 
   @@unique([userId, providerId, externalAccountId])
@@ -251,21 +253,21 @@ model FinancialAccount {
 }
 
 model FinancialTransaction {
-  id                    String   @id @default(cuid())
-  userId                String   @map("user_id")
-  financialAccountId    String   @map("financial_account_id")
-  providerTransactionId String   @map("provider_transaction_id")
+  id                    String           @id @default(cuid())
+  userId                String           @map("user_id")
+  financialAccountId    String           @map("financial_account_id")
+  providerTransactionId String           @map("provider_transaction_id")
   name                  String
-  merchantName          String?  @map("merchant_name")
+  merchantName          String?          @map("merchant_name")
   amount                Float
-  currency              String   @default("EUR")
+  currency              String           @default("EUR")
   date                  DateTime
-  pending               Boolean  @default(false)
-  categoryPrimary       String?  @map("category_primary")
-  categoryDetailed      String?  @map("category_detailed")
-  removedAt             DateTime? @map("removed_at")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  pending               Boolean          @default(false)
+  categoryPrimary       String?          @map("category_primary")
+  categoryDetailed      String?          @map("category_detailed")
+  removedAt             DateTime?        @map("removed_at")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
   account               FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade)
 
   @@unique([userId, providerTransactionId])
@@ -275,26 +277,26 @@ model FinancialTransaction {
 }
 
 model LifeTransaction {
-  id                    String   @id @default(cuid())
-  userId                String   @map("user_id")
-  capabilityKey         String   @map("capability_key")
-  executionLevel        String   @map("execution_level")
-  state                 String   @default("draft")
-  region                String?
-  providerId            String?  @map("provider_id")
-  providerCandidatesJson String  @default("[]") @map("provider_candidates_json")
-  approvalRequired      Boolean  @default(false) @map("approval_required")
-  hitlRequestId         String?  @map("hitl_request_id")
-  idempotencyKey        String   @map("idempotency_key")
-  inputJson             String   @default("{}") @map("input_json")
-  resultJson            String   @default("{}") @map("result_json")
-  externalReference     String?  @map("external_reference")
-  failureReason         String?  @map("failure_reason")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
-  completedAt           DateTime? @map("completed_at")
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attempts              ProviderTransactionAttempt[]
+  id                     String                       @id @default(cuid())
+  userId                 String                       @map("user_id")
+  capabilityKey          String                       @map("capability_key")
+  executionLevel         String                       @map("execution_level")
+  state                  String                       @default("draft")
+  region                 String?
+  providerId             String?                      @map("provider_id")
+  providerCandidatesJson String                       @default("[]") @map("provider_candidates_json")
+  approvalRequired       Boolean                      @default(false) @map("approval_required")
+  hitlRequestId          String?                      @map("hitl_request_id")
+  idempotencyKey         String                       @map("idempotency_key")
+  inputJson              String                       @default("{}") @map("input_json")
+  resultJson             String                       @default("{}") @map("result_json")
+  externalReference      String?                      @map("external_reference")
+  failureReason          String?                      @map("failure_reason")
+  createdAt              DateTime                     @default(now()) @map("created_at")
+  updatedAt              DateTime                     @updatedAt @map("updated_at")
+  completedAt            DateTime?                    @map("completed_at")
+  user                   User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts               ProviderTransactionAttempt[]
 
   @@unique([userId, idempotencyKey])
   @@index([userId, state, createdAt])
@@ -303,19 +305,19 @@ model LifeTransaction {
 }
 
 model ProviderTransactionAttempt {
-  id                String   @id @default(cuid())
-  lifeTransactionId String   @map("life_transaction_id")
-  providerId        String   @map("provider_id")
+  id                String          @id @default(cuid())
+  lifeTransactionId String          @map("life_transaction_id")
+  providerId        String          @map("provider_id")
   action            String
-  attemptNumber     Int      @map("attempt_number")
+  attemptNumber     Int             @map("attempt_number")
   status            String
-  requestJson       String   @default("{}") @map("request_json")
-  responseJson      String   @default("{}") @map("response_json")
-  externalReference String?  @map("external_reference")
-  failureCode       String?  @map("failure_code")
-  failureMessage    String?  @map("failure_message")
-  startedAt         DateTime @default(now()) @map("started_at")
-  completedAt       DateTime? @map("completed_at")
+  requestJson       String          @default("{}") @map("request_json")
+  responseJson      String          @default("{}") @map("response_json")
+  externalReference String?         @map("external_reference")
+  failureCode       String?         @map("failure_code")
+  failureMessage    String?         @map("failure_message")
+  startedAt         DateTime        @default(now()) @map("started_at")
+  completedAt       DateTime?       @map("completed_at")
   lifeTransaction   LifeTransaction @relation(fields: [lifeTransactionId], references: [id], onDelete: Cascade)
 
   @@unique([lifeTransactionId, attemptNumber])
@@ -324,14 +326,14 @@ model ProviderTransactionAttempt {
 }
 
 model ProviderWebhookEvent {
-  id              String   @id @default(cuid())
-  providerId      String   @map("provider_id")
-  externalEventId String   @map("external_event_id")
-  eventType       String   @map("event_type")
-  payloadJson     String   @default("{}") @map("payload_json")
-  status          String   @default("received")
-  failureReason   String?  @map("failure_reason")
-  receivedAt      DateTime @default(now()) @map("received_at")
+  id              String    @id @default(cuid())
+  providerId      String    @map("provider_id")
+  externalEventId String    @map("external_event_id")
+  eventType       String    @map("event_type")
+  payloadJson     String    @default("{}") @map("payload_json")
+  status          String    @default("received")
+  failureReason   String?   @map("failure_reason")
+  receivedAt      DateTime  @default(now()) @map("received_at")
   processedAt     DateTime? @map("processed_at")
 
   @@unique([providerId, externalEventId])
@@ -340,17 +342,17 @@ model ProviderWebhookEvent {
 }
 
 model ProviderIdempotencyRecord {
-  id              String   @id @default(cuid())
-  userId          String   @map("user_id")
-  providerId      String   @map("provider_id")
-  idempotencyKey  String   @map("idempotency_key")
-  requestHash     String   @map("request_hash")
-  status          String   @default("processing")
-  responseJson    String   @default("{}") @map("response_json")
-  externalReference String? @map("external_reference")
-  expiresAt       DateTime @map("expires_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  providerId        String   @map("provider_id")
+  idempotencyKey    String   @map("idempotency_key")
+  requestHash       String   @map("request_hash")
+  status            String   @default("processing")
+  responseJson      String   @default("{}") @map("response_json")
+  externalReference String?  @map("external_reference")
+  expiresAt         DateTime @map("expires_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@unique([userId, providerId, idempotencyKey])
   @@index([expiresAt])
@@ -358,34 +360,34 @@ model ProviderIdempotencyRecord {
 }
 
 model ProviderDefinition {
-  id                       String   @id @default(cuid())
-  providerId               String   @unique @map("provider_id")
+  id                       String    @id @default(cuid())
+  providerId               String    @unique @map("provider_id")
   label                    String
   kind                     String
-  toolName                 String   @map("tool_name")
-  description              String   @default("")
-  capabilitiesJson         String   @default("[]") @map("capabilities_json")
-  actionsJson              String   @default("[]") @map("actions_json")
-  actionSchemasJson        String   @default("[]") @map("action_schemas_json")
-  runtimeConfigJson        String   @default("{}") @map("runtime_config_json")
-  credentialType           String   @default("none") @map("credential_type")
-  credentialFieldsJson     String   @default("[]") @map("credential_fields_json")
-  oauthConfigJson          String   @default("{}") @map("oauth_config_json")
-  authType                 String   @default("none") @map("auth_type")
-  riskLevel                String   @default("medium") @map("risk_level")
-  requiresConnectedAccount Boolean  @default(false) @map("requires_connected_account")
-  supportsHealthCheck      Boolean  @default(false) @map("supports_health_check")
-  healthStatus             String   @default("unknown") @map("health_status")
-  healthFailureCode        String?  @map("health_failure_code")
-  healthFailureMessage     String?  @map("health_failure_message")
+  toolName                 String    @map("tool_name")
+  description              String    @default("")
+  capabilitiesJson         String    @default("[]") @map("capabilities_json")
+  actionsJson              String    @default("[]") @map("actions_json")
+  actionSchemasJson        String    @default("[]") @map("action_schemas_json")
+  runtimeConfigJson        String    @default("{}") @map("runtime_config_json")
+  credentialType           String    @default("none") @map("credential_type")
+  credentialFieldsJson     String    @default("[]") @map("credential_fields_json")
+  oauthConfigJson          String    @default("{}") @map("oauth_config_json")
+  authType                 String    @default("none") @map("auth_type")
+  riskLevel                String    @default("medium") @map("risk_level")
+  requiresConnectedAccount Boolean   @default(false) @map("requires_connected_account")
+  supportsHealthCheck      Boolean   @default(false) @map("supports_health_check")
+  healthStatus             String    @default("unknown") @map("health_status")
+  healthFailureCode        String?   @map("health_failure_code")
+  healthFailureMessage     String?   @map("health_failure_message")
   healthCheckedAt          DateTime? @map("health_checked_at")
   healthLastSuccessAt      DateTime? @map("health_last_success_at")
   healthLastFailureAt      DateTime? @map("health_last_failure_at")
-  status                   String   @default("draft")
-  createdByUserId          String?  @map("created_by_user_id")
-  createdAt                DateTime @default(now()) @map("created_at")
-  updatedAt                DateTime @updatedAt @map("updated_at")
-  createdBy                User?    @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  status                   String    @default("draft")
+  createdByUserId          String?   @map("created_by_user_id")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+  createdBy                User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([status, kind])
   @@index([healthStatus, healthCheckedAt])
@@ -412,40 +414,40 @@ model CreatorAccessRequest {
 }
 
 model CreatorProfile {
-  id              String            @id @default(cuid())
-  userId          String            @unique @map("user_id")
-  displayName     String            @map("display_name")
-  bio             String            @default("")
-  verified        Boolean           @default(false)
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String            @id @default(cuid())
+  userId           String            @unique @map("user_id")
+  displayName      String            @map("display_name")
+  bio              String            @default("")
+  verified         Boolean           @default(false)
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   agentDefinitions AgentDefinition[]
 
   @@map("creator_profiles")
 }
 
 model AgentDefinition {
-  id              String             @id @default(cuid())
-  creatorId       String?            @map("creator_id")
-  slug            String             @unique
-  name            String
-  tagline         String
-  description     String
-  category        AgentCategory
-  status          MarketplaceStatus  @default(published)
-  trustScore      Int                @default(70) @map("trust_score")
-  installCount    Int                @default(0) @map("install_count")
-  averageRating   Float              @default(0) @map("average_rating")
-  moderationNote  String             @default("") @map("moderation_note")
-  submittedForReviewAt DateTime?     @map("submitted_for_review_at")
-  reviewedAt      DateTime?          @map("reviewed_at")
-  reviewedByUserId String?           @map("reviewed_by_user_id")
-  createdAt       DateTime           @default(now()) @map("created_at")
-  updatedAt       DateTime           @updatedAt @map("updated_at")
-  creator         CreatorProfile?    @relation(fields: [creatorId], references: [id], onDelete: SetNull)
-  versions        AgentVersion[]
-  installs        UserAgentInstall[]
+  id                   String             @id @default(cuid())
+  creatorId            String?            @map("creator_id")
+  slug                 String             @unique
+  name                 String
+  tagline              String
+  description          String
+  category             AgentCategory
+  status               MarketplaceStatus  @default(published)
+  trustScore           Int                @default(70) @map("trust_score")
+  installCount         Int                @default(0) @map("install_count")
+  averageRating        Float              @default(0) @map("average_rating")
+  moderationNote       String             @default("") @map("moderation_note")
+  submittedForReviewAt DateTime?          @map("submitted_for_review_at")
+  reviewedAt           DateTime?          @map("reviewed_at")
+  reviewedByUserId     String?            @map("reviewed_by_user_id")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  creator              CreatorProfile?    @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  versions             AgentVersion[]
+  installs             UserAgentInstall[]
 
   @@index([status, category])
   @@index([status, trustScore])
@@ -456,7 +458,7 @@ model AgentVersion {
   id                 String             @id @default(cuid())
   agentDefinitionId  String             @map("agent_definition_id")
   version            String             @default("1.0.0")
-  apiProtocol        ApiProtocol         @map("api_protocol")
+  apiProtocol        ApiProtocol        @map("api_protocol")
   capabilityManifest String             @map("capability_manifest")
   releaseNotes       String             @default("") @map("release_notes")
   isActive           Boolean            @default(true) @map("is_active")
@@ -470,19 +472,19 @@ model AgentVersion {
 }
 
 model UserAgentInstall {
-  id                 String             @id @default(cuid())
-  userId             String             @map("user_id")
-  agentDefinitionId  String             @map("agent_definition_id")
-  agentVersionId     String             @map("agent_version_id")
-  agentId            String?            @map("agent_id")
-  displayName        String             @map("display_name")
-  connectionStatus   ConnectionStatus   @default(restricted) @map("connection_status")
-  installedAt        DateTime           @default(now()) @map("installed_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
-  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agentDefinition    AgentDefinition    @relation(fields: [agentDefinitionId], references: [id], onDelete: Cascade)
-  agentVersion       AgentVersion       @relation(fields: [agentVersionId], references: [id], onDelete: Cascade)
-  agent              Agent?             @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  id                String           @id @default(cuid())
+  userId            String           @map("user_id")
+  agentDefinitionId String           @map("agent_definition_id")
+  agentVersionId    String           @map("agent_version_id")
+  agentId           String?          @map("agent_id")
+  displayName       String           @map("display_name")
+  connectionStatus  ConnectionStatus @default(restricted) @map("connection_status")
+  installedAt       DateTime         @default(now()) @map("installed_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentDefinition   AgentDefinition  @relation(fields: [agentDefinitionId], references: [id], onDelete: Cascade)
+  agentVersion      AgentVersion     @relation(fields: [agentVersionId], references: [id], onDelete: Cascade)
+  agent             Agent?           @relation(fields: [agentId], references: [id], onDelete: SetNull)
 
   @@unique([userId, agentDefinitionId])
   @@index([userId, connectionStatus])
@@ -490,23 +492,23 @@ model UserAgentInstall {
 }
 
 model Agent {
-  id                 String            @id @default(cuid())
-  name               String
-  category           AgentCategory
-  apiProtocol        ApiProtocol        @map("api_protocol")
-  trustScore         Int               @default(70) @map("trust_score")
-  capabilityManifest String            @map("capability_manifest")
-  installs           UserAgentInstall[]
-  permissions        AgentPermission[]
-  connections        UserConnection[]
-  activityLogs       ActivityLog[]
-  hitlRequests       HitlRequest[]
-  conversations      AgentConversation[]
-  agentRuns          AgentRun[]
-  toolRuns           ToolRun[]
-  providerReceipts   ProviderReceipt[]
+  id                  String               @id @default(cuid())
+  name                String
+  category            AgentCategory
+  apiProtocol         ApiProtocol          @map("api_protocol")
+  trustScore          Int                  @default(70) @map("trust_score")
+  capabilityManifest  String               @map("capability_manifest")
+  installs            UserAgentInstall[]
+  permissions         AgentPermission[]
+  connections         UserConnection[]
+  activityLogs        ActivityLog[]
+  hitlRequests        HitlRequest[]
+  conversations       AgentConversation[]
+  agentRuns           AgentRun[]
+  toolRuns            ToolRun[]
+  providerReceipts    ProviderReceipt[]
   workflowConnections WorkflowConnection[]
-  agentTraces        AgentTrace[]
+  agentTraces         AgentTrace[]
 
   @@index([name])
   @@map("agents")
@@ -543,25 +545,25 @@ model AgentMessage {
 }
 
 model AgentRun {
-  id             String           @id @default(cuid())
-  userId         String           @map("user_id")
-  agentId        String           @map("agent_id")
-  conversationId String?          @map("conversation_id")
-  status         AgentRunStatus   @default(planning)
-  intent         String
-  userGoal       String           @map("user_goal")
-  plan           String           @default("{}")
-  result         String           @default("{}")
-  error          String?
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
-  completedAt    DateTime?        @map("completed_at")
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent          Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  steps          AgentRunStep[]
-  toolRuns       ToolRun[]
+  id               String            @id @default(cuid())
+  userId           String            @map("user_id")
+  agentId          String            @map("agent_id")
+  conversationId   String?           @map("conversation_id")
+  status           AgentRunStatus    @default(planning)
+  intent           String
+  userGoal         String            @map("user_goal")
+  plan             String            @default("{}")
+  result           String            @default("{}")
+  error            String?
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  completedAt      DateTime?         @map("completed_at")
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent            Agent             @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  steps            AgentRunStep[]
+  toolRuns         ToolRun[]
   providerReceipts ProviderReceipt[]
-  traces         AgentTrace[]
+  traces           AgentTrace[]
 
   @@index([userId, agentId, createdAt])
   @@index([status, createdAt])
@@ -587,25 +589,25 @@ model AgentRunStep {
 }
 
 model ToolRun {
-  id               String        @id @default(cuid())
-  userId           String        @map("user_id")
-  agentId          String        @map("agent_id")
-  agentRunId       String?       @map("agent_run_id")
-  toolName         String        @map("tool_name")
-  input            String        @default("{}")
-  status           ToolRunStatus @default(queued)
-  result           String        @default("{}")
+  id               String            @id @default(cuid())
+  userId           String            @map("user_id")
+  agentId          String            @map("agent_id")
+  agentRunId       String?           @map("agent_run_id")
+  toolName         String            @map("tool_name")
+  input            String            @default("{}")
+  status           ToolRunStatus     @default(queued)
+  result           String            @default("{}")
   error            String?
-  riskLevel        RiskLevel     @default(low) @map("risk_level")
-  requiresApproval Boolean       @default(false) @map("requires_approval")
-  hitlRequestId    String?       @map("hitl_request_id")
-  idempotencyKey   String?       @map("idempotency_key")
-  createdAt        DateTime      @default(now()) @map("created_at")
-  startedAt        DateTime?     @map("started_at")
-  completedAt      DateTime?     @map("completed_at")
-  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent            Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  agentRun         AgentRun?     @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+  riskLevel        RiskLevel         @default(low) @map("risk_level")
+  requiresApproval Boolean           @default(false) @map("requires_approval")
+  hitlRequestId    String?           @map("hitl_request_id")
+  idempotencyKey   String?           @map("idempotency_key")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  startedAt        DateTime?         @map("started_at")
+  completedAt      DateTime?         @map("completed_at")
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent            Agent             @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentRun         AgentRun?         @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
   providerReceipts ProviderReceipt[]
 
   @@unique([userId, idempotencyKey])
@@ -616,33 +618,33 @@ model ToolRun {
 }
 
 model ProviderReceipt {
-  id                String   @id @default(cuid())
-  userId            String   @map("user_id")
-  agentId           String   @map("agent_id")
-  agentRunId        String?  @map("agent_run_id")
-  toolRunId         String?  @map("tool_run_id")
-  providerId        String   @map("provider_id")
-  providerLabel     String   @map("provider_label")
-  capabilityKey     String   @map("capability_key")
-  capabilityLabel   String   @map("capability_label")
+  id                String    @id @default(cuid())
+  userId            String    @map("user_id")
+  agentId           String    @map("agent_id")
+  agentRunId        String?   @map("agent_run_id")
+  toolRunId         String?   @map("tool_run_id")
+  providerId        String    @map("provider_id")
+  providerLabel     String    @map("provider_label")
+  capabilityKey     String    @map("capability_key")
+  capabilityLabel   String    @map("capability_label")
   action            String
   status            String
-  approvalRequired  Boolean  @default(false) @map("approval_required")
-  hitlRequestId     String?  @map("hitl_request_id")
-  resultQuality     String?  @map("result_quality")
-  userMessage       String   @map("user_message")
-  technicalMessage  String?  @map("technical_message")
-  retryable         Boolean  @default(false)
-  nextAction        String?  @map("next_action")
-  itemCount         Int      @default(0) @map("item_count")
-  externalRequestId String?  @map("external_request_id")
-  endpointHost      String?  @map("endpoint_host")
-  metadata          String   @default("{}")
-  createdAt         DateTime @default(now()) @map("created_at")
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent             Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  approvalRequired  Boolean   @default(false) @map("approval_required")
+  hitlRequestId     String?   @map("hitl_request_id")
+  resultQuality     String?   @map("result_quality")
+  userMessage       String    @map("user_message")
+  technicalMessage  String?   @map("technical_message")
+  retryable         Boolean   @default(false)
+  nextAction        String?   @map("next_action")
+  itemCount         Int       @default(0) @map("item_count")
+  externalRequestId String?   @map("external_request_id")
+  endpointHost      String?   @map("endpoint_host")
+  metadata          String    @default("{}")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent             Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
   agentRun          AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
-  toolRun           ToolRun? @relation(fields: [toolRunId], references: [id], onDelete: SetNull)
+  toolRun           ToolRun?  @relation(fields: [toolRunId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([userId, agentId, createdAt])
@@ -660,6 +662,8 @@ model ConnectedAccount {
   encryptedAccessToken  String?                @map("encrypted_access_token")
   encryptedRefreshToken String?                @map("encrypted_refresh_token")
   expiresAt             DateTime?              @map("expires_at")
+  refreshStartedAt      DateTime?              @map("refresh_started_at")
+  lastRefreshAt         DateTime?              @map("last_refresh_at")
   status                ConnectedAccountStatus @default(active)
   lastError             String?                @map("last_error")
   createdAt             DateTime               @default(now()) @map("created_at")
@@ -671,29 +675,46 @@ model ConnectedAccount {
   @@map("connected_accounts")
 }
 
+model OAuthAuthorization {
+  id                    String    @id @default(cuid())
+  userId                String    @map("user_id")
+  provider              String
+  stateHash             String    @unique @map("state_hash")
+  encryptedCodeVerifier String    @map("encrypted_code_verifier")
+  requestedScopes       String    @default("[]") @map("requested_scopes")
+  returnPath            String    @default("/settings") @map("return_path")
+  expiresAt             DateTime  @map("expires_at")
+  consumedAt            DateTime? @map("consumed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, provider, expiresAt])
+  @@map("oauth_authorizations")
+}
+
 model ProviderConnection {
-  id                     String                   @id @default(cuid())
-  userId                 String                   @map("user_id")
-  providerId             String                   @map("provider_id")
-  providerKind           String                   @map("provider_kind")
-  authType               String                   @map("auth_type")
-  status                 ProviderConnectionStatus @default(active)
-  displayName            String                   @default("") @map("display_name")
-  encryptedCredentials   String                   @map("encrypted_credentials")
-  credentialFingerprint  String                   @map("credential_fingerprint")
-  expiresAt              DateTime?                @map("expires_at")
-  refreshAfter           DateTime?                @map("refresh_after")
-  externalAccountId      String?                  @map("external_account_id")
-  externalAccountLabel   String?                  @map("external_account_label")
-  scopes                 String                   @default("[]")
-  metadata               String                   @default("{}")
-  lastValidatedAt        DateTime?                @map("last_validated_at")
-  lastSuccessAt          DateTime?                @map("last_success_at")
-  lastFailureAt          DateTime?                @map("last_failure_at")
-  lastFailureReason      String?                  @map("last_failure_reason")
-  createdAt              DateTime                 @default(now()) @map("created_at")
-  updatedAt              DateTime                 @updatedAt @map("updated_at")
-  user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String                   @id @default(cuid())
+  userId                String                   @map("user_id")
+  providerId            String                   @map("provider_id")
+  providerKind          String                   @map("provider_kind")
+  authType              String                   @map("auth_type")
+  status                ProviderConnectionStatus @default(active)
+  displayName           String                   @default("") @map("display_name")
+  encryptedCredentials  String                   @map("encrypted_credentials")
+  credentialFingerprint String                   @map("credential_fingerprint")
+  expiresAt             DateTime?                @map("expires_at")
+  refreshAfter          DateTime?                @map("refresh_after")
+  externalAccountId     String?                  @map("external_account_id")
+  externalAccountLabel  String?                  @map("external_account_label")
+  scopes                String                   @default("[]")
+  metadata              String                   @default("{}")
+  lastValidatedAt       DateTime?                @map("last_validated_at")
+  lastSuccessAt         DateTime?                @map("last_success_at")
+  lastFailureAt         DateTime?                @map("last_failure_at")
+  lastFailureReason     String?                  @map("last_failure_reason")
+  createdAt             DateTime                 @default(now()) @map("created_at")
+  updatedAt             DateTime                 @updatedAt @map("updated_at")
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, providerId])
   @@index([userId, status])
@@ -701,25 +722,25 @@ model ProviderConnection {
 }
 
 model WorkflowConnection {
-  id                 String                   @id @default(cuid())
-  userId             String                   @map("user_id")
-  agentId            String?                  @map("agent_id")
-  toolName           String                   @default("workflow.run") @map("tool_name")
-  capabilityKey      String                   @default("general.research") @map("capability_key")
-  description        String                   @default("")
-  name               String
-  provider           String                   @default("custom")
-  endpointUrl        String                   @map("endpoint_url")
-  encryptedSecret    String                   @map("encrypted_secret")
-  status             WorkflowConnectionStatus @default(draft)
-  lastTestedAt       DateTime?                @map("last_tested_at")
-  lastSuccessAt      DateTime?                @map("last_success_at")
-  lastFailureAt      DateTime?                @map("last_failure_at")
-  lastFailureReason  String?                  @map("last_failure_reason")
-  createdAt          DateTime                 @default(now()) @map("created_at")
-  updatedAt          DateTime                 @updatedAt @map("updated_at")
-  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent              Agent?                   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  id                String                   @id @default(cuid())
+  userId            String                   @map("user_id")
+  agentId           String?                  @map("agent_id")
+  toolName          String                   @default("workflow.run") @map("tool_name")
+  capabilityKey     String                   @default("general.research") @map("capability_key")
+  description       String                   @default("")
+  name              String
+  provider          String                   @default("custom")
+  endpointUrl       String                   @map("endpoint_url")
+  encryptedSecret   String                   @map("encrypted_secret")
+  status            WorkflowConnectionStatus @default(draft)
+  lastTestedAt      DateTime?                @map("last_tested_at")
+  lastSuccessAt     DateTime?                @map("last_success_at")
+  lastFailureAt     DateTime?                @map("last_failure_at")
+  lastFailureReason String?                  @map("last_failure_reason")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent             Agent?                   @relation(fields: [agentId], references: [id], onDelete: SetNull)
 
   @@index([userId, status])
   @@index([userId, agentId, toolName])
@@ -729,24 +750,24 @@ model WorkflowConnection {
 }
 
 model AgentTrace {
-  id             String    @id @default(cuid())
-  userId         String    @map("user_id")
-  agentId        String    @map("agent_id")
-  agentRunId     String?   @map("agent_run_id")
-  provider       String
-  model          String
-  promptVersion  String    @default("runtime-v1") @map("prompt_version")
-  inputSummary   String    @default("") @map("input_summary")
-  outputSummary  String    @default("") @map("output_summary")
-  toolCalls      String    @default("[]") @map("tool_calls")
-  latencyMs      Int       @default(0) @map("latency_ms")
-  tokenUsage     String    @default("{}") @map("token_usage")
-  costUsd        Float     @default(0) @map("cost_usd")
-  failureReason  String?   @map("failure_reason")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent          Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  agentRun       AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  agentId       String    @map("agent_id")
+  agentRunId    String?   @map("agent_run_id")
+  provider      String
+  model         String
+  promptVersion String    @default("runtime-v1") @map("prompt_version")
+  inputSummary  String    @default("") @map("input_summary")
+  outputSummary String    @default("") @map("output_summary")
+  toolCalls     String    @default("[]") @map("tool_calls")
+  latencyMs     Int       @default(0) @map("latency_ms")
+  tokenUsage    String    @default("{}") @map("token_usage")
+  costUsd       Float     @default(0) @map("cost_usd")
+  failureReason String?   @map("failure_reason")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent         Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentRun      AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
 
   @@index([userId, agentId, createdAt])
   @@index([agentRunId])
@@ -788,7 +809,7 @@ model UserConnection {
   connectionStatus ConnectionStatus @default(restricted) @map("connection_status")
   tokenExpiresAt   DateTime?        @map("token_expires_at")
   createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt         DateTime         @updatedAt @map("updated_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
   user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   agent            Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
@@ -826,7 +847,7 @@ model ActivityLog {
   dynamicMetadata String             @map("dynamic_metadata")
   hash            String
   previousHash    String?            @map("previous_hash")
-  createdAt        DateTime           @default(now()) @map("created_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
   user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   agent           Agent?             @relation(fields: [agentId], references: [id], onDelete: SetNull)
 
@@ -835,20 +856,20 @@ model ActivityLog {
 }
 
 model HitlRequest {
-  id             String         @id @default(cuid())
-  userId         String         @map("user_id")
-  agentId        String         @map("agent_id")
-  actionName     String         @map("action_name")
-  riskLevel      RiskLevel      @default(high) @map("risk_level")
-  payload        String
-  status         ActivityStatus @default(pending_human_approval)
-  expiresAt      DateTime       @map("expires_at")
-  decidedAt      DateTime?      @map("decided_at")
-  continuedAt    DateTime?      @map("continued_at")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent          Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  notifications  Notification[]
+  id            String         @id @default(cuid())
+  userId        String         @map("user_id")
+  agentId       String         @map("agent_id")
+  actionName    String         @map("action_name")
+  riskLevel     RiskLevel      @default(high) @map("risk_level")
+  payload       String
+  status        ActivityStatus @default(pending_human_approval)
+  expiresAt     DateTime       @map("expires_at")
+  decidedAt     DateTime?      @map("decided_at")
+  continuedAt   DateTime?      @map("continued_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent         Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  notifications Notification[]
 
   @@index([userId, agentId, status])
   @@map("hitl_requests")

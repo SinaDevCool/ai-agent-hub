@@ -17,6 +17,7 @@ This document identifies the single source of truth for each platform concern. N
 | Provider delivery attempts | `ProviderTransactionAttempt` |
 | Mutation deduplication | `ProviderIdempotencyRecord` |
 | Provider webhook ingestion | `ProviderWebhookEvent` |
+| Durable background execution | planned shared `DurableJob` plus the existing domain records; jobs coordinate work but never replace `LifeTransaction`, provider attempts, webhooks, idempotency, or receipts |
 | External-action evidence | `ProviderReceipt` |
 | User-visible audit history | `ActivityLog` |
 | Notifications | `Notification` and the authenticated realtime hub |

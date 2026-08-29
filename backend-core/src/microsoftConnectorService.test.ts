@@ -8,7 +8,7 @@ import { createMicrosoftCalendarEvent, createMicrosoftEmailDraft, findMicrosoftC
 const userId = `microsoft-${Date.now()}`;
 before(async () => {
   await prisma.user.create({ data: { id: userId, email: `${userId}@example.test`, vaultLocalPath: "", vaultEncryptionSalt: "test" } });
-  await prisma.connectedAccount.create({ data: { userId, provider: "microsoft", accountLabel: "test@example.com", status: "active", scopes: encodeJson(["Mail.Read", "Mail.ReadWrite", "Mail.Send", "Calendars.ReadWrite", "Files.Read.All"]), encryptedAccessToken: encryptConnectorToken("graph-token"), expiresAt: new Date(Date.now() + 3_600_000) } });
+  await prisma.connectedAccount.create({ data: { userId, provider: "microsoft", accountLabel: "test@example.com", status: "active", scopes: encodeJson(["Mail.Read", "Mail.ReadWrite", "Mail.Send", "Calendars.ReadWrite", "Files.Read"]), encryptedAccessToken: encryptConnectorToken("graph-token"), expiresAt: new Date(Date.now() + 3_600_000) } });
 });
 afterEach(resetMicrosoftGraphFetchForTest);
 after(async () => { await prisma.user.delete({ where: { id: userId } }); });

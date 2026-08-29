@@ -5,6 +5,7 @@ import { encodeJson } from "./jsonService.js";
 import { sendApprovalNotification } from "./notificationService.js";
 import { httpError } from "../errors/httpError.js";
 import { friendlyActionName } from "./runtimeIntentService.js";
+import { signConnectorState } from "./cryptoService.js";
 
 function invalidApprovalError(message: string) {
   return httpError(409, message, "invalid_approval_state");
@@ -17,13 +18,17 @@ export async function createHitlRequest(input: {
   payload: Record<string, unknown>;
   ttlMinutes?: number;
 }) {
+  const boundPayload = {
+    ...input.payload,
+    approvalBinding: signConnectorState(input.payload)
+  };
   const request = await prisma.hitlRequest.create({
     data: {
       userId: input.userId,
       agentId: input.agentId,
       actionName: input.actionName,
       riskLevel: "high",
-      payload: encodeJson(input.payload),
+      payload: encodeJson(boundPayload),
       expiresAt: new Date(Date.now() + (input.ttlMinutes ?? 15) * 60_000)
     },
     include: { agent: true, user: true }

@@ -2,6 +2,8 @@
 
 This is the authoritative operational completion checklist for AI Agent Hub. A phase is complete only when its exit criteria are evidenced; having code in the repository is not the same as having a live provider or production deployment. Canonical ownership and the mandatory reuse gate are defined in [`architecture-decisions.md`](architecture-decisions.md); do not create parallel approval, transaction, provider, receipt, or job systems.
 
+The detailed feature execution plan is [`phases-3-8-execution-plan.md`](phases-3-8-execution-plan.md). That companion follows the product phase numbering requested for connectors, travel, durable jobs, private beta, production, and additional verticals. This document remains the authoritative operational gate checklist; the companion is authoritative for implementation sequence, reuse decisions, and workstream scope.
+
 ## Phase 1 — Continuous verification
 
 The GitHub Actions workflow verifies type safety, lint, unit/integration tests, both builds, database bootstrap/seed, the consumer Playwright smoke, and PostgreSQL migrations/tests. Protect `master` and require the `verify`, `browser-smoke`, and `postgres-integration` jobs before merge.

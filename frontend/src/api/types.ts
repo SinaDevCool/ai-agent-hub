@@ -371,8 +371,10 @@ export type ConnectedAccount = {
   accountLabel: string;
   scopes: string[];
   expiresAt: string | null;
-  status: "active" | "expired" | "revoked" | "error";
+  status: "active" | "refreshing" | "expired" | "revoked" | "error";
   lastError: string | null;
+  refreshStartedAt: string | null;
+  lastRefreshAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

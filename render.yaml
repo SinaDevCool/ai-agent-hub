@@ -37,7 +37,21 @@ services:
       - key: APP_ENV
         value: production
       - key: MIGRATION_VERSION
-        value: 0018_enable_rls
+        value: 0019_connector_oauth_hardening
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_TENANT_ID
+        value: common
+      - key: MICROSOFT_REDIRECT_URI
+        sync: false
       - key: PORT
         value: 4141
       - key: DATABASE_URL
