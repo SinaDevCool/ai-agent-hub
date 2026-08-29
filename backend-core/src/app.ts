@@ -31,6 +31,7 @@ import { providerConnectionRoutes, publicProviderConnectionRoutes } from "./rout
 import { providerReceiptRoutes } from "./routes/providerReceiptRoutes.js";
 import { providerDefinitionRoutes } from "./routes/providerDefinitionRoutes.js";
 import { lifePlatformRoutes } from "./routes/lifePlatformRoutes.js";
+import { durableJobRoutes } from "./routes/durableJobRoutes.js";
 import { loadActiveProviderDefinitionsIntoRegistry } from "./services/providerDefinitionService.js";
 
 export function createApp() {
@@ -70,6 +71,7 @@ export function createApp() {
   app.use("/api/provider-receipts", providerReceiptRoutes);
   app.use("/api/life-platform", lifePlatformRoutes);
   app.use("/api/admin/providers", sensitiveActionRateLimit, providerDefinitionRoutes);
+  app.use("/api/admin/durable-jobs", sensitiveActionRateLimit, durableJobRoutes);
   app.use("/api/me/agents", agentRuntimeRateLimit, agentRuntimeRoutes);
   app.use("/api/me", installRoutes);
 

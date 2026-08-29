@@ -155,6 +155,16 @@ enum ProviderConnectionStatus {
   disabled
 }
 
+enum DurableJobStatus {
+  queued
+  leased
+  retry_scheduled
+  reconciliation_required
+  succeeded
+  cancelled
+  dead_letter
+}
+
 model User {
   id                            String                 @id @default(cuid())
   email                         String                 @unique
@@ -186,8 +196,43 @@ model User {
   shoppingLists                 ShoppingList[]
   creatorAccessRequests         CreatorAccessRequest[] @relation("CreatorAccessRequestUser")
   reviewedCreatorAccessRequests CreatorAccessRequest[] @relation("CreatorAccessRequestReviewer")
+  durableJobs                   DurableJob[]
 
   @@map("users")
+}
+
+model DurableJob {
+  id                      String           @id @default(cuid())
+  jobType                 String           @map("job_type")
+  jobVersion              Int              @default(1) @map("job_version")
+  userId                  String?          @map("user_id")
+  aggregateType           String?          @map("aggregate_type")
+  aggregateId             String?          @map("aggregate_id")
+  dedupeKey               String           @unique @map("dedupe_key")
+  payload                 String
+  status                  DurableJobStatus @default(queued)
+  priority                Int              @default(100)
+  scheduledAt             DateTime         @default(now()) @map("scheduled_at")
+  attemptCount            Int              @default(0) @map("attempt_count")
+  maxAttempts             Int              @default(5) @map("max_attempts")
+  leaseOwner              String?          @map("lease_owner")
+  leaseExpiresAt          DateTime?         @map("lease_expires_at")
+  heartbeatAt             DateTime?         @map("heartbeat_at")
+  lastErrorClassification String?          @map("last_error_classification")
+  lastErrorMessage        String?          @map("last_error_message")
+  correlationId           String?          @map("correlation_id")
+  startedAt               DateTime?         @map("started_at")
+  completedAt             DateTime?         @map("completed_at")
+  deadLetteredAt          DateTime?         @map("dead_lettered_at")
+  createdAt               DateTime         @default(now()) @map("created_at")
+  updatedAt               DateTime         @updatedAt @map("updated_at")
+  user                    User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt, priority])
+  @@index([leaseExpiresAt, status])
+  @@index([userId, createdAt])
+  @@index([aggregateType, aggregateId])
+  @@map("durable_jobs")
 }
 
 model ShoppingList {

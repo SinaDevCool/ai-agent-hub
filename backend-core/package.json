@@ -9,6 +9,8 @@
     "dev:with-generate": "npm run prisma:generate --silent && tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/server.js",
+    "start:worker": "node dist/src/worker.js",
+    "dev:worker": "tsx src/worker.ts",
     "lint": "eslint \"src/**/*.ts\"",
     "smoke:production": "node scripts/smoke_production_backend.mjs",
     "verify:release": "node scripts/verify_release.mjs",
