@@ -14,7 +14,7 @@ The hub implements a provider-neutral personal-life capability layer. Agents ask
 - Leisure: sandbox events and restaurant reservations remain available; disabled-by-default Ticketmaster event discovery and reused Google Places restaurant discovery support approval-bound external handoffs without claiming purchase or reservation.
 - Leisure: sandbox restaurant reservation/cancellation and event discovery are executable; real reservations and tickets remain provider gated.
 - Smart home: allowlisted sandbox device read/control and read-only energy analysis are executable; physical integrations require a connected Home Assistant/SmartThings account.
-- Wellness: deterministic read-only activity and non-diagnostic plan preparation are executable; device health data requires a user-authorized mobile or provider connection.
+- Wellness: deterministic sandbox flows remain available. A gated Strava adapter adds OAuth-scoped read-only activity summaries and conservative non-diagnostic plan preparation; sleep and broader device health data still require a separately reviewed mobile or provider connection.
 
 `GET /api/life-platform/catalog` returns the canonical capability/provider catalogue. `GET /api/life-platform/capabilities/:key/providers?region=DE&level=discover` returns eligible providers. The provider catalogue records official documentation, regional coverage, authorization model, execution levels, and commercial access requirements.
 

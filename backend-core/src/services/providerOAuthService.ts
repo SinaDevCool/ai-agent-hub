@@ -117,20 +117,22 @@ export async function completeProviderOAuth(input: { code?: string; state?: stri
     throw badRequest("This provider rejected the OAuth connection.", "oauth_token_exchange_failed");
   }
   const expiresIn = typeof body.expires_in === "number" ? body.expires_in : undefined;
-  const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : undefined;
+  const expiresAt = typeof body.expires_at === "number" ? new Date(body.expires_at * 1000) : expiresIn ? new Date(Date.now() + expiresIn * 1000) : undefined;
+  const athlete = body.athlete && typeof body.athlete === "object" ? body.athlete as Record<string, unknown> : {};
   const connection = await createProviderConnection({
     userId: state.userId,
     providerId: provider.providerId,
     displayName: typeof body.account_label === "string" ? body.account_label : provider.label,
     credentials: {
       accessToken: body.access_token,
-      refreshToken: typeof body.refresh_token === "string" ? body.refresh_token : undefined
+      refreshToken: typeof body.refresh_token === "string" ? body.refresh_token : undefined,
+      grantedScopes: typeof body.scope === "string" ? body.scope : undefined
     },
     scopes: typeof body.scope === "string" ? body.scope.split(/\s+/).filter(Boolean) : config.scopes,
     expiresAt,
     refreshAfter: expiresAt ? new Date(expiresAt.getTime() - 5 * 60_000) : undefined,
-    externalAccountId: typeof body.account_id === "string" ? body.account_id : undefined,
-    externalAccountLabel: typeof body.account_label === "string" ? body.account_label : undefined,
+    externalAccountId: typeof body.account_id === "string" ? body.account_id : typeof athlete.id === "number" || typeof athlete.id === "string" ? String(athlete.id) : undefined,
+    externalAccountLabel: typeof body.account_label === "string" ? body.account_label : [athlete.firstname, athlete.lastname].filter((value) => typeof value === "string").join(" ").trim() || undefined,
     metadata: { oauth: true }
   });
   return { status: "connected" as const, connection };

@@ -53,7 +53,7 @@ export async function getOperationalSummary(now = new Date()) {
   return {
     generatedAt: now.toISOString(),
     release: deploymentInfo,
-    flags: { durableJobs: env.DURABLE_JOBS_ENABLED === "true", privateBeta: env.PRIVATE_BETA_ENFORCED === "true", liveTravel: env.LIVE_TRAVEL_ENABLED === "true", liveFinance: env.LIVE_FINANCE_ENABLED === "true", liveShopping: env.LIVE_SHOPPING_ENABLED === "true", liveHousehold: env.LIVE_HOUSEHOLD_ENABLED === "true", liveLeisure: env.LIVE_LEISURE_ENABLED === "true", liveSmartHomeRead: env.LIVE_SMART_HOME_READ_ENABLED === "true", liveSmartHomeControl: env.LIVE_SMART_HOME_CONTROL_ENABLED === "true", privacyRights: env.PRIVACY_RIGHTS_ENABLED === "true", verticalReleaseGating: env.VERTICAL_RELEASE_GATING_ENABLED === "true" },
+    flags: { durableJobs: env.DURABLE_JOBS_ENABLED === "true", privateBeta: env.PRIVATE_BETA_ENFORCED === "true", liveTravel: env.LIVE_TRAVEL_ENABLED === "true", liveFinance: env.LIVE_FINANCE_ENABLED === "true", liveShopping: env.LIVE_SHOPPING_ENABLED === "true", liveHousehold: env.LIVE_HOUSEHOLD_ENABLED === "true", liveLeisure: env.LIVE_LEISURE_ENABLED === "true", liveSmartHomeRead: env.LIVE_SMART_HOME_READ_ENABLED === "true", liveSmartHomeControl: env.LIVE_SMART_HOME_CONTROL_ENABLED === "true", liveWellness: env.LIVE_WELLNESS_ENABLED === "true", privacyRights: env.PRIVACY_RIGHTS_ENABLED === "true", verticalReleaseGating: env.VERTICAL_RELEASE_GATING_ENABLED === "true" },
     signals,
     ...evaluateOperationalSignals(signals)
   };

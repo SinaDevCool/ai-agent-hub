@@ -75,6 +75,10 @@ const schema = z.object({
   LIVE_SMART_HOME_CONTROL_ENABLED: z.enum(["true", "false"]).default("false"),
   SMART_HOME_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(8000),
   HOME_ASSISTANT_ALLOWED_ORIGINS: z.string().default(""),
+  LIVE_WELLNESS_ENABLED: z.enum(["true", "false"]).default("false"),
+  WELLNESS_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(8000),
+  STRAVA_CLIENT_ID: z.string().min(1).optional(),
+  STRAVA_CLIENT_SECRET: z.string().min(1).optional(),
   HOSTED_TRAVEL_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("false"),
   TRAVEL_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   TRAVEL_LAUNCH_REGIONS: z.string().default("DE,EU"),
@@ -133,6 +137,9 @@ const schema = z.object({
   }
   if ((value.LIVE_SMART_HOME_READ_ENABLED === "true" || value.LIVE_SMART_HOME_CONTROL_ENABLED === "true") && !value.HOME_ASSISTANT_ALLOWED_ORIGINS.trim()) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "HOME_ASSISTANT_ALLOWED_ORIGINS is required when live smart-home access is enabled" });
+  }
+  if (value.LIVE_WELLNESS_ENABLED === "true" && (!value.STRAVA_CLIENT_ID || !value.STRAVA_CLIENT_SECRET)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET are required when live wellness is enabled" });
   }
   if (!process.env.FRONTEND_ORIGIN) {
     context.addIssue({

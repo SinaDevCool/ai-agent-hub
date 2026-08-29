@@ -228,11 +228,12 @@ async function refreshOAuthConnection(input: {
     const nextCredentials = {
       ...credentials,
       accessToken: body.access_token,
-      refreshToken: typeof body.refresh_token === "string" ? body.refresh_token : refreshToken
+      refreshToken: typeof body.refresh_token === "string" ? body.refresh_token : refreshToken,
+      grantedScopes: typeof body.scope === "string" ? body.scope : credentials.grantedScopes
     };
     const payload = encodeJson(nextCredentials);
     const expiresIn = typeof body.expires_in === "number" ? body.expires_in : undefined;
-    const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : connection.expiresAt;
+    const expiresAt = typeof body.expires_at === "number" ? new Date(body.expires_at * 1000) : expiresIn ? new Date(Date.now() + expiresIn * 1000) : connection.expiresAt;
     const scopes = typeof body.scope === "string"
       ? body.scope.split(/\s+/).filter(Boolean)
       : decodeJson<string[]>(connection.scopes, []);
@@ -412,6 +413,14 @@ export async function deleteProviderConnection(input: { userId: string; connecti
       try { const response = await providerConnectionTestFetchImpl(`${base}/item/remove`, { method: "POST", signal: globalThis.AbortSignal.timeout(env.FINANCE_PROVIDER_TIMEOUT_MS), headers: { "Content-Type": "application/json", "PLAID-CLIENT-ID": clientId, "PLAID-SECRET": secret }, body: JSON.stringify({ access_token: accessToken }) }); providerRevoked = response.ok; } catch { providerRevoked = false; }
     }
     await prisma.financialAccount.deleteMany({ where: { userId: input.userId, providerId: "plaid" } });
+  }
+  if (connection.providerId === "strava") {
+    const credentials = decodeJson<ProviderCredentials>(decryptProviderCredentials(connection.encryptedCredentials), {});
+    const token = String(credentials.refreshToken ?? credentials.accessToken ?? "");
+    if (token && env.STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET) {
+      const authorization = Buffer.from(`${env.STRAVA_CLIENT_ID}:${env.STRAVA_CLIENT_SECRET}`).toString("base64");
+      try { const response = await providerConnectionTestFetchImpl("https://www.strava.com/oauth/revoke", { method: "POST", signal: globalThis.AbortSignal.timeout(env.WELLNESS_PROVIDER_TIMEOUT_MS), headers: { Authorization: `Basic ${authorization}`, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ token, token_type_hint: credentials.refreshToken ? "refresh_token" : "access_token" }) }); providerRevoked = response.ok; } catch { providerRevoked = false; }
+    } else providerRevoked = false;
   }
   await prisma.providerConnection.delete({ where: { id: connection.id } });
   await writeActivityLog({ userId: input.userId, actionType: "api_callback", status: providerRevoked === false ? "error" : "success", dynamicMetadata: { event: "provider_connection_disconnected", providerId: connection.providerId, providerRevoked } });
