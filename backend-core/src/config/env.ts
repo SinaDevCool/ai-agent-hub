@@ -52,6 +52,8 @@ const schema = z.object({
   DURABLE_JOB_LEASE_MS: z.coerce.number().int().min(5000).max(900000).default(60000),
   DURABLE_JOB_POLL_MS: z.coerce.number().int().min(250).max(60000).default(2000),
   LIVE_TRAVEL_ENABLED: z.enum(["true", "false"]).default("false"),
+  LIVE_APPOINTMENTS_ENABLED: z.enum(["true", "false"]).default("false"),
+  APPOINTMENTS_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   HOSTED_TRAVEL_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("false"),
   TRAVEL_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   TRAVEL_LAUNCH_REGIONS: z.string().default("DE,EU"),

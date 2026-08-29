@@ -18,6 +18,7 @@ import { duffelProvider } from "./providers/duffelProvider.js";
 import { amadeusProvider } from "./providers/amadeusProvider.js";
 import { plaidProvider } from "./providers/plaidProvider.js";
 import { financeSandboxProvider } from "./providers/financeSandboxProvider.js";
+import { calComProvider } from "./providers/calComProvider.js";
 
 export type ConnectorProviderDefinition = {
   providerId: string;
@@ -66,7 +67,7 @@ const workflowProvider: ConnectorProviderDefinition = {
   description: "Runs a verified webhook workflow from n8n, Make, Zapier, or a custom provider."
 };
 
-const providerRegistry: ProviderAdapter[] = [createToolProviderAdapter(workflowProvider), normalizeProviderManifest(lifeSandboxProvider), normalizeProviderManifest(financeSandboxProvider), normalizeProviderManifest(duffelProvider), normalizeProviderManifest(amadeusProvider), normalizeProviderManifest(plaidProvider)];
+const providerRegistry: ProviderAdapter[] = [createToolProviderAdapter(workflowProvider), normalizeProviderManifest(lifeSandboxProvider), normalizeProviderManifest(financeSandboxProvider), normalizeProviderManifest(duffelProvider), normalizeProviderManifest(amadeusProvider), normalizeProviderManifest(plaidProvider), normalizeProviderManifest(calComProvider)];
 
 export function listConnectorProviders() {
   return providerRegistry;
