@@ -6,9 +6,12 @@ import {
   completeGoogleOAuth,
   disconnectConnectedAccount,
   getConnectorStartState,
+  getValidConnectorToken,
   resetConnectorFetchForTest,
   setConnectorFetchForTest
 } from "./services/connectorAccountService.js";
+import { encryptConnectorToken } from "./services/cryptoService.js";
+import { encodeJson } from "./services/jsonService.js";
 
 const userId = `connector-oauth-${Date.now()}`;
 const originalGoogle = {
@@ -82,4 +85,35 @@ test("disconnect revokes Google at the provider and clears local tokens", async 
   assert.equal(revoked.status, "revoked");
   assert.equal(revoked.encryptedAccessToken, null);
   assert.equal(revoked.encryptedRefreshToken, null);
+});
+
+test("concurrent refresh callers acquire only one refresh lease", async () => {
+  const account = await prisma.connectedAccount.create({
+    data: {
+      userId,
+      provider: "google",
+      accountLabel: "refresh-race@example.test",
+      status: "active",
+      scopes: encodeJson(["https://www.googleapis.com/auth/gmail.readonly"]),
+      encryptedAccessToken: encryptConnectorToken("expired-access"),
+      encryptedRefreshToken: encryptConnectorToken("refresh-token"),
+      expiresAt: new Date(Date.now() - 60_000)
+    }
+  });
+  let refreshCalls = 0;
+  setConnectorFetchForTest(async (url) => {
+    assert.match(String(url), /oauth2\.googleapis\.com\/token/);
+    refreshCalls += 1;
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    return new Response(JSON.stringify({ access_token: "new-access", expires_in: 3600 }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+
+  const results = await Promise.all([
+    getValidConnectorToken({ userId, provider: "google", requiredScopes: ["https://www.googleapis.com/auth/gmail.readonly"] }),
+    getValidConnectorToken({ userId, provider: "google", requiredScopes: ["https://www.googleapis.com/auth/gmail.readonly"] })
+  ]);
+  assert.equal(refreshCalls, 1);
+  assert.equal(results.filter((result) => result.status === "ok").length, 1);
+  assert.equal(results.filter((result) => result.status === "refreshing").length, 1);
+  await prisma.connectedAccount.delete({ where: { id: account.id } });
 });
