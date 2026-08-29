@@ -24,3 +24,12 @@ test("household sandbox refuses unconfirmed and forged bookings", async () => {
   const description = "Assemble a desk"; const provider = ((await (await post("/api/life-platform/household/sandbox/search", owner, { serviceType: "Handyperson", location: "Berlin", description })).json()) as { providers: unknown[] }).providers[0]; const quote = ((await (await post("/api/life-platform/household/sandbox/quote", owner, { provider, description })).json()) as { quote: unknown }).quote;
   assert.equal((await post("/api/life-platform/household/sandbox/book", owner, { quote, idempotencyKey: "unconfirmed" })).status, 400);
 });
+
+test("live household discovery and handoff fail closed while disabled", async () => {
+  const search = await post("/api/household/live/search", owner, { serviceType: "Plumber", location: "Berlin" });
+  assert.equal(search.status, 503);
+  assert.equal(((await search.json()) as { error: { code: string } }).error.code, "live_household_disabled");
+  const handoff = await post("/api/household/live/handoff/prepare", owner, { agentId: "agent-not-contacted", placeId: "ChIJ0123456789", serviceType: "Plumber", location: "Berlin", description: "Repair a leaking tap", idempotencyKey: `${runId}-disabled` });
+  assert.equal(handoff.status, 503);
+  assert.equal(await prisma.lifeTransaction.count({ where: { userId: owner, providerId: "google-places" } }), 0);
+});

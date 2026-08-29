@@ -70,6 +70,14 @@ services:
         sync: false
       - key: INSTACART_API_ENV
         value: development
+      - key: LIVE_HOUSEHOLD_ENABLED
+        value: false
+      - key: HOSTED_HOUSEHOLD_HANDOFF_ENABLED
+        value: false
+      - key: HOUSEHOLD_PROVIDER_TIMEOUT_MS
+        value: 10000
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
       - key: HOSTED_TRAVEL_CHECKOUT_ENABLED
         value: false
       - key: TRAVEL_PROVIDER_TIMEOUT_MS

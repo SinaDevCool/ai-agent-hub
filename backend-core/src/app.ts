@@ -34,6 +34,7 @@ import { lifePlatformRoutes } from "./routes/lifePlatformRoutes.js";
 import { durableJobRoutes } from "./routes/durableJobRoutes.js";
 import { travelCheckoutRoutes } from "./routes/travelCheckoutRoutes.js";
 import { shoppingCheckoutRoutes } from "./routes/shoppingCheckoutRoutes.js";
+import { householdLiveRoutes } from "./routes/householdLiveRoutes.js";
 import { betaRoutes } from "./routes/betaRoutes.js";
 import { requireBetaAccess } from "./middleware/requireBetaAccess.js";
 import { dataRightsRoutes } from "./routes/dataRightsRoutes.js";
@@ -85,6 +86,7 @@ export function createApp() {
   app.use("/api/privacy/requests", sensitiveActionRateLimit, dataRightsRoutes);
   app.use("/api/travel/hosted-checkout", sensitiveActionRateLimit, travelCheckoutRoutes);
   app.use("/api/shopping/hosted-checkout", sensitiveActionRateLimit, shoppingCheckoutRoutes);
+  app.use("/api/household/live", sensitiveActionRateLimit, householdLiveRoutes);
   app.use("/api/admin/providers", sensitiveActionRateLimit, providerDefinitionRoutes);
   app.use("/api/admin/durable-jobs", sensitiveActionRateLimit, durableJobRoutes);
   app.use("/api/admin/operations", sensitiveActionRateLimit, operationsRoutes);
