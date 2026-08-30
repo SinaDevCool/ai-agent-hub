@@ -32,7 +32,7 @@ function marketplaceStateFromUrl() {
 }
 
 function marketplaceAgentIdFromPath() {
-  return window.location.pathname.match(/^\/discover\/agents\/([^/]+)\/?$/)?.[1] ?? "";
+  return window.location.pathname.match(/^\/app\/discover\/agents\/([^/]+)\/?$/)?.[1] ?? "";
 }
 
 export function useMarketplace(input: {
@@ -139,7 +139,7 @@ export function useMarketplace(input: {
   }, [prioritizedMarketplaceAgents]);
 
   useEffect(() => {
-    if (!window.location.pathname.startsWith("/discover")) return;
+    if (!window.location.pathname.startsWith("/app/discover")) return;
     const params = new URLSearchParams();
     if (marketplaceSearch.trim()) params.set("q", marketplaceSearch.trim());
     if (marketplaceCategory !== "All") params.set("category", marketplaceCategory);
@@ -147,7 +147,7 @@ export function useMarketplace(input: {
     if (marketplaceFilters.canTakeActions) params.set("actions", "available");
     if (marketplaceFilters.needsApproval) params.set("approval", "required");
     const detailId = marketplaceDetailAgent?.id;
-    const pathname = detailId ? `/discover/agents/${encodeURIComponent(detailId)}` : "/discover";
+    const pathname = detailId ? `/app/discover/agents/${encodeURIComponent(detailId)}` : "/app/discover";
     const nextUrl = `${pathname}${params.size ? `?${params.toString()}` : ""}`;
     if (`${window.location.pathname}${window.location.search}` !== nextUrl) window.history.replaceState({ section: "marketplace" }, "", nextUrl);
   }, [marketplaceCategory, marketplaceDetailAgent?.id, marketplaceFilters, marketplaceSearch]);
@@ -165,6 +165,13 @@ export function useMarketplace(input: {
     window.addEventListener("popstate", syncFromLocation);
     return () => window.removeEventListener("popstate", syncFromLocation);
   }, [input.marketplaceAgents]);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("intent") !== "install" || !marketplaceDetailAgent) return;
+    if (!installedDefinitionIds.has(marketplaceDetailAgent.id)) setConfirmInstallAgent(marketplaceDetailAgent);
+    const nextUrl = window.location.pathname;
+    window.history.replaceState({ section: "marketplace", agentId: marketplaceDetailAgent.id }, "", nextUrl);
+  }, [installedDefinitionIds, marketplaceDetailAgent]);
 
   async function installMarketplaceAgent(agent: MarketplaceAgent) {
     setMarketplaceError("");
@@ -214,7 +221,7 @@ export function useMarketplace(input: {
     setSelectedMarketplaceAgentId(agent.id);
     setMarketplaceDetailAgent(agent);
     const params = window.location.search;
-    window.history.pushState({ section: "marketplace", agentId: agent.id }, "", `/discover/agents/${encodeURIComponent(agent.id)}${params}`);
+    window.history.pushState({ section: "marketplace", agentId: agent.id }, "", `/app/discover/agents/${encodeURIComponent(agent.id)}${params}`);
   }
 
   return {

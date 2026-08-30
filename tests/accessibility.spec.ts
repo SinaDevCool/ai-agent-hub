@@ -14,7 +14,7 @@ test("primary desktop and settings surfaces have no serious automated WCAG viola
       window.localStorage.setItem("ai-agent-hub-theme", "dark");
     }
   });
-  await page.goto("/");
+  await page.goto("/app");
   await expect(page.getByRole("heading", { name: "What do you want help with today?" })).toBeVisible();
   await expectNoSeriousViolations(page, "home");
   const themeButton = page.getByRole("button", { name: /Switch to (dark|light) theme/ });
@@ -32,7 +32,7 @@ test("primary desktop and settings surfaces have no serious automated WCAG viola
 test("primary mobile surface has no serious automated WCAG violations", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => window.localStorage.setItem("ai-agent-hub-user-id", `a11y-mobile-${Date.now()}`));
-  await page.goto("/");
+  await page.goto("/app");
   await expect(page.getByRole("heading", { name: "What do you want help with first?" })).toBeVisible();
   await expectNoSeriousViolations(page, "mobile-home");
 });
@@ -45,20 +45,20 @@ test("every consumer route remains readable in light mode", async ({ page }) => 
   });
 
   const routes = [
-    "/", "/discover", "/agents", "/approvals", "/activity", "/private-data", "/settings",
-    "/creator", "/operator/review", "/operator/operations", "/operator/beta"
+    "/app", "/app/discover", "/app/agents", "/app/approvals", "/app/activity", "/app/private-data", "/app/settings",
+    "/app/creator", "/app/operator/review", "/app/operator/operations", "/app/operator/beta"
   ];
   for (const route of routes) {
     await page.goto(route);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator("main")).toBeVisible();
-    if (route === "/settings") await expect(page.locator("#settings")).toBeVisible();
+    if (route === "/app/settings") await expect(page.locator("#settings")).toBeVisible();
     await expectNoSeriousViolations(page, `light:${route}`);
     await page.screenshot({ fullPage: true, path: test.info().outputPath(`light-${route === "/" ? "home" : route.slice(1)}.png`) });
   }
 
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const route of ["/", "/discover", "/agents", "/private-data", "/settings"]) {
+  for (const route of ["/app", "/app/discover", "/app/agents", "/app/private-data", "/app/settings"]) {
     await page.goto(route);
     await expectNoSeriousViolations(page, `light-mobile:${route}`);
   }

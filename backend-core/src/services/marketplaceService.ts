@@ -205,6 +205,64 @@ export async function getMarketplaceAgentBySlug(input: { userId: string; slug: s
   return serializeAgentDefinition(definition);
 }
 
+function publicAvailability(manifest: MarketplaceManifest) {
+  const summary = [manifest.description, ...listValues(manifest.trustReasons)].join(" ").toLowerCase();
+  if (/sandbox|example|simulation/.test(summary)) return "sandbox" as const;
+  if (/configuration|required provider|requires connection/.test(summary)) return "configuration_required" as const;
+  return "beta" as const;
+}
+
+function serializePublicMarketplaceDefinition(definition: MarketplaceDefinition) {
+  const manifest = parseCapabilityManifest(definition.versions[0]?.capabilityManifest ?? "");
+  const tools = listValues(manifest.tools);
+  return {
+    id: definition.id,
+    slug: definition.slug,
+    name: definition.name,
+    tagline: definition.tagline,
+    description: definition.description,
+    category: definition.category,
+    trustScore: definition.trustScore,
+    installCount: definition.installCount,
+    averageRating: definition.averageRating,
+    creator: definition.creator ? { displayName: definition.creator.displayName, verified: definition.creator.verified } : null,
+    capabilities: {
+      examplePrompts: listValues(manifest.examplePrompts).slice(0, 4),
+      trustReasons: listValues(manifest.trustReasons).slice(0, 4),
+      requestedDataCategories: listValues(manifest.requestedSchemas),
+      actionSummary: listValues(manifest.highRiskActions),
+      approvalRequired: listValues(manifest.highRiskActions).length > 0,
+      runtimeSupport: ["web", "desktop"] as const,
+      canTakeActions: tools.includes("action.execute"),
+      availability: publicAvailability(manifest)
+    }
+  };
+}
+
+export async function listPublicMarketplaceAgents(input: { category?: AgentCategory; search?: string }) {
+  const definitions = await prisma.agentDefinition.findMany({
+    where: { status: "published", ...(input.category ? { category: input.category } : {}) },
+    include: { creator: true, versions: { where: { isActive: true }, take: 1, orderBy: { createdAt: "desc" } }, installs: false },
+    orderBy: [{ installCount: "desc" }, { trustScore: "desc" }, { name: "asc" }]
+  });
+  const search = input.search?.trim() ?? "";
+  const scored = definitions
+    .filter((definition) => definition.versions.length > 0 && !isInternalMarketplaceDefinition(definition))
+    .map((definition) => scoreMarketplaceAgent(definition as MarketplaceDefinition, search));
+  const visible = search ? scored.filter((result) => result.matchScore > 0) : scored;
+  if (search) visible.sort((left, right) => right.matchScore - left.matchScore || right.definition.trustScore - left.definition.trustScore);
+  return visible.map((result) => serializePublicMarketplaceDefinition(result.definition));
+}
+
+export async function getPublicMarketplaceAgentBySlug(slug: string) {
+  const definition = await prisma.agentDefinition.findFirst({
+    where: { slug, status: "published" },
+    include: { creator: true, versions: { where: { isActive: true }, take: 1, orderBy: { createdAt: "desc" } }, installs: false }
+  });
+  if (!definition || !definition.versions.length || isInternalMarketplaceDefinition(definition)) return null;
+  return serializePublicMarketplaceDefinition(definition as MarketplaceDefinition);
+}
+
 export async function resolveInstallAgentName(userId: string, requestedName: string) {
   const existingAgent = await prisma.agent.findFirst({
     where: { name: requestedName, connections: { some: { userId } } },

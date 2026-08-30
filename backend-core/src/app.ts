@@ -17,6 +17,7 @@ import { activityRoutes } from "./routes/activityRoutes.js";
 import { mcpRoutes } from "./routes/mcpRoutes.js";
 import { hitlRoutes } from "./routes/hitlRoutes.js";
 import { marketplaceRoutes } from "./routes/marketplaceRoutes.js";
+import { publicMarketplaceRoutes } from "./routes/publicMarketplaceRoutes.js";
 import { creatorRoutes } from "./routes/creatorRoutes.js";
 import { creatorAccessRoutes } from "./routes/creatorAccessRoutes.js";
 import { moderationRoutes } from "./routes/moderationRoutes.js";
@@ -61,6 +62,7 @@ export function createApp() {
   app.use("/api", generalApiRateLimit);
   app.use("/api/connectors", publicConnectorRoutes);
   app.use("/api/provider-connections", publicProviderConnectionRoutes);
+  app.use("/api/public/marketplace", publicMarketplaceRoutes);
   app.use("/api/webhooks/cal-com", calComWebhookRoutes);
   app.use("/api/webhooks/plaid", plaidWebhookRoutes);
   app.use("/api", requireUser);

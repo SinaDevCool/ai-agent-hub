@@ -7,16 +7,16 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("consumer navigation is deep-linkable and every visible control has a name", async ({ page }) => {
-  await page.goto("/discover");
+  await page.goto("/app/discover");
   const navigation = page.locator(".nav-rail nav").first();
   const expectedLinks = [
-    ["Home", "/"],
-    ["Discover", "/discover"],
-    ["My Agents", "/agents"],
-    ["Approvals", "/approvals"],
-    ["Activity", "/activity"],
-    ["Private Data", "/private-data"],
-    ["Settings", "/settings"]
+    ["Home", "/app"],
+    ["Discover", "/app/discover"],
+    ["My Agents", "/app/agents"],
+    ["Approvals", "/app/approvals"],
+    ["Activity", "/app/activity"],
+    ["Private Data", "/app/private-data"],
+    ["Settings", "/app/settings"]
   ] as const;
 
   for (const [name, href] of expectedLinks) {
@@ -27,16 +27,16 @@ test("consumer navigation is deep-linkable and every visible control has a name"
   expect(unnamedButtons).toBe(0);
 
   await navigation.getByRole("link", { name: "Approvals", exact: true }).click();
-  await expect(page).toHaveURL(/\/approvals$/);
+  await expect(page).toHaveURL(/\/app\/approvals$/);
   await expect(page.getByRole("heading", { name: "Approvals" })).toBeVisible();
   await navigation.getByRole("link", { name: "Activity", exact: true }).click();
-  await expect(page).toHaveURL(/\/activity$/);
+  await expect(page).toHaveURL(/\/app\/activity$/);
   await navigation.getByRole("link", { name: "Settings", exact: true }).click();
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page).toHaveURL(/\/app\/settings$/);
 });
 
 test("Discover primary interactions provide visible feedback", async ({ page }) => {
-  await page.goto("/discover");
+  await page.goto("/app/discover");
 
   await page.getByRole("button", { name: "Safe travel planning" }).click();
   await expect(page.getByLabel("Search marketplace agents")).toHaveValue("travel");
@@ -65,7 +65,7 @@ test("Discover primary interactions provide visible feedback", async ({ page }) 
 });
 
 test("Settings tabs use stable URLs and mobile navigation remains compact", async ({ page }) => {
-  await page.goto("/settings");
+  await page.goto("/app/settings");
   await page.getByRole("button", { name: "Connections", exact: true }).click();
   await expect(page).toHaveURL(/\/settings\/connections$/);
   await page.getByRole("button", { name: "Local AI", exact: true }).click();
@@ -76,7 +76,7 @@ test("Settings tabs use stable URLs and mobile navigation remains compact", asyn
   await expect(page.getByRole("button", { name: "Dark", exact: true })).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/discover");
+  await page.goto("/app/discover");
   await expect(page.locator(".nav-rail .nav-item-group > a:visible")).toHaveCount(5);
   await expect(page.getByRole("link", { name: "AI Agent Hub home" })).toBeVisible();
 });

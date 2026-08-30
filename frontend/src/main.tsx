@@ -1,7 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
-import { App } from "./App";
-import { DesktopAuthRelay } from "./components/shell/DesktopAuthRelay";
+import { RootApp } from "./RootApp";
 import "./styles/index.css";
 
 class StartupErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -29,5 +28,4 @@ class StartupErrorBoundary extends Component<{ children: ReactNode }, { error: E
 
 const root = document.getElementById("root");
 if (!root) throw new Error("The application root element is missing.");
-const content = window.location.pathname === "/desktop-auth" ? <DesktopAuthRelay /> : <App />;
-ReactDOM.createRoot(root).render(<StartupErrorBoundary>{content}</StartupErrorBoundary>);
+ReactDOM.createRoot(root).render(<StartupErrorBoundary><RootApp /></StartupErrorBoundary>);

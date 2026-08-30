@@ -3,6 +3,7 @@ import { setApiAccessToken } from "../api/client";
 import { isAuthConfigured, supabase, type AuthSession } from "../api/supabaseClient";
 import type { AuthMode } from "../components/shell/AuthScreens";
 import { friendlyAuthError, parseDesktopAuthCallback } from "../lib/desktopAuth";
+import { safeReturnPath } from "../lib/rootRoutes";
 
 const isDesktopRuntime = () => "__TAURI_INTERNALS__" in window;
 const desktopRelay = () => (import.meta.env.VITE_DESKTOP_AUTH_RECOVERY_URL as string | undefined) ?? "https://ai-agent-hub-staging.pages.dev/desktop-auth";
@@ -10,7 +11,13 @@ const desktopRelay = () => (import.meta.env.VITE_DESKTOP_AUTH_RECOVERY_URL as st
 export function useAuthSession() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(isAuthConfigured);
-  const [authMode, setAuthModeState] = useState<AuthMode>("sign-in");
+  const [authMode, setAuthModeState] = useState<AuthMode>(() => {
+    if (window.location.pathname === "/signup") return "sign-up";
+    if (window.location.pathname === "/forgot-password") return "forgot-password";
+    if (window.location.pathname === "/reset-password") return "reset-password";
+    if (window.location.pathname === "/verify-email") return "verify-email";
+    return "sign-in";
+  });
   const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [confirmPassword, setConfirmPassword] = useState("");
   const [authMessage, setAuthMessage] = useState(""); const [isSubmitting, setIsSubmitting] = useState(false);
   function setAuthMode(mode: AuthMode) { setAuthModeState(mode); setPassword(""); setConfirmPassword(""); setAuthMessage(""); }
@@ -43,11 +50,12 @@ export function useAuthSession() {
     setAuthMessage(""); setIsSubmitting(true);
     try {
       if (authMode === "sign-up") {
-        const emailRedirectTo = isDesktopRuntime() ? desktopRelay() : window.location.origin;
+        const returnTo = safeReturnPath(new URLSearchParams(window.location.search).get("returnTo"), "/app");
+        const emailRedirectTo = isDesktopRuntime() ? desktopRelay() : `${window.location.origin}${returnTo}`;
         const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo } }); if (error) throw error;
         if (data.session) setSession(data.session); else setAuthModeState("verify-email");
       } else if (authMode === "forgot-password") {
-        const redirectTo = isDesktopRuntime() ? `${desktopRelay()}?mode=recovery` : `${window.location.origin}?mode=recovery`;
+        const redirectTo = isDesktopRuntime() ? `${desktopRelay()}?mode=recovery` : `${window.location.origin}/reset-password`;
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo }); if (error) throw error;
         setAuthMessage("Recovery email sent. Open the newest message to choose a new password.");
       } else if (authMode === "reset-password") {

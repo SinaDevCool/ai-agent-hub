@@ -3,9 +3,9 @@ import { pathForSection, sectionFromPathname } from "./appRoutes";
 
 describe("appRoutes", () => {
   it("uses the consumer-facing canonical paths", () => {
-    expect(pathForSection("marketplace")).toBe("/discover");
-    expect(pathForSection("vault")).toBe("/private-data");
-    expect(pathForSection("clearance")).toBe("/approvals");
+    expect(pathForSection("marketplace")).toBe("/app/discover");
+    expect(pathForSection("vault")).toBe("/app/private-data");
+    expect(pathForSection("clearance")).toBe("/app/approvals");
   });
 
   it("keeps legacy links working", () => {
@@ -15,9 +15,9 @@ describe("appRoutes", () => {
   });
 
   it("recognizes detail and settings routes", () => {
-    expect(sectionFromPathname("/discover/agents/example", "home")).toBe("marketplace");
-    expect(sectionFromPathname("/agents/example/chat", "home")).toBe("helpers");
-    expect(sectionFromPathname("/approvals/request-1", "home")).toBe("clearance");
-    expect(sectionFromPathname("/settings/connections", "home")).toBe("settings");
+    expect(sectionFromPathname("/app/discover/agents/example", "home")).toBe("marketplace");
+    expect(sectionFromPathname("/app/agents/example/chat", "home")).toBe("helpers");
+    expect(sectionFromPathname("/app/approvals/request-1", "home")).toBe("clearance");
+    expect(sectionFromPathname("/app/settings/connections", "home")).toBe("settings");
   });
 });

@@ -62,7 +62,7 @@ test("desktop Local AI lifecycle and external OAuth controls remain operable", a
     json: { status: "ready", provider: "microsoft", authorizationUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=test", scopes: [], message: "Open Microsoft." }
   }));
 
-  await page.goto("/settings");
+  await page.goto("/app/settings");
   await page.getByRole("button", { name: "Local AI", exact: true }).click();
   const fastModel = page.locator(".local-model-option").filter({ hasText: "Ministral 3 3B" });
   const qualityModel = page.locator(".local-model-option").filter({ hasText: "Ministral 3 8B" });

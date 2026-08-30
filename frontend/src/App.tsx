@@ -58,6 +58,7 @@ import { friendlyActionName, friendlyList, friendlyToolName } from "./lib/displa
 import { marketplaceExamplePrompts, marketplaceTrustReasons } from "./lib/marketplaceDisplay";
 import { buildPrivacyExportPayload, downloadJson } from "./lib/privacyExport";
 import { parseRealtimeEvent, shouldRefreshForRealtimeEvent } from "./lib/realtimeEvents";
+import { safeReturnPath } from "./lib/rootRoutes";
 
 type ConfirmationDialog = {
   title: string;
@@ -77,6 +78,15 @@ function toggleListValue(values: string[], value: string) {
 
 export function App() {
   const auth = useAuthSession();
+
+  useEffect(() => { document.title = "AI Agent Hub"; }, []);
+
+  useEffect(() => {
+    if (!auth.session || !["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email"].includes(window.location.pathname)) return;
+    const target = safeReturnPath(new URLSearchParams(window.location.search).get("returnTo"), "/app");
+    window.history.replaceState({}, "", target);
+    window.dispatchEvent(new globalThis.PopStateEvent("popstate"));
+  }, [auth.session]);
   const workspaceData = useWorkspaceData({ formatError: friendlyAppError });
   const {
     agents,

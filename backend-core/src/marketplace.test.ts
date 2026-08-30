@@ -120,6 +120,27 @@ test("marketplace list returns only published helpers and supports category filt
   assert.equal(data.agents[0]?.category, "Custom");
 });
 
+test("public marketplace returns a narrow published catalog without user fields", async () => {
+  const definition = await createMarketplaceDefinition({
+    suffix: "public-safe",
+    name: "Public Safe",
+    category: "Executive",
+    manifest: { requestedSchemas: ["Identity"], highRiskActions: ["send_message"], trustReasons: ["Asks before sending"] }
+  });
+  await createMarketplaceDefinition({ suffix: "public-draft", name: "Public Draft", status: "draft" });
+
+  const response = await apiGet(`/api/public/marketplace/agents?search=${encodeURIComponent("Public Safe")}`);
+  assert.equal(response.status, 200);
+  const data = await response.json() as { agents: Array<Record<string, unknown> & { id: string; capabilities: Record<string, unknown> }> };
+  const publicDefinition = data.agents.find((agent) => agent.id === definition.id);
+  assert.ok(publicDefinition);
+  assert.equal(publicDefinition.installed, undefined);
+  assert.equal(publicDefinition.moderationNote, undefined);
+  assert.equal(publicDefinition.versions, undefined);
+  assert.deepEqual(publicDefinition.capabilities.requestedDataCategories, ["Identity"]);
+  assert.equal(publicDefinition.capabilities.approvalRequired, true);
+});
+
 test("external helper import previews endpoint safety and installs a personal restricted helper", async () => {
   const user = await createUser("external-import-user", "creator");
   const endpointUrl = `https://external.example.test/${testRunId}/private-path`;

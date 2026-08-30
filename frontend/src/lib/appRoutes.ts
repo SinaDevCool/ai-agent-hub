@@ -1,23 +1,29 @@
 import type { SectionId } from "./appNavigation";
 
 export const sectionPaths: Record<SectionId, string> = {
-  home: "/",
-  marketplace: "/discover",
-  helpers: "/agents",
-  creator: "/creator",
-  moderation: "/operator/review",
-  operations: "/operator/operations",
-  beta: "/operator/beta",
-  vault: "/private-data",
-  clearance: "/approvals",
-  activity: "/activity",
-  settings: "/settings"
+  home: "/app",
+  marketplace: "/app/discover",
+  helpers: "/app/agents",
+  creator: "/app/creator",
+  moderation: "/app/operator/review",
+  operations: "/app/operator/operations",
+  beta: "/app/operator/beta",
+  vault: "/app/private-data",
+  clearance: "/app/approvals",
+  activity: "/app/activity",
+  settings: "/app/settings"
 };
 
 const legacySectionPaths: Partial<Record<string, SectionId>> = {
+  "/discover": "marketplace",
   "/marketplace": "marketplace",
+  "/private-data": "vault",
   "/private-info": "vault",
+  "/approvals": "clearance",
   "/access": "clearance",
+  "/activity": "activity",
+  "/settings": "settings",
+  "/creator": "creator",
   "/moderation": "moderation",
   "/operations": "operations",
   "/beta": "beta"
@@ -28,11 +34,11 @@ export function sectionFromPathname(pathname: string, fallback: SectionId): Sect
   const direct = (Object.entries(sectionPaths) as Array<[SectionId, string]>).find(([, path]) => path === normalized);
   if (direct) return direct[0];
   if (legacySectionPaths[normalized]) return legacySectionPaths[normalized] as SectionId;
-  if (normalized.startsWith("/discover/")) return "marketplace";
-  if (normalized.startsWith("/agents/")) return "helpers";
-  if (normalized.startsWith("/approvals/")) return "clearance";
-  if (normalized.startsWith("/activity/")) return "activity";
-  if (normalized.startsWith("/settings/")) return "settings";
+  if (normalized.startsWith("/app/discover/")) return "marketplace";
+  if (normalized.startsWith("/app/agents/")) return "helpers";
+  if (normalized.startsWith("/app/approvals/")) return "clearance";
+  if (normalized.startsWith("/app/activity/")) return "activity";
+  if (normalized.startsWith("/app/settings/")) return "settings";
   return fallback;
 }
 

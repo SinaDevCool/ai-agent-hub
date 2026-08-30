@@ -23,7 +23,7 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
     }
   });
 
-  await page.goto("/");
+  await page.goto("/app");
   await expect(page).toHaveTitle("AI Agent Hub");
   await expect(page.getByRole("heading", { name: "What do you want help with today?" })).toBeVisible();
   await expect(page.locator(".connection-status").getByText("Online", { exact: true })).toBeVisible();
@@ -212,7 +212,7 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   }, smokeUserId);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/app");
 
   await expect(page.getByRole("heading", { name: "What do you want help with first?" })).toBeVisible();
   await expect(page.locator(".mobile-home")).toBeHidden();
@@ -346,10 +346,10 @@ test("connector returns land in settings and disconnect requires confirmation", 
     });
   });
 
-  await page.goto("/settings?connector=error&message=Google+could+not+be+connected.+Please+try+again.");
+  await page.goto("/app/settings?connector=error&message=Google+could+not+be+connected.+Please+try+again.");
   await expect(page.locator("#settings")).toBeVisible();
   await expect(page.locator("#settings")).toContainText("Google could not be connected. Please try again.");
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page).toHaveURL(/\/app\/settings$/);
   await expect(page.locator("#settings")).toContainText("journey@example.test connected");
 
   await page.getByRole("button", { name: "Connections", exact: true }).click();
