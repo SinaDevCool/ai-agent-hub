@@ -829,6 +829,11 @@
   font-size: 13px;
 }
 
+.local-model-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .settings-section-grid {
   display: grid;
   gap: 10px;

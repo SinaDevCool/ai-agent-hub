@@ -9,11 +9,14 @@ function formatBytes(value?: number) {
 export function LocalAiSettingsPanel() {
   const localAi = useLocalAi();
   const installedModel = localAi.status?.modelId;
-  const totalStorage = (localAi.status?.installedBytes ?? 0) + (localAi.status?.embeddingInstalledBytes ?? 0);
+  const languageModels = localAi.status?.availableModels?.filter((model) => model.role !== "embedding") ?? [];
+  const installedLanguageBytes = languageModels.length
+    ? languageModels.filter((model) => model.installed).reduce((total, model) => total + model.sizeBytes, 0)
+    : localAi.status?.installedBytes ?? 0;
+  const totalStorage = installedLanguageBytes + (localAi.status?.embeddingInstalledBytes ?? 0);
   const progressPercent = localAi.downloadProgress?.totalBytes
     ? Math.min(100, Math.round(localAi.downloadProgress.receivedBytes / localAi.downloadProgress.totalBytes * 100))
     : 0;
-  const languageModels = localAi.status?.availableModels?.filter((model) => model.role !== "embedding") ?? [];
   return (
     <section className="settings-connector-card" aria-labelledby="local-ai-heading">
       <div>
@@ -42,7 +45,7 @@ export function LocalAiSettingsPanel() {
           {model.id === installedModel
             ? <span className="status-pill green">Active</span>
             : model.installed
-              ? <button disabled={localAi.isBusy} onClick={() => void localAi.select(model.id)} type="button">Use model</button>
+              ? <div className="local-model-actions"><button disabled={localAi.isBusy} onClick={() => void localAi.select(model.id)} type="button">Use model</button><button disabled={localAi.isBusy} onClick={() => void localAi.remove(model.id)} type="button"><Trash2 size={16} /> Remove</button></div>
               : <button disabled={localAi.isBusy || localAi.status?.runtime !== "tauri"} onClick={() => void localAi.install(model.id)} type="button"><Download size={16} /> Download</button>}
         </div>)}
       </div> : null}
