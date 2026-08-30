@@ -106,6 +106,8 @@ export async function interpretPromptLocally(input: { prompt: string; agent: Age
   }>("interpret_agent_prompt", {
     request: {
       prompt: input.prompt,
+      agentName: input.agent.name,
+      agentDescription: input.agent.capabilityManifest.description ?? "",
       tools: input.agent.capabilityManifest.tools ?? [],
       capabilities: input.agent.capabilityManifest.capabilities ?? [],
       highRiskActions: input.agent.capabilityManifest.highRiskActions ?? []

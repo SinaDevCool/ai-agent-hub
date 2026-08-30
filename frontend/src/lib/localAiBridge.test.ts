@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Agent } from "../api/types";
-import { formatLocalAiError, interpretPromptWithBrowserRules } from "./localAiBridge";
+import { formatLocalAiError, interpretPromptLocally, interpretPromptWithBrowserRules } from "./localAiBridge";
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("formatLocalAiError", () => {
   it("preserves native Tauri string errors", () => {
@@ -95,6 +97,39 @@ describe("browser-local catalog compatibility", () => {
     expect(result.interpretation.arguments.task).toBe(prompt);
     expect(result.interpretation.requiresClarification).toBe(false);
     if (result.interpretation.proposedTool) expect(tools).toContain(result.interpretation.proposedTool);
+  });
+
+  it("passes every catalog agent's identity and scope to desktop inference", async () => {
+    const requests: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("window", {
+      localStorage: { getItem: () => "local-first", setItem: () => undefined },
+      __TAURI_INTERNALS__: {
+        invoke: async (_command: string, args: { request: Record<string, unknown> }) => {
+          requests.push(args.request);
+          return {
+            interpretation: { intent: "search", proposedTool: null, arguments: {}, missingFields: [], requiresClarification: false, confidence: 1, language: "en", riskHints: [] },
+            clientRuntime: { kind: "desktop-local", modelId: "ministral-3-3b-q4", modelVersion: "2512", rulesVersion: "runtime-rules-v1" }
+          };
+        }
+      }
+    });
+
+    for (const [name, prompt, tools] of catalogCases) {
+      const agent = {
+        ...appointmentAgent,
+        id: name.toLowerCase().replace(/\s+/g, "-"),
+        name,
+        capabilityManifest: { tools: [...tools], capabilities: [], requestedSchemas: [], highRiskActions: [], description: `${name} catalog scope` }
+      } as Agent;
+      await interpretPromptLocally({ prompt, agent });
+    }
+
+    expect(requests).toHaveLength(catalogCases.length);
+    requests.forEach((request, index) => {
+      expect(request.agentName).toBe(catalogCases[index][0]);
+      expect(request.agentDescription).toBe(`${catalogCases[index][0]} catalog scope`);
+      expect(request.tools).toEqual([...catalogCases[index][2]]);
+    });
   });
 
   it.each([

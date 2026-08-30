@@ -24,6 +24,8 @@ pub struct RunningInference {
 #[serde(rename_all = "camelCase")]
 pub struct InterpretRequest {
     pub prompt: String,
+    pub agent_name: String,
+    pub agent_description: String,
     pub tools: Vec<String>,
     #[serde(default)]
     pub capabilities: Vec<String>,
@@ -74,6 +76,7 @@ fn binary_path(app: &AppHandle) -> Result<PathBuf, String> {
 async fn ensure_running(
     app: &AppHandle,
     state: &InferenceState,
+    preferred_model: Option<ModelEntry>,
 ) -> Result<(u16, String, ModelEntry), String> {
     let mut guard = state.0.lock().await;
     if let Some(running) = guard.as_mut() {
@@ -82,12 +85,16 @@ async fn ensure_running(
             .try_wait()
             .map_err(|error| error.to_string())?
             .is_none()
+            && preferred_model
+                .as_ref()
+                .is_none_or(|preferred| preferred.id == running.model.id)
         {
             return Ok((running.port, running.token.clone(), running.model.clone()));
         }
+        let _ = running.child.kill().await;
     }
-    let model = model_manager::installed_entry(app)
-        .await?
+    let model = preferred_model
+        .or(model_manager::installed_entry(app).await?)
         .ok_or_else(|| "Download a local model first.".to_string())?;
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|error| error.to_string())?;
     let port = listener
@@ -155,21 +162,31 @@ pub async fn interpret(
     if request.prompt.trim().is_empty() || request.prompt.len() > 1200 {
         return Err("Prompt must contain 1 to 1200 characters.".into());
     }
+    if request.agent_name.trim().is_empty()
+        || request.agent_name.len() > 160
+        || request.agent_description.len() > 1200
+    {
+        return Err("Agent profile exceeds local interpretation limits.".into());
+    }
     if request.tools.len() > 100
         || request.capabilities.len() > 100
         || request.high_risk_actions.len() > 50
     {
         return Err("Agent manifest exceeds local interpretation limits.".into());
     }
-    let (port, token, model) = ensure_running(app, state).await?;
+    let prefer_quality = !request.high_risk_actions.is_empty()
+        || request.tools.len() >= 5
+        || request.capabilities.len() >= 3;
+    let preferred_model = model_manager::installed_for_agent(app, prefer_quality).await?;
+    let (port, token, model) = ensure_running(app, state, preferred_model).await?;
     let schema = json!({"type":"object","additionalProperties":false,"required":["intent","proposedTool","arguments","missingFields","requiresClarification","confidence","language","riskHints"],"properties":{"intent":{"enum":["search","action","workflow","email_search","email_draft","calendar_free_time","document_search","blocked"]},"proposedTool":{"type":["string","null"]},"arguments":{"type":"object","additionalProperties":false,"properties":{"actionName":{"type":"string"},"query":{"type":"string"},"to":{"type":"string"},"subject":{"type":"string"},"body":{"type":"string"},"days":{"type":"number"},"requestType":{"type":"string"},"providerId":{"type":"string"},"startDate":{"type":"string"},"endDate":{"type":"string"},"specialty":{"type":"string"},"location":{"type":"string"}}},"missingFields":{"type":"array","items":{"type":"string"},"maxItems":20},"requiresClarification":{"type":"boolean"},"confidence":{"type":"number","minimum":0,"maximum":1},"language":{"type":"string"},"riskHints":{"type":"array","items":{"type":"string"},"maxItems":20}}});
     let body = json!({
         "model": model.id,
         "temperature": 0,
         "max_tokens": 500,
         "messages": [
-            {"role":"system","content":"Return only a schema-valid interpretation. Never execute, approve, or invent a tool. proposedTool must be null or one declared tool. Search-only and negated write requests must never become actions. Do not repeat, summarize, or answer the request; the trusted host preserves it. Use arguments only for the short structured fields allowed by the schema. For appointment availability include requestType='appointment availability', providerId, startDate, and endDate when stated. For provider search include requestType='appointment provider search', specialty, and location. For an action, copy the matching declared high-risk action into arguments.actionName."},
-            {"role":"user","content": serde_json::to_string(&json!({"request":request.prompt,"declaredTools":request.tools,"declaredCapabilities":request.capabilities,"highRiskActions":request.high_risk_actions})).unwrap_or_default()}
+            {"role":"system","content":"Return only a schema-valid interpretation for the named agent and its declared scope. Never execute, approve, or invent a tool. proposedTool must be null or one declared tool. Search-only and negated write requests must never become actions. Do not repeat, summarize, or answer the request; the trusted host preserves it. missingFields may contain only information genuinely required by the chosen intent; never list every possible schema field. Use arguments only for the short structured fields allowed by the schema. For appointment availability include requestType='appointment availability', providerId, startDate, and endDate when stated. For provider search include requestType='appointment provider search', specialty, and location. For an action, copy the matching declared high-risk action into arguments.actionName."},
+            {"role":"user","content": serde_json::to_string(&json!({"request":request.prompt,"agent":{"name":request.agent_name,"description":request.agent_description},"declaredTools":request.tools,"declaredCapabilities":request.capabilities,"highRiskActions":request.high_risk_actions})).unwrap_or_default()}
         ],
         "response_format": {"type":"json_schema","json_schema":{"name":"agent_interpretation","strict":true,"schema":schema}}
     });
@@ -198,10 +215,78 @@ pub async fn interpret(
     // any agent domain. This deterministic fallback prevents small models from
     // dropping the user's task while still keeping the raw prompt off the API.
     inject_normalized_task(&mut interpretation, &request.prompt);
+    constrain_interpretation(
+        &mut interpretation,
+        &request.tools,
+        &request.high_risk_actions,
+    );
     Ok(InterpretResponse {
         interpretation,
         client_runtime: json!({"kind":"desktop-local","modelId":model.id,"modelVersion":model.version,"quantization":model.quantization,"rulesVersion":"runtime-rules-v1"}),
     })
+}
+
+fn constrain_interpretation(
+    interpretation: &mut Value,
+    declared_tools: &[String],
+    high_risk_actions: &[String],
+) {
+    let proposed_tool = interpretation
+        .get("proposedTool")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    if proposed_tool
+        .as_ref()
+        .is_some_and(|tool| !declared_tools.contains(tool))
+    {
+        interpretation["proposedTool"] = Value::Null;
+    }
+
+    let intent = interpretation
+        .get("intent")
+        .and_then(Value::as_str)
+        .unwrap_or("blocked")
+        .to_owned();
+    let request_type = interpretation
+        .pointer("/arguments/requestType")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_owned();
+    let allowed_missing: &[&str] = if intent == "action" {
+        &["actionName"]
+    } else if request_type == "appointment availability" {
+        &["providerId", "startDate", "endDate"]
+    } else if request_type == "appointment provider search" {
+        &["specialty", "location"]
+    } else {
+        &[]
+    };
+    let filtered = interpretation
+        .get("missingFields")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .filter(|field| allowed_missing.contains(field))
+        .map(|field| Value::String(field.to_owned()))
+        .collect::<Vec<_>>();
+    let needs_clarification = !filtered.is_empty();
+    interpretation["missingFields"] = Value::Array(filtered);
+    interpretation["requiresClarification"] = Value::Bool(needs_clarification);
+
+    if intent == "action" {
+        let action = interpretation
+            .pointer("/arguments/actionName")
+            .and_then(Value::as_str);
+        if action.is_some_and(|value| !high_risk_actions.iter().any(|item| item == value)) {
+            if let Some(arguments) = interpretation
+                .get_mut("arguments")
+                .and_then(Value::as_object_mut)
+            {
+                arguments.remove("actionName");
+            }
+        }
+    }
 }
 
 fn inject_normalized_task(interpretation: &mut Value, prompt: &str) {
@@ -226,8 +311,8 @@ fn inject_normalized_task(interpretation: &mut Value, prompt: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::inject_normalized_task;
-    use serde_json::json;
+    use super::{constrain_interpretation, inject_normalized_task};
+    use serde_json::{json, Value};
 
     #[test]
     fn trusted_host_injects_a_bounded_normalized_task() {
@@ -242,6 +327,38 @@ mod tests {
         let mut interpretation = json!({"arguments":{"task":"invented expansion"}});
         inject_normalized_task(&mut interpretation, "User request");
         assert_eq!(interpretation["arguments"]["task"], "User request");
+    }
+
+    #[test]
+    fn trusted_host_removes_irrelevant_model_invented_missing_fields() {
+        let mut interpretation = json!({
+            "intent":"search",
+            "proposedTool":"workflow.run",
+            "arguments":{"task":"remind me"},
+            "missingFields":["actionName","providerId","startDate","endDate","specialty","location"],
+            "requiresClarification":true
+        });
+        constrain_interpretation(&mut interpretation, &["workflow.run".into()], &[]);
+        assert_eq!(interpretation["missingFields"], json!([]));
+        assert_eq!(interpretation["requiresClarification"], false);
+    }
+
+    #[test]
+    fn trusted_host_rejects_undeclared_tools_and_actions() {
+        let mut interpretation = json!({
+            "intent":"action",
+            "proposedTool":"email.send",
+            "arguments":{"actionName":"transfer_funds"},
+            "missingFields":[],
+            "requiresClarification":false
+        });
+        constrain_interpretation(
+            &mut interpretation,
+            &["vault.search".into()],
+            &["send_email".into()],
+        );
+        assert_eq!(interpretation["proposedTool"], Value::Null);
+        assert!(interpretation["arguments"].get("actionName").is_none());
     }
 }
 
@@ -258,7 +375,10 @@ pub async fn generate_reply(
     {
         return Err("Approved context exceeds the local generation limit.".into());
     }
-    let (port, token, model) = ensure_running(app, state).await?;
+    // Keep the model chosen for interpretation alive for answer generation.
+    // If generation is invoked independently, fall back to the user's active
+    // verified model.
+    let (port, token, model) = ensure_running(app, state, None).await?;
     let evidence = request
         .contexts
         .iter()

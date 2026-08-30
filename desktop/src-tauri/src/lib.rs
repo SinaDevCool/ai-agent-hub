@@ -282,6 +282,8 @@ async fn test_local_model(
     let started = std::time::Instant::now();
     let request = InterpretRequest {
         prompt: "Search my appointments. Do not book anything.".into(),
+        agent_name: "Appointment Coordinator".into(),
+        agent_description: "Finds appointment availability without booking.".into(),
         tools: vec!["appointments.search".into()],
         capabilities: vec!["appointments.availability.search".into()],
         high_risk_actions: vec!["appointments.reserve".into()],

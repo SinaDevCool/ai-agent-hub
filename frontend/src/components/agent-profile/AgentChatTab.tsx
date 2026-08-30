@@ -8,6 +8,12 @@ import type { AgentProfileTab, ChatTranscriptItem } from "../../hooks/useAgentCh
 import { StatusPill } from "../StatusPill";
 import type { HelperPrompt, PermissionReviewItem, ToneState } from "./agentProfileTypes";
 
+function localModelLabel(model?: string) {
+  if (model === "ministral-3-3b-q4") return "Ministral 3 3B · fast local route";
+  if (model === "ministral-3-8b-q4") return "Ministral 3 8B · quality local route";
+  return model?.replace(/-/g, " ") ?? "Local model";
+}
+
 function WorkflowResultCard(props: {
   result: WorkflowResultCardType;
   isAgentRunning: boolean;
@@ -262,6 +268,9 @@ export function AgentChatTab(props: AgentChatTabProps) {
                     </div>
                   ) : null}
                   <p>{message.content}</p>
+                  {message.role === "agent" && message.provider === "local" ? (
+                    <small>Local AI: {localModelLabel(message.model)}. Agent scope and permissions were applied.</small>
+                  ) : null}
                   {message.role === "agent" && externalSummary ? (
                     <div className="external-runtime-note">
                       <strong>{externalSummary}</strong>

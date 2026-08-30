@@ -96,7 +96,8 @@ export function LocalAiSettingsPanel() {
       </details> : null}
       <details className="local-model-candidates">
         <summary>How local AI is used by agents</summary>
-        <p>The active language model interprets each agent request into a constrained tool plan. In Local first mode, only that validated plan reaches the backend policy gate. When approved document results return, the same local model can write the answer on this device.</p>
+        <p>Each request includes the selected agent’s name, description, tools, capabilities, and risk boundaries. When both language models are installed, simple read-only agents prefer the faster 3B route and complex or action-capable agents prefer the higher-quality 8B route. If only one verified model is installed, every agent safely falls back to it.</p>
+        <p>In Local first mode, only the constrained, validated tool plan reaches the backend policy gate. When approved document results return, the routed local model can write the answer on this device.</p>
         <p>The optional embedding model is a preview runtime. On-device document indexing and a local vector store are not enabled yet, so Local only mode cannot currently search your private documents.</p>
       </details>
       {localAi.operation ? <div className="local-ai-operation" role="status" aria-live="polite">

@@ -85,6 +85,20 @@ pub async fn installed_entry(app: &AppHandle) -> Result<Option<ModelEntry>, Stri
     installed_for_role(app, &["default", "quality"]).await
 }
 
+pub async fn installed_for_agent(
+    app: &AppHandle,
+    prefer_quality: bool,
+) -> Result<Option<ModelEntry>, String> {
+    if prefer_quality {
+        if let Some(model) = installed_for_role(app, &["quality"]).await? {
+            return Ok(Some(model));
+        }
+    } else if let Some(model) = installed_for_role(app, &["default"]).await? {
+        return Ok(Some(model));
+    }
+    installed_entry(app).await
+}
+
 async fn is_installed(app: &AppHandle, model: &ModelEntry) -> Result<bool, String> {
     let path = model_path(app, model)?;
     Ok(fs::try_exists(&path)
