@@ -26,7 +26,19 @@ struct LocalAiStatus {
     embedding_model_label: Option<String>,
     model_directory: String,
     recommended_model_id: String,
+    available_models: Vec<LocalModelOption>,
     message: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalModelOption {
+    id: String,
+    label: String,
+    role: String,
+    size_bytes: u64,
+    minimum_memory_bytes: u64,
+    installed: bool,
 }
 
 #[derive(Clone, Default, Serialize)]
@@ -50,6 +62,19 @@ async fn status(app: &AppHandle) -> Result<LocalAiStatus, String> {
     };
     let installed = model_manager::installed_entry(app).await?;
     let embedding = model_manager::installed_for_role(app, &["embedding"]).await?;
+    let installed_ids = model_manager::installed_ids(app).await?;
+    let available_models = model_manager::manifest()?
+        .into_iter()
+        .filter(|model| model.enabled)
+        .map(|model| LocalModelOption {
+            installed: installed_ids.contains(&model.id),
+            id: model.id,
+            label: model.label,
+            role: model.role,
+            size_bytes: model.size_bytes,
+            minimum_memory_bytes: model.minimum_memory_bytes,
+        })
+        .collect();
     Ok(LocalAiStatus {
         available: installed.is_some(),
         runtime: "tauri",
@@ -64,6 +89,7 @@ async fn status(app: &AppHandle) -> Result<LocalAiStatus, String> {
         quantization: installed.as_ref().map(|value| value.quantization.clone()),
         installed_bytes: installed.as_ref().map(|value| value.size_bytes),
         recommended_model_id: recommended.into(),
+        available_models,
         embedding_installed_bytes: embedding.as_ref().map(|value| value.size_bytes),
         embedding_model_id: embedding.as_ref().map(|value| value.id.clone()),
         embedding_model_label: embedding.as_ref().map(|value| value.label.clone()),
@@ -116,6 +142,22 @@ async fn install_local_model(
         current.active = false;
     }
     result?;
+    if model_id != "nomic-embed-v2-moe-q4" {
+        model_manager::select(&app, &model_id).await?;
+    }
+    status(&app).await
+}
+
+#[tauri::command]
+async fn select_local_model(
+    app: AppHandle,
+    state: State<'_, InferenceState>,
+    model_id: String,
+) -> Result<LocalAiStatus, String> {
+    if let Some(mut running) = state.0.lock().await.take() {
+        let _ = running.child.kill().await;
+    }
+    model_manager::select(&app, &model_id).await?;
     status(&app).await
 }
 
@@ -232,6 +274,7 @@ async fn test_local_model(
     let request = InterpretRequest {
         prompt: "Search my appointments. Do not book anything.".into(),
         tools: vec!["appointments.search".into()],
+        capabilities: vec!["appointments.availability.search".into()],
         high_risk_actions: vec!["appointments.reserve".into()],
     };
     inference::interpret(&app, &state, request).await?;
@@ -251,6 +294,7 @@ pub fn run() {
             local_ai_status,
             local_ai_download_progress,
             install_local_model,
+            select_local_model,
             remove_local_model,
             open_local_model_folder,
             open_external_url,

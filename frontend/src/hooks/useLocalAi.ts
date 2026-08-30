@@ -6,6 +6,7 @@ import {
   getLocalAiStatus,
   installLocalModel,
   removeLocalModel,
+  selectLocalModel,
   openLocalModelFolder,
   setLocalAiPrivacyMode,
   testLocalModel,
@@ -81,6 +82,11 @@ export function useLocalAi() {
       operation: modelId === "nomic-embed-v2-moe-q4" ? "Downloading and verifying the retrieval model…" : "Downloading and verifying the language model…",
       successMessage: modelId === "nomic-embed-v2-moe-q4" ? "Multilingual retrieval model installed and verified." : "Language model installed and verified.",
       trackDownload: true
+    }),
+    select: (modelId: string) => run({
+      action: () => selectLocalModel(modelId),
+      operation: "Switching the active language model…",
+      successMessage: "Active language model changed."
     }),
     remove: (modelId: string) => run({
       action: () => removeLocalModel(modelId),

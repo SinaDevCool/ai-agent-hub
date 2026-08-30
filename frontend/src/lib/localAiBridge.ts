@@ -35,6 +35,14 @@ export type LocalAiStatus = {
   embeddingModelLabel?: string;
   modelDirectory?: string;
   recommendedModelId?: string;
+  availableModels?: Array<{
+    id: string;
+    label: string;
+    role: "default" | "quality" | "embedding";
+    sizeBytes: number;
+    minimumMemoryBytes: number;
+    installed: boolean;
+  }>;
   message: string;
 };
 
@@ -95,13 +103,14 @@ export async function interpretPromptLocally(input: { prompt: string; agent: Age
     request: {
       prompt: input.prompt,
       tools: input.agent.capabilityManifest.tools ?? [],
+      capabilities: input.agent.capabilityManifest.capabilities ?? [],
       highRiskActions: input.agent.capabilityManifest.highRiskActions ?? []
     }
   });
   return response;
 }
 
-function interpretPromptWithBrowserRules(input: { prompt: string; agent: Agent }) {
+export function interpretPromptWithBrowserRules(input: { prompt: string; agent: Agent }) {
   const prompt = input.prompt.trim();
   const tools = input.agent.capabilityManifest.tools ?? [];
   const readOnly = /\b(?:do not|don't|never)\b[^.!?]{0,80}\b(?:book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open|change|cancel|delete|create|update)\b/i.test(prompt)
@@ -112,13 +121,31 @@ function interpretPromptWithBrowserRules(input: { prompt: string; agent: Agent }
     ? input.agent.capabilityManifest.highRiskActions?.find((candidate) => prompt.toLowerCase().includes(candidate.replace(/_/g, " ").toLowerCase()))
       ?? (/\btransfer|pay\b/i.test(prompt) ? "transfer_funds" : /\bbook|reserve\b/i.test(prompt) ? "book_non_refundable_travel" : /\bcredit|card|open\b/i.test(prompt) ? "open_credit_card" : undefined)
     : undefined;
+  const isAppointment = /\b(appointment|appointments|dentist|doctor|clinic|dermatologist|cardiologist|physiotherapist|therapist|optometrist)\b/i.test(prompt);
   const candidates = action ? ["execute", "reserve", "book", "send", "create", "update", "cancel"] : ["search", "find", "availability"];
-  const proposedTool = tools.find((tool) => candidates.some((candidate) => tool.toLowerCase().includes(candidate))) ?? null;
+  const proposedTool = isAppointment && tools.includes("workflow.run")
+    ? "workflow.run"
+    : tools.find((tool) => candidates.some((candidate) => tool.toLowerCase().includes(candidate))) ?? null;
+  const dates = [...prompt.matchAll(/\b(20\d{2}-\d{2}-\d{2})\b/g)].map((match) => match[1]);
+  const providerId = prompt.match(/\b(?:for|with|at)\s+([a-z0-9][a-z0-9_-]{2,80})(?=\s+(?:from|between|on)\b|[,.]|$)/i)?.[1];
+  const specialty = prompt.match(/\b(dentist|dermatologist|cardiologist|physiotherapist|therapist|optometrist|specialist|doctor|clinic)\b/i)?.[1];
+  const location = prompt.match(/\b(?:in|near)\s+([A-Za-z][A-Za-z\s-]{1,50}?)(?=\s+(?:on|from|between|for|next|this|with)\b|[,.]|$)/i)?.[1]?.trim();
+  const appointmentAvailability = isAppointment && /\b(availability|available|slots?)\b/i.test(prompt);
+  const arguments_: Record<string, unknown> = actionName ? { actionName } : {};
+  if (isAppointment) {
+    arguments_.requestType = appointmentAvailability ? "appointment availability" : "appointment provider search";
+    if (providerId) arguments_.providerId = providerId;
+    if (dates[0]) arguments_.startDate = dates[0];
+    if (dates[1]) arguments_.endDate = dates[1];
+    else if (dates[0]) arguments_.endDate = dates[0];
+    if (specialty) arguments_.specialty = specialty;
+    if (location) arguments_.location = location;
+  }
   return {
     interpretation: {
       intent,
       proposedTool,
-      arguments: actionName ? { actionName } : {},
+      arguments: arguments_,
       missingFields: [],
       requiresClarification: false,
       confidence: 0.72,
@@ -142,6 +169,11 @@ export async function getLocalAiDownloadProgress() {
 export async function removeLocalModel(modelId: string) {
   if (!window.__TAURI_INTERNALS__) throw new Error("Local model management is available in the desktop app.");
   return window.__TAURI_INTERNALS__.invoke<LocalAiStatus>("remove_local_model", { modelId });
+}
+
+export async function selectLocalModel(modelId: string) {
+  if (!window.__TAURI_INTERNALS__) throw new Error("Local model selection is available in the desktop app.");
+  return window.__TAURI_INTERNALS__.invoke<LocalAiStatus>("select_local_model", { modelId });
 }
 
 export async function testLocalModel() {

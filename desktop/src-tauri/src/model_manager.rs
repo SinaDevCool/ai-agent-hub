@@ -56,7 +56,57 @@ pub fn model_path(app: &AppHandle, model: &ModelEntry) -> Result<PathBuf, String
 }
 
 pub async fn installed_entry(app: &AppHandle) -> Result<Option<ModelEntry>, String> {
+    let selected_path = model_dir(app)?.join("active-language-model");
+    if let Ok(selected_id) = fs::read_to_string(&selected_path).await {
+        if let Ok(selected) = entry(selected_id.trim()) {
+            if ["default", "quality"].contains(&selected.role.as_str())
+                && is_installed(app, &selected).await?
+            {
+                return Ok(Some(selected));
+            }
+        }
+    }
     installed_for_role(app, &["default", "quality"]).await
+}
+
+async fn is_installed(app: &AppHandle, model: &ModelEntry) -> Result<bool, String> {
+    let path = model_path(app, model)?;
+    Ok(fs::try_exists(&path)
+        .await
+        .map_err(|error| error.to_string())?
+        && fs::metadata(path)
+            .await
+            .map_err(|error| error.to_string())?
+            .len()
+            == model.size_bytes)
+}
+
+pub async fn select(app: &AppHandle, model_id: &str) -> Result<ModelEntry, String> {
+    let model = entry(model_id)?;
+    if !["default", "quality"].contains(&model.role.as_str()) {
+        return Err("Only language models can be selected for agent interpretation.".into());
+    }
+    if !is_installed(app, &model).await? {
+        return Err("Download this model before selecting it.".into());
+    }
+    let directory = model_dir(app)?;
+    fs::create_dir_all(&directory)
+        .await
+        .map_err(|error| error.to_string())?;
+    fs::write(directory.join("active-language-model"), &model.id)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(model)
+}
+
+pub async fn installed_ids(app: &AppHandle) -> Result<Vec<String>, String> {
+    let mut result = Vec::new();
+    for model in manifest()? {
+        if is_installed(app, &model).await? {
+            result.push(model.id);
+        }
+    }
+    Ok(result)
 }
 
 pub async fn installed_for_role(
@@ -153,6 +203,9 @@ where
     fs::rename(&partial, &target)
         .await
         .map_err(|error| error.to_string())?;
+    if ["default", "quality"].contains(&model.role.as_str()) {
+        select(app, &model.id).await?;
+    }
     Ok(model)
 }
 
@@ -166,6 +219,14 @@ pub async fn remove(app: &AppHandle, model_id: &str) -> Result<(), String> {
         fs::remove_file(path)
             .await
             .map_err(|error| error.to_string())?;
+    }
+    let selected_path = model_dir(app)?.join("active-language-model");
+    if fs::read_to_string(&selected_path)
+        .await
+        .map(|value| value.trim() == model_id)
+        .unwrap_or(false)
+    {
+        let _ = fs::remove_file(selected_path).await;
     }
     Ok(())
 }

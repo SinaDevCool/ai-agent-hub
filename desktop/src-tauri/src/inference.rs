@@ -25,6 +25,8 @@ pub struct RunningInference {
 pub struct InterpretRequest {
     pub prompt: String,
     pub tools: Vec<String>,
+    #[serde(default)]
+    pub capabilities: Vec<String>,
     pub high_risk_actions: Vec<String>,
 }
 
@@ -149,7 +151,10 @@ pub async fn interpret(
     if request.prompt.trim().is_empty() || request.prompt.len() > 1200 {
         return Err("Prompt must contain 1 to 1200 characters.".into());
     }
-    if request.tools.len() > 100 || request.high_risk_actions.len() > 50 {
+    if request.tools.len() > 100
+        || request.capabilities.len() > 100
+        || request.high_risk_actions.len() > 50
+    {
         return Err("Agent manifest exceeds local interpretation limits.".into());
     }
     let (port, token, model) = ensure_running(app, state).await?;
@@ -159,8 +164,8 @@ pub async fn interpret(
         "temperature": 0,
         "max_tokens": 500,
         "messages": [
-            {"role":"system","content":"Return only a schema-valid interpretation. Never execute, approve, or invent a tool. Search-only and negated write requests must never become actions. For an action, copy the matching declared high-risk action into arguments.actionName so the backend can validate the exact requested action without receiving the raw prompt."},
-            {"role":"user","content": serde_json::to_string(&json!({"request":request.prompt,"declaredTools":request.tools,"highRiskActions":request.high_risk_actions})).unwrap_or_default()}
+            {"role":"system","content":"Return only a schema-valid interpretation. Never execute, approve, or invent a tool. proposedTool must be null or one declared tool. Search-only and negated write requests must never become actions. Put normalized task details in arguments so the backend does not need the raw prompt. For appointment availability include requestType='appointment availability', providerId, startDate, and endDate when stated. For provider search include requestType='appointment provider search', specialty, and location. For an action, copy the matching declared high-risk action into arguments.actionName."},
+            {"role":"user","content": serde_json::to_string(&json!({"request":request.prompt,"declaredTools":request.tools,"declaredCapabilities":request.capabilities,"highRiskActions":request.high_risk_actions})).unwrap_or_default()}
         ],
         "response_format": {"type":"json_schema","json_schema":{"name":"agent_interpretation","strict":true,"schema":schema}}
     });

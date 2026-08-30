@@ -803,6 +803,32 @@
   margin-bottom: 12px;
 }
 
+.local-model-list {
+  display: grid;
+  gap: 8px;
+}
+
+.local-model-option {
+  align-items: center;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.local-model-option > div {
+  display: grid;
+  gap: 3px;
+}
+
+.local-model-option span:not(.status-pill) {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .settings-section-grid {
   display: grid;
   gap: 10px;

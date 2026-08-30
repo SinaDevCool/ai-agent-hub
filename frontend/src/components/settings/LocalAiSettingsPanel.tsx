@@ -13,6 +13,7 @@ export function LocalAiSettingsPanel() {
   const progressPercent = localAi.downloadProgress?.totalBytes
     ? Math.min(100, Math.round(localAi.downloadProgress.receivedBytes / localAi.downloadProgress.totalBytes * 100))
     : 0;
+  const languageModels = localAi.status?.availableModels?.filter((model) => model.role !== "embedding") ?? [];
   return (
     <section className="settings-connector-card" aria-labelledby="local-ai-heading">
       <div>
@@ -35,6 +36,16 @@ export function LocalAiSettingsPanel() {
         </select>
       </label>
       <small>{localAi.status?.message}</small>
+      {languageModels.length ? <div className="local-model-list" aria-label="Available local language models">
+        {languageModels.map((model) => <div className="local-model-option" key={model.id}>
+          <div><strong>{model.label}</strong><span>{formatBytes(model.sizeBytes)} · {model.role === "quality" ? "Higher quality" : "Faster"}</span></div>
+          {model.id === installedModel
+            ? <span className="status-pill green">Active</span>
+            : model.installed
+              ? <button disabled={localAi.isBusy} onClick={() => void localAi.select(model.id)} type="button">Use model</button>
+              : <button disabled={localAi.isBusy || localAi.status?.runtime !== "tauri"} onClick={() => void localAi.install(model.id)} type="button"><Download size={16} /> Download</button>}
+        </div>)}
+      </div> : null}
       {localAi.operation ? <div className="local-ai-operation" role="status" aria-live="polite">
         <strong>{localAi.operation}</strong>
         {localAi.downloadProgress?.totalBytes ? <>
@@ -43,7 +54,7 @@ export function LocalAiSettingsPanel() {
         </> : <span>The first model start can take up to two minutes on a CPU-only laptop.</span>}
       </div> : null}
       <div className="settings-primary-actions">
-        {!installedModel ? (
+        {!installedModel && !languageModels.length ? (
           <button disabled={localAi.isBusy || localAi.status?.runtime !== "tauri"} onClick={() => void localAi.install(localAi.status?.recommendedModelId ?? "ministral-3-3b-q4")} type="button">
             <Download size={16} /> Download recommended model
           </button>
@@ -53,7 +64,7 @@ export function LocalAiSettingsPanel() {
             {localAi.status?.embeddingModelId
               ? <button disabled={localAi.isBusy} onClick={() => void localAi.remove(localAi.status?.embeddingModelId ?? "")} type="button"><Trash2 size={16} /> Remove retrieval model</button>
               : <button disabled={localAi.isBusy} onClick={() => void localAi.install("nomic-embed-v2-moe-q4")} type="button"><Download size={16} /> Install multilingual retrieval</button>}
-            <button disabled={localAi.isBusy} onClick={() => void localAi.remove(installedModel)} type="button"><Trash2 size={16} /> Remove model</button>
+            <button disabled={localAi.isBusy} onClick={() => void localAi.remove(installedModel ?? "")} type="button"><Trash2 size={16} /> Remove model</button>
           </>
         )}
         <button disabled={localAi.isBusy || localAi.status?.runtime !== "tauri"} onClick={() => void localAi.openFolder()} type="button"><FolderOpen size={16} /> Open model folder</button>
