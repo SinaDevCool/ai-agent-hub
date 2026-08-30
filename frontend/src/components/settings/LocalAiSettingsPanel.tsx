@@ -8,6 +8,12 @@ function formatBytes(value?: number) {
   return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`;
 }
 
+function formatModelName(id: string) {
+  if (id === "apertus-8b") return "Apertus 8B";
+  if (id === "liquid-lfm2") return "Liquid LFM2";
+  return id.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export function LocalAiSettingsPanel() {
   const localAi = useLocalAi();
   const [cloudRuntime, setCloudRuntime] = useState<{ configured: boolean; model: string; mode: string } | null>(null);
@@ -57,7 +63,7 @@ export function LocalAiSettingsPanel() {
         <div><strong>Status</strong><span>{localAi.status?.state ?? "Checking…"}</span></div>
         <div><strong>Model</strong><span>{localAi.status?.modelLabel ?? "None"}</span></div>
         <div><strong>Total model storage</strong><span>{formatBytes(totalStorage)}</span></div>
-        <div><strong>Retrieval</strong><span>{localAi.status?.embeddingModelLabel ?? "Not installed"}</span></div>
+        <div><strong>Retrieval</strong><span>{localAi.status?.embeddingModelLabel ? `${localAi.status.embeddingModelLabel} · preview` : "Not installed"}</span></div>
       </div>
       <label>
         <span>Privacy mode</span>
@@ -78,6 +84,21 @@ export function LocalAiSettingsPanel() {
               : <button disabled={localAi.isBusy || localAi.status?.runtime !== "tauri"} onClick={() => void localAi.install(model.id)} type="button"><Download size={16} /> Download</button>}
         </div>)}
       </div> : null}
+      {localAi.status?.evaluationModels?.length ? <details className="local-model-candidates">
+        <summary>Why are other local models not available?</summary>
+        <p>Only models that pass license, safety, multilingual, packaging, and agent-plan accuracy checks can be downloaded here.</p>
+        <div className="local-model-list" aria-label="Local models under evaluation">
+          {localAi.status.evaluationModels.map((model) => <div className="local-model-option is-disabled" key={model.id}>
+            <div><strong>{formatModelName(model.id)}</strong><span>{model.reason}</span></div>
+            <span className="status-pill">Under evaluation</span>
+          </div>)}
+        </div>
+      </details> : null}
+      <details className="local-model-candidates">
+        <summary>How local AI is used by agents</summary>
+        <p>The active language model interprets each agent request into a constrained tool plan. In Local first mode, only that validated plan reaches the backend policy gate. When approved document results return, the same local model can write the answer on this device.</p>
+        <p>The optional embedding model is a preview runtime. On-device document indexing and a local vector store are not enabled yet, so Local only mode cannot currently search your private documents.</p>
+      </details>
       {localAi.operation ? <div className="local-ai-operation" role="status" aria-live="polite">
         <strong>{localAi.operation}</strong>
         {localAi.downloadProgress?.totalBytes ? <>
@@ -95,7 +116,7 @@ export function LocalAiSettingsPanel() {
             <button disabled={localAi.isBusy} onClick={() => void localAi.test()} type="button"><Play size={16} /> Test model</button>
             {localAi.status?.embeddingModelId
               ? <button disabled={localAi.isBusy} onClick={() => void localAi.remove(localAi.status?.embeddingModelId ?? "")} type="button"><Trash2 size={16} /> Remove retrieval model</button>
-              : <button disabled={localAi.isBusy} onClick={() => void localAi.install("nomic-embed-v2-moe-q4")} type="button"><Download size={16} /> Install multilingual retrieval</button>}
+              : <button disabled={localAi.isBusy} onClick={() => void localAi.install("nomic-embed-v2-moe-q4")} type="button"><Download size={16} /> Install embedding preview</button>}
             <button disabled={localAi.isBusy} onClick={() => void localAi.remove(installedModel ?? "")} type="button"><Trash2 size={16} /> Remove model</button>
           </>
         )}

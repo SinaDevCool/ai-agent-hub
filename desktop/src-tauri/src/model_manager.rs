@@ -28,12 +28,28 @@ pub struct ModelEntry {
 #[serde(rename_all = "camelCase")]
 struct Manifest {
     models: Vec<ModelEntry>,
+    #[serde(default)]
+    evaluation_only: Vec<EvaluationModelEntry>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvaluationModelEntry {
+    pub id: String,
+    pub reason: String,
 }
 
 pub fn manifest() -> Result<Vec<ModelEntry>, String> {
     let raw = include_str!("../../model-manifest.json");
     serde_json::from_str::<Manifest>(raw)
         .map(|value| value.models)
+        .map_err(|error| error.to_string())
+}
+
+pub fn evaluation_models() -> Result<Vec<EvaluationModelEntry>, String> {
+    let raw = include_str!("../../model-manifest.json");
+    serde_json::from_str::<Manifest>(raw)
+        .map(|value| value.evaluation_only)
         .map_err(|error| error.to_string())
 }
 

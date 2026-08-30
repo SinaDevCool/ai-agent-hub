@@ -22,6 +22,10 @@ test("desktop Local AI lifecycle and external OAuth controls remain operable", a
         { id: "ministral-3-8b-q4", label: "Ministral 3 8B", role: "quality", sizeBytes: 5198911904, minimumMemoryBytes: 12884901888, installed: installedLanguages.has("ministral-3-8b-q4") },
         { id: "nomic-embed-v2-moe-q4", label: "Nomic Embed Text v2 MoE", role: "embedding", sizeBytes: 344120288, minimumMemoryBytes: 1073741824, installed: retrievalInstalled }
       ],
+      evaluationModels: [
+        { id: "apertus-8b", reason: "Enable only after an official pinned GGUF passes safety and multilingual gates." },
+        { id: "liquid-lfm2", reason: "Enable only after performance and commercial-license review." }
+      ],
       modelDirectory,
       message: activeLanguage ? "Local interpretation is ready." : "Choose a checksummed model."
     });
@@ -74,6 +78,13 @@ test("desktop Local AI lifecycle and external OAuth controls remain operable", a
 
   await page.goto("/app/settings");
   await page.getByRole("button", { name: "Local AI", exact: true }).click();
+  const privacyMode = page.getByLabel("Privacy mode");
+  await expect(privacyMode).toHaveValue("local-first");
+  await privacyMode.selectOption("local-only");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("ai-agent-hub.local-ai.preference.v1"))).toBe("local-only");
+  await privacyMode.selectOption("cloud-assisted");
+  await expect(privacyMode).toHaveValue("cloud-assisted");
+  await privacyMode.selectOption("local-first");
   const fastModel = page.locator(".local-model-option").filter({ hasText: "Ministral 3 3B" });
   const qualityModel = page.locator(".local-model-option").filter({ hasText: "Ministral 3 8B" });
   await fastModel.getByRole("button", { name: "Download" }).click();
@@ -82,10 +93,13 @@ test("desktop Local AI lifecycle and external OAuth controls remain operable", a
   await expect(page.getByText("Local model returned a valid interpretation.")).toBeVisible();
   await qualityModel.getByRole("button", { name: "Download" }).click();
   await expect(qualityModel.getByText("Active")).toBeVisible();
+  await page.getByText("Why are other local models not available?").click();
+  await expect(page.getByText("Apertus 8B", { exact: true })).toBeVisible();
+  await expect(page.getByText("Liquid LFM2", { exact: true })).toBeVisible();
   await fastModel.getByRole("button", { name: "Use model" }).click();
   await expect(page.getByText("Active language model changed.")).toBeVisible();
-  await page.getByRole("button", { name: "Install multilingual retrieval" }).click();
-  await expect(page.getByText("Nomic Embed Text v2 MoE", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Install embedding preview" }).click();
+  await expect(page.getByText(/Nomic Embed Text v2 MoE · preview/)).toBeVisible();
   await page.getByRole("button", { name: "Remove retrieval model" }).click();
   await expect(page.getByText("Retrieval model removed from this device.")).toBeVisible();
   await page.getByRole("button", { name: "Open model folder" }).click();

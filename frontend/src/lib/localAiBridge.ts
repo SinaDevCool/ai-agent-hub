@@ -43,6 +43,10 @@ export type LocalAiStatus = {
     minimumMemoryBytes: number;
     installed: boolean;
   }>;
+  evaluationModels?: Array<{
+    id: string;
+    reason: string;
+  }>;
   message: string;
 };
 

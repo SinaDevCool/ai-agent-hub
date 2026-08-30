@@ -128,7 +128,11 @@ async fn ensure_running(
     });
     drop(guard);
     let client = reqwest::Client::new();
-    for _ in 0..60 {
+    // Large GGUF models can need close to two minutes to map and warm on a
+    // CPU-only Windows laptop. Keep this aligned with the Settings copy and
+    // the request timeout instead of reporting a false startup failure after
+    // only fifteen seconds.
+    for _ in 0..240 {
         if client
             .get(format!("http://127.0.0.1:{port}/health"))
             .send()
@@ -138,7 +142,7 @@ async fn ensure_running(
         {
             return Ok((port, token, model));
         }
-        sleep(Duration::from_millis(250)).await;
+        sleep(Duration::from_millis(500)).await;
     }
     Err("Local model did not become ready before the timeout.".into())
 }
@@ -350,7 +354,7 @@ async fn ensure_embedding_running(
         model: model.clone(),
     });
     drop(guard);
-    for _ in 0..60 {
+    for _ in 0..120 {
         if reqwest::Client::new()
             .get(format!("http://127.0.0.1:{port}/health"))
             .send()
@@ -360,7 +364,7 @@ async fn ensure_embedding_running(
         {
             return Ok((port, token, model));
         }
-        sleep(Duration::from_millis(250)).await;
+        sleep(Duration::from_millis(500)).await;
     }
     Err("Local embedding model did not become ready before the timeout.".into())
 }

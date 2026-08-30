@@ -27,6 +27,7 @@ struct LocalAiStatus {
     model_directory: String,
     recommended_model_id: String,
     available_models: Vec<LocalModelOption>,
+    evaluation_models: Vec<model_manager::EvaluationModelEntry>,
     message: String,
 }
 
@@ -90,6 +91,7 @@ async fn status(app: &AppHandle) -> Result<LocalAiStatus, String> {
         installed_bytes: installed.as_ref().map(|value| value.size_bytes),
         recommended_model_id: recommended.into(),
         available_models,
+        evaluation_models: model_manager::evaluation_models()?,
         embedding_installed_bytes: embedding.as_ref().map(|value| value.size_bytes),
         embedding_model_id: embedding.as_ref().map(|value| value.id.clone()),
         embedding_model_label: embedding.as_ref().map(|value| value.label.clone()),
@@ -113,6 +115,7 @@ async fn local_ai_status(app: AppHandle) -> Result<LocalAiStatus, String> {
 async fn install_local_model(
     app: AppHandle,
     download: State<'_, ModelDownloadState>,
+    state: State<'_, InferenceState>,
     model_id: String,
 ) -> Result<LocalAiStatus, String> {
     {
@@ -143,6 +146,12 @@ async fn install_local_model(
     }
     result?;
     if model_id != "nomic-embed-v2-moe-q4" {
+        // Installing a language model also makes it active. Stop a server that
+        // may still have the previously selected model loaded so the next
+        // agent request cannot silently continue on stale weights.
+        if let Some(mut running) = state.0.lock().await.take() {
+            let _ = running.child.kill().await;
+        }
         model_manager::select(&app, &model_id).await?;
     }
     status(&app).await

@@ -80,7 +80,7 @@ export function useLocalAi() {
     install: (modelId: string) => run({
       action: () => installLocalModel(modelId),
       operation: modelId === "nomic-embed-v2-moe-q4" ? "Downloading and verifying the retrieval model…" : "Downloading and verifying the language model…",
-      successMessage: modelId === "nomic-embed-v2-moe-q4" ? "Multilingual retrieval model installed and verified." : "Language model installed and verified.",
+      successMessage: modelId === "nomic-embed-v2-moe-q4" ? "Embedding preview model installed and verified. Local document indexing is not enabled yet." : "Language model installed and verified.",
       trackDownload: true
     }),
     select: (modelId: string) => run({
