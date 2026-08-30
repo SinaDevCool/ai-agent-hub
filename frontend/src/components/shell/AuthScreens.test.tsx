@@ -7,6 +7,7 @@ function render(isStagingPasswordSignInEnabled: boolean) {
     <AuthSignInScreen
       authMessage=""
       email=""
+      magicLinkSentTo=""
       password=""
       isSendingMagicLink={false}
       isSigningInWithPassword={false}
@@ -14,6 +15,7 @@ function render(isStagingPasswordSignInEnabled: boolean) {
       onEmailChange={vi.fn()}
       onPasswordChange={vi.fn()}
       onPasswordSubmit={vi.fn()}
+      onResetMagicLink={vi.fn()}
       onSubmit={vi.fn()}
     />
   );
@@ -28,5 +30,10 @@ describe("AuthSignInScreen", () => {
   it("does not expose password access outside staging", () => {
     expect(render(false)).not.toContain("Sign in to staging");
     expect(render(false)).not.toContain('type="password"');
+  });
+
+  it("explains that sign in and sign up use the same email flow", () => {
+    expect(render(false)).toContain("Sign in or create your account");
+    expect(render(false)).toContain("Continue with email");
   });
 });

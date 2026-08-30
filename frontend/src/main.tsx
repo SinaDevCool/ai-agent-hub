@@ -1,26 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
+import { DesktopAuthRelay } from "./components/shell/DesktopAuthRelay";
 import "./styles/index.css";
-
-function DesktopAuthRelay() {
-  const code = new URLSearchParams(window.location.search).get("code");
-  const destination = code ? `ai-agent-hub://auth/callback?code=${encodeURIComponent(code)}` : "";
-
-  if (!destination) {
-    return <main className="auth-screen" role="alert"><section className="auth-card"><strong>Sign-in link is incomplete</strong><p>Return to AI Agent Hub and request a new sign-in link.</p></section></main>;
-  }
-  window.setTimeout(() => window.location.assign(destination), 50);
-  return (
-    <main className="auth-screen">
-      <section className="auth-card">
-        <strong>Return to AI Agent Hub</strong>
-        <p>Your email is verified. Open the desktop app to finish signing in.</p>
-        <a className="button-link" href={destination}>Open AI Agent Hub</a>
-      </section>
-    </main>
-  );
-}
 
 class StartupErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };

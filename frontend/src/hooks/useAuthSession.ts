@@ -1,18 +1,9 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { setApiAccessToken } from "../api/client";
 import { isAuthConfigured, supabase, type AuthSession } from "../api/supabaseClient";
+import { friendlyAuthError, parseDesktopAuthCallback } from "../lib/desktopAuth";
 
 const isDesktopRuntime = () => "__TAURI_INTERNALS__" in window;
-
-function authCodeFromDeepLink(value: string) {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "ai-agent-hub:" || url.hostname !== "auth" || url.pathname !== "/callback") return null;
-    return url.searchParams.get("code");
-  } catch {
-    return null;
-  }
-}
 
 export function useAuthSession() {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -22,14 +13,16 @@ export function useAuthSession() {
   const [authMessage, setAuthMessage] = useState("");
   const [isSendingMagicLink, setIsSendingMagicLink] = useState(false);
   const [isSigningInWithPassword, setIsSigningInWithPassword] = useState(false);
-  const isStagingPasswordSignInEnabled = import.meta.env.VITE_APP_ENV === "staging";
+  const [magicLinkSentTo, setMagicLinkSentTo] = useState("");
+  const isStagingPasswordSignInEnabled = import.meta.env.VITE_ENABLE_PASSWORD_SIGN_IN === "true";
 
   useEffect(() => {
     if (!supabase) return;
 
-    void supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(({ data, error }) => {
       setSession(data.session);
       setApiAccessToken(data.session?.access_token);
+      if (error) setAuthMessage(friendlyAuthError(error.message));
       setIsAuthLoading(false);
     });
 
@@ -49,11 +42,19 @@ export function useAuthSession() {
     let cancelled = false;
 
     const acceptUrls = async (urls: string[]) => {
-      const code = urls.map(authCodeFromDeepLink).find(Boolean);
-      if (!code) return;
+      const callbacks = urls
+        .filter((value) => value.startsWith("ai-agent-hub://auth/callback"))
+        .map(parseDesktopAuthCallback);
+      const failure = callbacks.find((callback) => callback.kind === "error");
+      if (failure?.kind === "error") {
+        setAuthMessage(friendlyAuthError(failure.description));
+        return;
+      }
+      const success = callbacks.find((callback) => callback.kind === "success");
+      if (!success || success.kind !== "success") return;
       setAuthMessage("Completing sign-in…");
-      const { error } = await authClient.auth.exchangeCodeForSession(code);
-      setAuthMessage(error ? error.message : "Signed in successfully.");
+      const { error } = await authClient.auth.exchangeCodeForSession(success.code);
+      setAuthMessage(error ? friendlyAuthError(error.message) : "Signed in successfully. Opening your workspace…");
       if (!error) window.focus();
     };
 
@@ -82,6 +83,7 @@ export function useAuthSession() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
+          shouldCreateUser: true,
           emailRedirectTo: isDesktopRuntime()
             ? (import.meta.env.VITE_DESKTOP_AUTH_RELAY_URL as string | undefined)
               ?? "https://ai-agent-hub-staging.pages.dev/desktop-auth"
@@ -89,12 +91,18 @@ export function useAuthSession() {
         }
       });
       if (error) throw error;
-      setAuthMessage("Check your email for the sign-in link.");
+      setMagicLinkSentTo(email.trim());
+      setAuthMessage("");
     } catch (error) {
-      setAuthMessage(error instanceof Error ? error.message : "Could not send sign-in link.");
+      setAuthMessage(friendlyAuthError(error instanceof Error ? error.message : "Could not send sign-in link."));
     } finally {
       setIsSendingMagicLink(false);
     }
+  }
+
+  function resetMagicLink() {
+    setMagicLinkSentTo("");
+    setAuthMessage("");
   }
 
   async function signOut() {
@@ -114,7 +122,7 @@ export function useAuthSession() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
     } catch (error) {
-      setAuthMessage(error instanceof Error ? error.message : "Could not sign in.");
+      setAuthMessage(friendlyAuthError(error instanceof Error ? error.message : "Could not sign in."));
     } finally {
       setIsSigningInWithPassword(false);
     }
@@ -129,10 +137,12 @@ export function useAuthSession() {
     password,
     setPassword,
     authMessage,
+    magicLinkSentTo,
     isSendingMagicLink,
     isSigningInWithPassword,
     isStagingPasswordSignInEnabled,
     sendMagicLink,
+    resetMagicLink,
     signInWithPassword,
     signOut
   };

@@ -207,6 +207,63 @@ button.danger {
   gap: 8px;
 }
 
+.auth-sent-state {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid rgba(66, 199, 146, 0.32);
+  border-radius: 8px;
+  background: rgba(24, 112, 79, 0.13);
+  color: #d9f7ea;
+}
+
+.auth-sent-state > svg,
+.auth-relay-icon.success {
+  color: #61d5a5;
+}
+
+.auth-sent-state p,
+.auth-relay-panel small,
+.auth-form small {
+  color: #91a4ba;
+  line-height: 1.55;
+}
+
+.auth-sent-state button.secondary {
+  justify-self: start;
+}
+
+.auth-relay-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-relay-panel h1,
+.auth-relay-panel p {
+  margin: 0;
+}
+
+.auth-relay-icon.warning {
+  color: #f1b44c;
+}
+
+.auth-relay-panel .button-link {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.spin {
+  animation: auth-spin 0.9s linear infinite;
+}
+
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
+
 .skip-link {
   position: fixed;
   z-index: 100;
