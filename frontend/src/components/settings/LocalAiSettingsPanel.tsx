@@ -32,7 +32,7 @@ export function LocalAiSettingsPanel() {
       </div>
       <label>
         <span>Privacy mode</span>
-        <select onChange={(event) => localAi.setPrivacyMode(event.currentTarget.value as typeof localAi.privacyMode)} value={localAi.privacyMode}>
+        <select autoComplete="off" name="local-ai-privacy-mode" onChange={(event) => localAi.setPrivacyMode(event.currentTarget.value as typeof localAi.privacyMode)} value={localAi.privacyMode}>
           <option value="local-only">Local only — external actions disabled</option>
           <option value="local-first">Local first — send only a validated plan</option>
           <option value="cloud-assisted">Cloud assisted — raw prompts may leave this device</option>

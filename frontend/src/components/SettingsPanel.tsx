@@ -1,4 +1,4 @@
-import { Clipboard, Download, KeyRound, Link2, LogOut, Pencil, Play, RefreshCw, ShieldOff, Trash2, Unplug, Workflow } from "lucide-react";
+import { Clipboard, Download, KeyRound, Link2, LogOut, Moon, Pencil, Play, RefreshCw, ShieldOff, Sun, Trash2, Unplug, Workflow } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import type { Agent, ConnectedAccount, CreatorAccessRequest, WorkflowProvider } from "../api/types";
 import type { useWorkflows } from "../hooks/useWorkflows";
@@ -7,6 +7,7 @@ import type { useProviderConnections } from "../hooks/useProviderConnections";
 import type { ConfirmationRequest } from "./sections/WorkspaceSections.types";
 import { apiPost } from "../api/client";
 import { LocalAiSettingsPanel } from "./settings/LocalAiSettingsPanel";
+import { useTheme } from "../hooks/useTheme";
 
 function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -62,10 +63,13 @@ export function SettingsPanel(props: {
   lifePlatform: ReturnType<typeof useLifePlatform>;
   providerConnections: ReturnType<typeof useProviderConnections>;
 }) {
-  type SettingsView = "overview" | "connections" | "local-ai" | "privacy" | "advanced";
-  const settingsViews: SettingsView[] = ["overview", "connections", "local-ai", "privacy", "advanced"];
-  const requestedView = new URLSearchParams(window.location.search).get("view") as SettingsView | null;
+  type SettingsView = "overview" | "connections" | "local-ai" | "appearance" | "privacy" | "advanced";
+  const settingsViews: SettingsView[] = ["overview", "connections", "local-ai", "appearance", "privacy", "advanced"];
+  const pathView = window.location.pathname.match(/^\/settings\/([^/]+)\/?$/)?.[1] as SettingsView | undefined;
+  const legacyView = new URLSearchParams(window.location.search).get("view") as SettingsView | null;
+  const requestedView = pathView ?? legacyView;
   const [activeView, setActiveView] = useState<SettingsView>(requestedView && settingsViews.includes(requestedView) ? requestedView : "overview");
+  const { theme, toggleTheme } = useTheme();
   const [exportNotice, setExportNotice] = useState("");
   const [deletionNotice, setDeletionNotice] = useState("");
   const [creatorValidation, setCreatorValidation] = useState("");
@@ -218,15 +222,13 @@ export function SettingsPanel(props: {
           ["overview", "Overview"],
           ["connections", "Connections"],
           ["local-ai", "Local AI"],
+          ["appearance", "Appearance"],
           ["privacy", "Privacy"],
-          ["advanced", "Advanced"]
+          ...(props.canUseCreatorTools ? [["advanced", "Developer"]] as const : [])
         ] as const).map(([id, label]) => (
           <button aria-current={activeView === id ? "page" : undefined} className={activeView === id ? "is-active" : ""} key={id} onClick={() => {
             setActiveView(id);
-            const url = new URL(window.location.href);
-            if (id === "overview") url.searchParams.delete("view");
-            else url.searchParams.set("view", id);
-            window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+            window.history.replaceState({ section: "settings", view: id }, "", id === "overview" ? "/settings" : `/settings/${id}`);
           }} type="button">{label}</button>
         ))}
       </nav>
@@ -262,6 +264,18 @@ export function SettingsPanel(props: {
       </section>
 
       <div className={`settings-view settings-view-local-ai ${activeView === "local-ai" ? "is-active" : ""}`}><LocalAiSettingsPanel /></div>
+
+      <section className={`settings-consumer-card settings-view settings-view-appearance ${activeView === "appearance" ? "is-active" : ""}`} aria-labelledby="appearance-heading">
+        <div>
+          <strong id="appearance-heading">Appearance</strong>
+          <span>Choose the theme used by both the web and desktop application.</span>
+        </div>
+        <div className="appearance-choice" role="group" aria-label="Color theme">
+          <button aria-pressed={theme === "light"} className={theme === "light" ? "is-active" : ""} onClick={() => { if (theme !== "light") toggleTheme(); }} type="button"><Sun aria-hidden="true" size={18} /> Light</button>
+          <button aria-pressed={theme === "dark"} className={theme === "dark" ? "is-active" : ""} onClick={() => { if (theme !== "dark") toggleTheme(); }} type="button"><Moon aria-hidden="true" size={18} /> Dark</button>
+        </div>
+        <small>Your choice is stored on this device.</small>
+      </section>
 
       <section className={`settings-connector-card settings-view settings-view-connections ${activeView === "connections" ? "is-active" : ""}`}>
         <div>

@@ -1,4 +1,4 @@
-import { Download, MessageSquare } from "lucide-react";
+import { ArrowRight, Download, MessageSquare, ShieldCheck } from "lucide-react";
 import type { MarketplaceAgent, UserAgentInstall } from "../../api/types";
 import { friendlyCategoryName } from "../../lib/display";
 import type { MarketplaceMatch } from "../../lib/marketplaceMatching";
@@ -37,19 +37,22 @@ export function MarketplaceAgentCard(props: MarketplaceAgentCardProps) {
   return (
     <article className={agent.id === selectedMarketplaceAgent?.id ? "marketplace-card selected" : `marketplace-card${alreadyInstalled ? " installed" : ""}`} key={agent.id}>
       <div className="marketplace-card-top">
-        <div>
+        <div className="marketplace-card-identity">
+          <span className="agent-avatar" aria-hidden="true">{agent.name.slice(0, 1).toUpperCase()}</span>
+          <div>
           <strong>{agent.name}</strong>
           <small>{friendlyCategoryName(agent.category)} agent</small>
+          </div>
         </div>
         <StatusPill tone={alreadyInstalled ? "green" : "blue"}>{alreadyInstalled ? "installed" : matchLabel(match, index)}</StatusPill>
       </div>
       <p>{agentValueLine(agent)}</p>
       <div className="match-summary-row" aria-label={`${agent.name} match summary`}>
-        <strong>{primarySafetyBadge}</strong>
+        <strong><ShieldCheck aria-hidden="true" size={14} /> {primarySafetyBadge}</strong>
         <span>{alreadyInstalled ? "Already added to My Agents." : agentDecisionReason(match, index)}</span>
       </div>
       <div className="marketplace-card-actions">
-        <button aria-label={`View details for ${agent.name}`} className="marketplace-card-detail-action" onClick={() => onOpenDetails(agent)} type="button">View details</button>
+        <button aria-label={`View details for ${agent.name}`} className="marketplace-card-detail-action" onClick={() => onOpenDetails(agent)} type="button">View Agent <ArrowRight aria-hidden="true" size={15} /></button>
         <button
           aria-label={alreadyInstalled ? `Open ${agent.name}` : `Add ${agent.name}`}
           className="primary-action marketplace-card-install-action"

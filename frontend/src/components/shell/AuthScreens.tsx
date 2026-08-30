@@ -57,6 +57,7 @@ export function AuthSignInScreen(props: {
               onChange={(event) => props.onEmailChange(event.currentTarget.value)}
               placeholder="you@example.com"
               required
+              spellCheck={false}
               type="email"
               value={props.email}
             />

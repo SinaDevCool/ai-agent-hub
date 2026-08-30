@@ -76,11 +76,11 @@ export function PermissionsPanel(props: PermissionsPanelProps) {
     <div className={className} id="clearance">
       <div className="panel-heading-row">
         <div>
-          <div className="panel-title">Access & Approvals</div>
+          <div className="panel-title">Private Data Access</div>
           <p className="mobile-section-intro">
             {selectedIsExternal
               ? `Choose what saved info ${selectedAgent?.name ?? "this external agent"} can receive through AI Agent Hub safety.`
-              : `Choose what saved info ${selectedAgent?.name ?? "this agent"} can use. Sensitive actions pause here first.`}
+              : `Choose what saved info ${selectedAgent?.name ?? "this agent"} can use. You can change this at any time.`}
           </p>
         </div>
         <StatusPill tone={ungrantedRequestedCount ? "amber" : "green"}>

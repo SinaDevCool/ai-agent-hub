@@ -1318,3 +1318,13 @@ pre {
   gap: 10px;
   justify-content: space-between;
 }
+.appearance-choice { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 180px)); margin-top: 14px; }
+.appearance-choice button { border-radius: 12px; justify-content: start; min-height: 54px; }
+.appearance-choice button.is-active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.section-clearance.hitl-panel {
+  order: 1;
+}
+
+.section-clearance.clearance-panel {
+  order: 2;
+}

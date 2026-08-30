@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Agent, HitlRequest, VaultSchema } from "../api/types";
 
 export type AgentStatusFilter = "all" | "ready" | "needs_access" | "needs_approval";
@@ -24,7 +24,20 @@ export function useInstalledAgents(input: {
   const [isAgentAddOpen, setIsAgentAddOpen] = useState(false);
   const [pinnedAgentIds, setPinnedAgentIds] = useState<string[]>([]);
   const [hideTestAgents, setHideTestAgents] = useState(true);
-  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [selectedAgentId, setSelectedAgentIdState] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return decodeURIComponent(window.location.pathname.match(/^\/agents\/([^/]+)/)?.[1] ?? "");
+  });
+  const setSelectedAgentId = useCallback((next: string | ((current: string) => string)) => {
+    setSelectedAgentIdState((current) => {
+      const agentId = typeof next === "function" ? next(current) : next;
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/agents")) {
+        const path = agentId ? `/agents/${encodeURIComponent(agentId)}` : "/agents";
+        window.history.replaceState({ section: "helpers", agentId }, "", path);
+      }
+      return agentId;
+    });
+  }, []);
 
   const selectedAgent = useMemo(
     () => input.agents.find((agent) => agent.id === selectedAgentId) ?? input.agents[0],
@@ -37,6 +50,15 @@ export function useInstalledAgents(input: {
       return;
     }
     setSelectedAgentId((current) => input.agents.some((agent) => agent.id === current) ? current : input.agents[0].id);
+  }, [input.agents]);
+
+  useEffect(() => {
+    function restoreAgentFromHistory() {
+      const agentId = decodeURIComponent(window.location.pathname.match(/^\/agents\/([^/]+)/)?.[1] ?? "");
+      if (agentId && input.agents.some((agent) => agent.id === agentId)) setSelectedAgentIdState(agentId);
+    }
+    window.addEventListener("popstate", restoreAgentFromHistory);
+    return () => window.removeEventListener("popstate", restoreAgentFromHistory);
   }, [input.agents]);
 
   const installedAgentCards = useMemo(() => input.agents.map((agent) => ({

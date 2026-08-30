@@ -1,4 +1,4 @@
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, ShieldCheck, SlidersHorizontal, Sparkles } from "lucide-react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useState } from "react";
 import type { Agent, HitlRequest, MarketplaceAgent, UserAgentInstall, VaultSchema } from "../api/types";
@@ -94,10 +94,11 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
 
   return (
     <div className={props.className}>
-      <div className="panel-heading-row">
-        <div>
-          <div className="panel-title">Find agents</div>
-          <p className="mobile-section-intro">Choose what you need. Agents start restricted, and you decide what private info they can read.</p>
+      <div className="discover-hero">
+        <div className="discover-hero-copy">
+          <span className="discover-eyebrow"><ShieldCheck aria-hidden="true" size={15} /> Private by default</span>
+          <h2>Find trusted help for everyday life</h2>
+          <p>Describe what you need. Every agent shows its access, actions, and approval rules before you add it.</p>
         </div>
         <div className="marketplace-heading-actions">
           <StatusPill tone="blue">{props.installedCount} {props.installedCount === 1 ? "agent" : "agents"} added</StatusPill>
@@ -107,8 +108,8 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
 
       <MarketplaceNeedBanner selectedNeedContext={props.selectedNeedContext} onClearNeedContext={props.onClearNeedContext} />
 
-      <section className="beta-collections" aria-label="Curated beta collections">
-        <div><strong>Curated beta collections</strong><span>Start with agents that match the safest supported workflows.</span></div>
+      <section className="beta-collections" aria-label="Curated collections">
+        <div><strong><Sparkles aria-hidden="true" size={16} /> Safe places to start</strong><span>Curated agents with clear limits and supported workflows.</span></div>
         {[{label:"Safe travel planning",category:"Travel",search:"travel"},{label:"Read-only money help",category:"Money",search:"budget"},{label:"Everyday organization",category:"Daily Tasks",search:"task"}].map((collection) => <button key={collection.label} onClick={() => { props.setMarketplaceCategory(collection.category); props.setMarketplaceSearch(collection.search); }} type="button">{collection.label}</button>)}
       </section>
 
@@ -125,7 +126,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
           setMatcherNeedId={props.setMatcherNeedId}
         />
 
-        <div className="marketplace-assist-row" aria-label="Agent pool tools">
+        <div className="marketplace-assist-row" aria-label="Discovery tools">
           <button aria-expanded={isMatcherOpen} onClick={() => setIsMatcherOpen((current) => !current)} type="button">
             <Search size={16} /> Help me choose
           </button>
@@ -160,8 +161,6 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
           />
         ) : null}
       </section>
-
-      {props.canUseCreatorTools && isMoreOptionsOpen && isImportOpen ? props.externalImportSlot : null}
 
       <MarketplaceStatusStates
         formatError={props.formatError}

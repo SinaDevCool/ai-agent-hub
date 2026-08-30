@@ -173,7 +173,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         workflows={workflows}
         lifePlatform={lifePlatform}
         providerConnections={providerConnections}
-      /><BetaFeedbackPanel className={`mobile-section desktop-section ${activeMobileClass("settings")} ${sectionClass("settings")}`} /></Suspense> : null}
+      />{canUseCreatorTools ? <BetaFeedbackPanel className={`mobile-section desktop-section ${activeMobileClass("settings")} ${sectionClass("settings")}`} /> : null}</Suspense> : null}
     </>
   );
 }

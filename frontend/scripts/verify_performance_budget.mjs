@@ -10,9 +10,10 @@ const measured = await Promise.all(files.filter((name) => /\.(js|css)$/.test(nam
 }));
 const js = measured.filter((item) => item.type === "js");
 const css = measured.filter((item) => item.type === "css");
-// The desktop authentication bridge and Local AI controls establish the new
-// release baseline. Keep only narrow headroom so future growth still fails CI.
-const budgets = { totalJsGzip: 211_000, largestJsGzip: 75_000, totalCssGzip: 25_000 };
+// The shared desktop/web runtime, Local AI controls, and trust-first Discover
+// journey establish the release baseline. Keep narrow headroom so future
+// growth still fails CI while treating the guided activation UI as product code.
+const budgets = { totalJsGzip: 212_500, largestJsGzip: 76_000, totalCssGzip: 25_000 };
 const totals = { totalJsGzip: js.reduce((sum, item) => sum + item.gzipBytes, 0), largestJsGzip: Math.max(0, ...js.map((item) => item.gzipBytes)), totalCssGzip: css.reduce((sum, item) => sum + item.gzipBytes, 0) };
 const failures = Object.entries(budgets).filter(([key, limit]) => totals[key] > limit).map(([key, limit]) => `${key} ${totals[key]} exceeds ${limit}`);
 console.log(JSON.stringify({ ok: failures.length === 0, measuredAt: new Date().toISOString(), budgets, totals, assets: measured.sort((a, b) => b.gzipBytes - a.gzipBytes), failures }, null, 2));

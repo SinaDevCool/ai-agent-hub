@@ -1,8 +1,9 @@
 import { Bot, FilePlus, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck, Sun } from "lucide-react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { useState } from "react";
 import { useTheme } from "../../hooks/useTheme";
 import { consumerNavIds, navItems, type SectionHeading, type SectionId } from "../../lib/appNavigation";
+import { pathForSection } from "../../lib/appRoutes";
 
 type NavShortcut = {
   id: string;
@@ -28,6 +29,7 @@ export function AppShell(props: {
 }) {
   const { theme, toggleTheme } = useTheme();
   const [isNavCompact, setIsNavCompact] = useState(() => window.localStorage.getItem("ai-agent-hub-nav") === "compact");
+  const connectionLabel = props.connectionState === "live" ? "Online" : props.connectionState === "offline" ? "Offline" : "Syncing";
 
   function toggleNavigation() {
     setIsNavCompact((current) => {
@@ -36,51 +38,61 @@ export function AppShell(props: {
     });
   }
 
+  function navigate(event: MouseEvent, section: SectionId) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    props.onNavigate(section);
+  }
+
   return (
     <main className={`app-shell ${isNavCompact ? "nav-is-compact" : ""}`}>
       <a className="skip-link" href="#workspace-content">Skip to main content</a>
       <aside className="nav-rail">
         <div className="nav-brand-row">
-          <div className="brand-mark" role="heading" aria-level={1}><ShieldCheck aria-hidden="true" size={22} /><span>AI Agent Hub</span></div>
+          <a className="brand-mark" href={pathForSection("home")} onClick={(event) => navigate(event, "home")}><ShieldCheck aria-hidden="true" size={22} /><span>AI Agent Hub</span></a>
           <button aria-label={isNavCompact ? "Expand navigation" : "Collapse navigation"} className="nav-collapse" onClick={toggleNavigation} title={isNavCompact ? "Expand navigation" : "Collapse navigation"} type="button">
             {isNavCompact ? <PanelLeftOpen aria-hidden="true" size={18} /> : <PanelLeftClose aria-hidden="true" size={18} />}
           </button>
         </div>
         <nav>
-          {navItems.filter((item) => consumerNavIds.has(item.id) || (item.id === "creator" && props.canUseCreatorTools) || ((item.id === "moderation" || item.id === "operations" || item.id === "beta") && props.canModerateMarketplace)).map(({ id, label, mobileLabel, icon: Icon, mobileVisible }) => (
+          {navItems.filter((item) => consumerNavIds.has(item.id)).map(({ id, label, mobileLabel, icon: Icon, mobileVisible }) => (
             <div className="nav-item-group" key={id}>
-              <button
+              <a
                 aria-current={props.activeSection === id ? "page" : undefined}
                 aria-label={label}
                 className={`${props.activeSection === id ? "nav-active" : ""} ${mobileVisible === false ? "nav-mobile-hidden" : ""}`}
                 data-mobile-label={mobileLabel}
-                onClick={() => props.onNavigate(id)}
-                type="button"
+                href={pathForSection(id)}
+                onClick={(event) => navigate(event, id)}
+                title={label}
               >
                 <Icon aria-hidden="true" size={18} />
                 <span className="nav-label-full">{label}</span>
-              </button>
-              {id === "marketplace" && props.agentPoolShortcuts?.length ? (
-                <div className="nav-sublist" aria-label="Agent Pool categories">
-                  {props.agentPoolShortcuts.slice(0, 5).map((item) => (
-                    <button key={item.id} onClick={() => props.onOpenAgentPoolNeed?.(item.id)} type="button">
-                      <span>{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+              </a>
             </div>
           ))}
         </nav>
+        {(props.canUseCreatorTools || props.canModerateMarketplace) ? (
+          <nav aria-label="Professional tools" className="nav-role-tools">
+            <span className="nav-group-label">Workspace tools</span>
+            {navItems.filter((item) => (item.id === "creator" && props.canUseCreatorTools) || ((item.id === "moderation" || item.id === "operations" || item.id === "beta") && props.canModerateMarketplace)).map(({ id, label, mobileLabel, icon: Icon, mobileVisible }) => (
+              <div className="nav-item-group" key={id}>
+                <a aria-current={props.activeSection === id ? "page" : undefined} aria-label={label} className={`${props.activeSection === id ? "nav-active" : ""} ${mobileVisible === false ? "nav-mobile-hidden" : ""}`} data-mobile-label={mobileLabel} href={pathForSection(id)} onClick={(event) => navigate(event, id)} title={label}>
+                  <Icon aria-hidden="true" size={18} /><span className="nav-label-full">{label}</span>
+                </a>
+              </div>
+            ))}
+          </nav>
+        ) : null}
       </aside>
 
       <section className="workspace" id="workspace-content" tabIndex={-1}>
         <header className="topbar">
           <div className="topbar-heading">
-            <h1 className="mobile-topbar-brand" aria-label="AI Agent Hub">
+            <a className="mobile-topbar-brand" aria-label="AI Agent Hub home" href={pathForSection("home")} onClick={(event) => navigate(event, "home")}>
               <ShieldCheck aria-hidden="true" size={18} />
               <span>AI Agent Hub</span>
-            </h1>
+            </a>
             <h1>{props.heading.title}</h1>
             <p>{props.heading.description}</p>
           </div>
@@ -89,26 +101,26 @@ export function AppShell(props: {
               {theme === "dark" ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}
             </button>
             {props.environmentLabel ? <span className="environment-chip">{props.environmentLabel}</span> : null}
-            <span className={`connection-status ${props.connectionState === "live" ? "is-live" : "is-syncing"}`} title={`Connection: ${props.connectionState}`}>
-              <span className="connection-dot" />
-              <span className="connection-text">{props.connectionState === "live" ? "live" : "syncing"}</span>
+            <span aria-live="polite" className={`connection-status ${props.connectionState === "live" ? "is-live" : props.connectionState === "offline" ? "is-offline" : "is-syncing"}`} title={`Connection: ${props.connectionState}`}>
+              <span aria-hidden="true" className="connection-dot" />
+              <span className="connection-text">{connectionLabel}</span>
             </span>
             {props.userEmail ? <span className="user-chip">{props.userEmail}</span> : null}
             {props.activeSection !== "marketplace" && props.activeSection !== "vault" ? (
-              <button aria-label="Open Agent Pool" className="topbar-primary" onClick={props.onOpenAgentPool} type="button"><Bot size={16} /> Agent Pool</button>
+              <a aria-label="Discover agents" className="topbar-primary" href={pathForSection("marketplace")} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); props.onOpenAgentPool(); } }}><Bot aria-hidden="true" size={16} /> Discover</a>
             ) : null}
             {props.activeSection === "vault" ? (
-              <button className="topbar-primary" onClick={props.onAddPrivateInfo} type="button"><FilePlus size={16} /> Add Private Info</button>
+              <button className="topbar-primary" onClick={props.onAddPrivateInfo} type="button"><FilePlus aria-hidden="true" size={16} /> Add Private Info</button>
             ) : null}
-            <button
+            <a
               aria-label="Settings"
               className={`mobile-settings-button ${props.activeSection === "settings" ? "is-active" : ""}`}
-              onClick={() => props.onNavigate("settings")}
-              type="button"
+              href={pathForSection("settings")}
+              onClick={(event) => navigate(event, "settings")}
             >
               <Settings aria-hidden="true" size={20} />
-            </button>
-            {props.onSignOut ? <button className="topbar-secondary" onClick={props.onSignOut} type="button"><LogOut size={16} /> Sign out</button> : null}
+            </a>
+            {props.onSignOut ? <button className="topbar-secondary" onClick={props.onSignOut} type="button"><LogOut aria-hidden="true" size={16} /> Sign out</button> : null}
           </div>
         </header>
         {props.children}

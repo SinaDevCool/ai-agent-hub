@@ -92,8 +92,8 @@ export function ReceiptsPanel(props: ReceiptsPanelProps) {
     <div className={className} id="activity">
       <div className="panel-heading-row">
         <div>
-          <div className="panel-title">Receipts</div>
-          <p className="mobile-section-intro">See when agents used saved info, waited for you, or were stopped.</p>
+          <div className="panel-title">Activity & Receipts</div>
+          <p className="mobile-section-intro">A clear history of what agents did, what they used, and what was stopped.</p>
         </div>
         <StatusPill tone="blue">{logsCount} events</StatusPill>
       </div>

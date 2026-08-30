@@ -16,6 +16,7 @@
   background: #0a1828;
   padding: 18px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.36);
+  overscroll-behavior: contain;
 }
 
 .confirm-dialog h2 {
@@ -40,6 +41,17 @@
 .install-confirm-dialog {
   width: min(100%, 520px);
 }
+
+.activation-progress { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; margin: 6px 0; padding: 0; }
+.activation-progress li { align-items: center; color: var(--text-muted); display: flex; font-size: 12px; font-weight: 750; gap: 7px; }
+.activation-progress li > span { align-items: center; background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 999px; display: inline-flex; height: 24px; justify-content: center; width: 24px; }
+.activation-progress li.is-active { color: var(--text); }
+.activation-progress li.is-active > span { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.activation-step { align-items: start; background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 12px; display: grid; gap: 10px; grid-template-columns: auto 1fr; padding: 16px; }
+.activation-step > small { color: var(--text-muted); grid-column: 1 / -1; }
+.activation-step p { color: var(--text-muted); line-height: 1.55; margin: 4px 0 0; }
+.activation-step-grid > div { border-radius: 12px; }
+.activation-step-grid svg { color: var(--accent); }
 
 .mobile-back-to-agents {
   display: none;
@@ -234,7 +246,8 @@ textarea:focus-visible {
     border-top: 1px solid rgba(137, 163, 196, 0.16);
   }
 
-  .brand-mark {
+  .nav-brand-row,
+  .nav-rail .brand-mark {
     display: none;
   }
 
@@ -252,7 +265,7 @@ textarea:focus-visible {
     display: none;
   }
 
-  .nav-rail button {
+  .nav-rail :is(button, a) {
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -269,12 +282,12 @@ textarea:focus-visible {
     display: none;
   }
 
-  .nav-rail button[aria-label="My Agents"] {
+  .nav-rail :is(button, a)[aria-label="My Agents"] {
     background: rgba(64, 156, 255, 0.13);
     border-color: rgba(64, 156, 255, 0.3);
   }
 
-  .nav-rail button span {
+  .nav-rail :is(button, a) span {
     display: block;
     max-width: 100%;
     overflow: hidden;
@@ -286,7 +299,7 @@ textarea:focus-visible {
     display: none !important;
   }
 
-  .nav-rail button::after {
+  .nav-rail :is(button, a)::after {
     content: attr(data-mobile-label);
     display: block;
     max-width: 100%;
@@ -295,7 +308,7 @@ textarea:focus-visible {
     white-space: nowrap;
   }
 
-  .nav-rail button svg {
+  .nav-rail :is(button, a) svg {
     height: 20px;
     width: 20px;
   }

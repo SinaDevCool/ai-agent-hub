@@ -15,7 +15,7 @@ test("primary desktop and settings surfaces have no serious automated WCAG viola
     }
   });
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "AI Agent Hub" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What do you want help with today?" })).toBeVisible();
   await expectNoSeriousViolations(page, "home");
   const themeButton = page.getByRole("button", { name: /Switch to (dark|light) theme/ });
   await themeButton.click();
@@ -24,7 +24,7 @@ test("primary desktop and settings surfaces have no serious automated WCAG viola
   const selectedTheme = await page.evaluate(() => document.documentElement.dataset.theme);
   await page.reload();
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe(selectedTheme);
-  await page.locator(".nav-rail").getByRole("button", { name: "Settings", exact: true }).click();
+  await page.locator(".nav-rail").getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settings")).toBeVisible();
   await expectNoSeriousViolations(page, "settings");
 });
@@ -33,6 +33,6 @@ test("primary mobile surface has no serious automated WCAG violations", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => window.localStorage.setItem("ai-agent-hub-user-id", `a11y-mobile-${Date.now()}`));
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "AI Agent Hub" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What do you want help with first?" })).toBeVisible();
   await expectNoSeriousViolations(page, "mobile-home");
 });

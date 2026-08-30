@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react";
 import { sectionHeadings, type SectionId } from "../lib/appNavigation";
-
-const sectionPaths: Record<SectionId, string> = {
-  home: "/", marketplace: "/marketplace", helpers: "/agents", creator: "/creator",
-  moderation: "/moderation", operations: "/operations", beta: "/beta", vault: "/private-info", clearance: "/access",
-  activity: "/activity", settings: "/settings"
-};
+import { pathForSection, sectionFromPathname } from "../lib/appRoutes";
 
 function sectionFromLocation(fallback: SectionId) {
-  const match = (Object.entries(sectionPaths) as Array<[SectionId, string]>).find(([, path]) => path === window.location.pathname);
-  return match?.[0] ?? fallback;
+  return sectionFromPathname(window.location.pathname, fallback);
 }
 
 export function useAppNavigation(initialSection: SectionId = "home") {
@@ -24,7 +18,8 @@ export function useAppNavigation(initialSection: SectionId = "home") {
 
   function setActiveSection(id: SectionId) {
     setActiveSectionState(id);
-    if (window.location.pathname !== sectionPaths[id]) window.history.pushState({ section: id }, "", sectionPaths[id]);
+    const path = pathForSection(id);
+    if (window.location.pathname !== path) window.history.pushState({ section: id }, "", path);
   }
 
   function sectionClass(section: SectionId) {

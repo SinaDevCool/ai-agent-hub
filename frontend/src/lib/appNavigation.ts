@@ -21,20 +21,20 @@ export type SectionHeading = {
 };
 
 export const navItems: Array<{ id: SectionId; label: string; mobileLabel: string; icon: LucideIcon; mobileVisible?: boolean }> = [
-  { id: "home", label: "Home", mobileLabel: "Home", icon: ShieldCheck },
-  { id: "marketplace", label: "Agent Pool", mobileLabel: "Pool", icon: Search },
+  { id: "home", label: "Home", mobileLabel: "Home", icon: ShieldCheck, mobileVisible: false },
+  { id: "marketplace", label: "Discover", mobileLabel: "Discover", icon: Search },
   { id: "helpers", label: "My Agents", mobileLabel: "Agents", icon: Bot },
   { id: "moderation", label: "Review Queue", mobileLabel: "Review", icon: ClipboardCheck },
   { id: "operations", label: "Operations", mobileLabel: "Ops", icon: MonitorCog },
   { id: "beta", label: "Private Beta", mobileLabel: "Beta", icon: UsersRound },
-  { id: "vault", label: "Private Info", mobileLabel: "Info", icon: Database },
-  { id: "clearance", label: "Access", mobileLabel: "Access", icon: KeyRound },
+  { id: "clearance", label: "Approvals", mobileLabel: "Approvals", icon: KeyRound },
   { id: "activity", label: "Activity", mobileLabel: "Activity", icon: Activity },
+  { id: "vault", label: "Private Data", mobileLabel: "Data", icon: Database },
   { id: "creator", label: "Creator Studio", mobileLabel: "Create", icon: Pencil },
   { id: "settings", label: "Settings", mobileLabel: "Settings", icon: Settings, mobileVisible: false }
 ];
 
-export const consumerNavIds = new Set<SectionId>(["home", "marketplace", "helpers", "vault", "activity", "settings"]);
+export const consumerNavIds = new Set<SectionId>(["home", "marketplace", "helpers", "clearance", "activity", "vault", "settings"]);
 
 export const sectionHeadings: Record<SectionId, SectionHeading> = {
   home: {
@@ -42,8 +42,8 @@ export const sectionHeadings: Record<SectionId, SectionHeading> = {
     description: "Find an agent, ask for help, and stay in control of what it can read or do."
   },
   marketplace: {
-    title: "Agent Pool",
-    description: "Search agents built here or imported from trusted external platforms."
+    title: "Discover",
+    description: "Find trusted agents for everyday life and see what each one can access before you add it."
   },
   helpers: {
     title: "My Agents",
@@ -66,12 +66,12 @@ export const sectionHeadings: Record<SectionId, SectionHeading> = {
     description: "Manage invite cohorts, onboarding outcomes, support feedback, and rollout signals."
   },
   vault: {
-    title: "Private Info",
-    description: "Keep important notes in one place so approved agents can use them safely."
+    title: "Private Data",
+    description: "Keep important information in one place and choose which agents may use it."
   },
   clearance: {
-    title: "Access",
-    description: "Choose exactly which private info each agent can use."
+    title: "Approvals",
+    description: "Review what agents want to access or do before anything sensitive continues."
   },
   activity: {
     title: "Activity",

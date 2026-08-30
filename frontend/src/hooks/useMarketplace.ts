@@ -18,6 +18,23 @@ const defaultMarketplaceFilters: MarketplaceFilters = {
   needsApproval: false
 };
 
+function marketplaceStateFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    search: params.get("q") ?? "",
+    category: params.get("category") ?? "All",
+    filters: {
+      usesPrivateInfo: params.get("privateInfo") === "required",
+      canTakeActions: params.get("actions") === "available",
+      needsApproval: params.get("approval") === "required"
+    }
+  };
+}
+
+function marketplaceAgentIdFromPath() {
+  return window.location.pathname.match(/^\/discover\/agents\/([^/]+)\/?$/)?.[1] ?? "";
+}
+
 export function useMarketplace(input: {
   marketplaceAgents: MarketplaceAgent[];
   installedAgents: UserAgentInstall[];
@@ -26,12 +43,13 @@ export function useMarketplace(input: {
   formatError: (error: unknown) => string;
   onInstalled: (install: UserAgentInstall) => void;
 }) {
-  const [marketplaceSearch, setMarketplaceSearch] = useState("");
-  const [marketplaceCategory, setMarketplaceCategory] = useState("All");
+  const initialUrlState = marketplaceStateFromUrl();
+  const [marketplaceSearch, setMarketplaceSearch] = useState(initialUrlState.search);
+  const [marketplaceCategory, setMarketplaceCategory] = useState(initialUrlState.category);
   const [matcherNeedId, setMatcherNeedId] = useState("travel");
   const [matcherPrivateInfo, setMatcherPrivateInfo] = useState<MatcherChoice>("unsure");
   const [matcherActions, setMatcherActions] = useState<MatcherChoice>("unsure");
-  const [marketplaceFilters, setMarketplaceFilters] = useState<MarketplaceFilters>(defaultMarketplaceFilters);
+  const [marketplaceFilters, setMarketplaceFilters] = useState<MarketplaceFilters>(initialUrlState.filters);
   const [selectedMarketplaceAgentId, setSelectedMarketplaceAgentId] = useState("");
   const [confirmInstallAgent, setConfirmInstallAgent] = useState<MarketplaceAgent | null>(null);
   const [marketplaceDetailAgent, setMarketplaceDetailAgent] = useState<MarketplaceAgent | null>(null);
@@ -120,6 +138,34 @@ export function useMarketplace(input: {
     );
   }, [prioritizedMarketplaceAgents]);
 
+  useEffect(() => {
+    if (!window.location.pathname.startsWith("/discover")) return;
+    const params = new URLSearchParams();
+    if (marketplaceSearch.trim()) params.set("q", marketplaceSearch.trim());
+    if (marketplaceCategory !== "All") params.set("category", marketplaceCategory);
+    if (marketplaceFilters.usesPrivateInfo) params.set("privateInfo", "required");
+    if (marketplaceFilters.canTakeActions) params.set("actions", "available");
+    if (marketplaceFilters.needsApproval) params.set("approval", "required");
+    const detailId = marketplaceDetailAgent?.id;
+    const pathname = detailId ? `/discover/agents/${encodeURIComponent(detailId)}` : "/discover";
+    const nextUrl = `${pathname}${params.size ? `?${params.toString()}` : ""}`;
+    if (`${window.location.pathname}${window.location.search}` !== nextUrl) window.history.replaceState({ section: "marketplace" }, "", nextUrl);
+  }, [marketplaceCategory, marketplaceDetailAgent?.id, marketplaceFilters, marketplaceSearch]);
+
+  useEffect(() => {
+    const syncFromLocation = () => {
+      const next = marketplaceStateFromUrl();
+      setMarketplaceSearch(next.search);
+      setMarketplaceCategory(next.category);
+      setMarketplaceFilters(next.filters);
+      const detailId = marketplaceAgentIdFromPath();
+      setMarketplaceDetailAgent(detailId ? input.marketplaceAgents.find((agent) => agent.id === detailId) ?? null : null);
+    };
+    syncFromLocation();
+    window.addEventListener("popstate", syncFromLocation);
+    return () => window.removeEventListener("popstate", syncFromLocation);
+  }, [input.marketplaceAgents]);
+
   async function installMarketplaceAgent(agent: MarketplaceAgent) {
     setMarketplaceError("");
     setInstallingAgentId(agent.id);
@@ -167,6 +213,8 @@ export function useMarketplace(input: {
   function openMarketplaceDetails(agent: MarketplaceAgent) {
     setSelectedMarketplaceAgentId(agent.id);
     setMarketplaceDetailAgent(agent);
+    const params = window.location.search;
+    window.history.pushState({ section: "marketplace", agentId: agent.id }, "", `/discover/agents/${encodeURIComponent(agent.id)}${params}`);
   }
 
   return {
