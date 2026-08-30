@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { disconnectConnector, listConnectedAccounts, startConnector } from "../api/connectors";
 import type { ConnectedAccount } from "../api/types";
+import { openExternalUrl } from "../lib/localAiBridge";
 
 export function useConnectors(input: { formatError: (error: unknown) => string }) {
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
@@ -8,15 +9,18 @@ export function useConnectors(input: { formatError: (error: unknown) => string }
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [isServiceAvailable, setIsServiceAvailable] = useState<boolean | null>(null);
 
   const refreshConnectors = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
       const result = await listConnectedAccounts();
-      setAccounts(result.accounts);
+      setAccounts(result.accounts ?? []);
+      setIsServiceAvailable(true);
       return true;
     } catch (refreshError) {
+      setIsServiceAvailable(false);
       setError(input.formatError(refreshError));
       return false;
     } finally {
@@ -25,13 +29,18 @@ export function useConnectors(input: { formatError: (error: unknown) => string }
   }, [input]);
 
   async function connect(provider: "google" | "microsoft") {
+    if (isServiceAvailable !== true) {
+      setError("The agent service is offline. Start or reconnect the backend, then select Check connection before connecting an account.");
+      return;
+    }
     setIsSaving(true);
     setError("");
     setMessage("");
     try {
       const result = await startConnector(provider);
       if (result.status === "ready" && result.authorizationUrl) {
-        window.location.assign(result.authorizationUrl);
+        await openExternalUrl(result.authorizationUrl);
+        setMessage(`Finish connecting ${provider === "google" ? "Google" : "Microsoft"} in the browser, then return here and select Check connection.`);
         return;
       }
       setMessage(result.message);
@@ -65,6 +74,7 @@ export function useConnectors(input: { formatError: (error: unknown) => string }
     error,
     isLoading,
     isSaving,
+    isServiceAvailable,
     message,
     refreshConnectors,
     setMessage

@@ -8,6 +8,7 @@
     "performance": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" },
     "privacy_legal": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" },
     "observability_incident": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" },
-    "release_rollback": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" }
+    "release_rollback": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "", "rollbackPath": "" },
+    "local_ai": { "status": "pending", "owner": "", "approver": "", "verifiedAt": "", "evidenceUrl": "release-evidence/local-ai-evaluation.json", "rollbackPath": "AI_RUNTIME_MODE=rules; LOCAL_AI_KILL_SWITCH=true" }
   }
 }

@@ -17,6 +17,7 @@ function shouldUseWorkflow(message: string, tools: Set<string>) {
 
 export function preferredProviderFromMessage(message: string) {
   if (/\b(?:life-sandbox|sandbox-clinic|appointment sandbox)\b/i.test(message)) return "life-sandbox";
+  if (/\bcal(?:\.com| com)\b/i.test(message)) return "cal-com";
   if (/\bduffel\b/i.test(message)) return "duffel";
   if (/\bamadeus\b/i.test(message)) return "amadeus";
   return undefined;
@@ -40,8 +41,17 @@ function isoDateFromMessage(message: string) {
 function allIsoDatesFromMessage(message: string) {
   const dates = [...message.matchAll(/\b(20\d{2}-\d{2}-\d{2})\b/g)].map((match) => match[1]);
   if (dates.length) return dates;
-  const named = isoDateFromMessage(message);
-  return named ? [named] : [];
+  const months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+  return [...message.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d{2})\b/gi)]
+    .map((match) => {
+      const month = months.indexOf(match[1].toLowerCase());
+      const day = Number(match[2]);
+      const year = Number(match[3]);
+      const date = new Date(Date.UTC(year, month, day));
+      if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) return "";
+      return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    })
+    .filter(Boolean);
 }
 
 function appointmentSpecialtyFromMessage(message: string) {
@@ -121,12 +131,20 @@ export function structuredWorkflowInput(capabilityKey: string, message: string) 
     if (location) input.location = location;
   }
   if (capabilityKey === "appointments.availability.search") {
-    const providerId = message.match(/\b(?:for|with|at)\s+([a-z0-9][a-z0-9_-]{2,80})(?=\s+(?:from|between|on)\b|[,.]|$)/i)?.[1];
+    const preferredProviderId = preferredProviderFromMessage(message);
+    const providerId = preferredProviderId === "cal-com"
+      ? "cal-com"
+      : message.match(/\b(?:for|with|at)\s+([a-z0-9][a-z0-9_-]{2,80})(?=\s+(?:from|between|on)\b|[,.]|$)/i)?.[1];
     const dates = allIsoDatesFromMessage(message);
     if (providerId) input.providerId = providerId;
     if (dates[0]) input.startDate = dates[0];
     if (dates[1]) input.endDate = dates[1];
     else if (dates[0]) input.endDate = dates[0];
+    if (preferredProviderId === "cal-com") {
+      if (dates[0]) input.start = dates[0];
+      if (dates[1]) input.end = dates[1];
+      else if (dates[0]) input.end = dates[0];
+    }
   }
   if (capabilityKey === "appointments.booking.manage") {
     if (/\breschedule\b/i.test(message)) input.operation = "reschedule";

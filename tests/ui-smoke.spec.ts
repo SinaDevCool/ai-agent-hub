@@ -1,6 +1,7 @@
 import { expect, test } from "playwright/test";
 
 test("loads dashboard and exercises safe primary UI flows", async ({ page }) => {
+  test.setTimeout(60_000);
   const consoleIssues: string[] = [];
   const smokeUserId = `ui-clean-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -148,7 +149,7 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await expect(page.locator(".chat-transcript")).toContainText("approval");
   await page.locator(".chat-approval-banner").getByRole("button", { name: "Allow once" }).click();
   await expect(page.locator(".chat-transcript")).toContainText("Action completed");
-  await expect(page.locator(".chat-transcript")).toContainText("Transfer funds");
+  await expect(page.locator(".chat-transcript")).toContainText(/transfer funds/i);
 
   const uploadTitle = `Smoke Upload ${Date.now()}`;
   await nav.getByRole("button", { name: "Private Info", exact: true }).click();

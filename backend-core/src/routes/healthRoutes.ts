@@ -25,6 +25,16 @@ healthRoutes.get("/", (_req, res) => {
       configured: Boolean(env.OPENAI_API_KEY),
       model: env.OPENAI_MODEL
     },
+    aiRuntime: {
+      mode: env.AI_RUNTIME_MODE,
+      localEnabled: env.LOCAL_AI_ENABLED === "true",
+      planEndpointEnabled: env.LOCAL_AI_PLAN_ENDPOINT_ENABLED === "true",
+      localResponseGenerationEnabled: env.LOCAL_RESPONSE_GENERATION_ENABLED === "true",
+      localEmbeddingsEnabled: env.LOCAL_EMBEDDINGS_ENABLED === "true",
+      cloudFallbackEnabled: env.CLOUD_LLM_FALLBACK_ENABLED === "true",
+      killSwitchActive: env.LOCAL_AI_KILL_SWITCH === "true",
+      models: { ministral3b: env.LOCAL_AI_MODEL_3B_ENABLED === "true", ministral8b: env.LOCAL_AI_MODEL_8B_ENABLED === "true" }
+    },
     email: {
       configured: Boolean(env.RESEND_API_KEY),
       fromConfigured: Boolean(env.NOTIFICATION_FROM_EMAIL)

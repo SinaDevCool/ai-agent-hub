@@ -1,10 +1,12 @@
-import { Clipboard, Download, KeyRound, Link2, LogOut, Pencil, Play, ShieldOff, Trash2, Unplug, Workflow } from "lucide-react";
+import { Clipboard, Download, KeyRound, Link2, LogOut, Pencil, Play, RefreshCw, ShieldOff, Trash2, Unplug, Workflow } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import type { Agent, ConnectedAccount, CreatorAccessRequest, WorkflowProvider } from "../api/types";
 import type { useWorkflows } from "../hooks/useWorkflows";
 import type { useLifePlatform } from "../hooks/useLifePlatform";
+import type { useProviderConnections } from "../hooks/useProviderConnections";
 import type { ConfirmationRequest } from "./sections/WorkspaceSections.types";
 import { apiPost } from "../api/client";
+import { LocalAiSettingsPanel } from "./settings/LocalAiSettingsPanel";
 
 function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -39,10 +41,12 @@ export function SettingsPanel(props: {
   connectorMessage: string;
   agentCount: number;
   isConnectorSaving: boolean;
+  isConnectorServiceAvailable: boolean | null;
   isCreatorAccessSaving: boolean;
   onConnectGoogle: () => void | Promise<void>;
   onConnectMicrosoft: () => void | Promise<void>;
   onDisconnectConnector: (accountId: string) => void | Promise<void>;
+  onRefreshConnectors: () => void | Promise<boolean>;
   onRequestConfirmation: (request: ConfirmationRequest) => void;
   onExportData: () => void;
   onManageAccess: () => void;
@@ -56,6 +60,7 @@ export function SettingsPanel(props: {
   visibleAgents: Agent[];
   workflows: ReturnType<typeof useWorkflows>;
   lifePlatform: ReturnType<typeof useLifePlatform>;
+  providerConnections: ReturnType<typeof useProviderConnections>;
 }) {
   const [exportNotice, setExportNotice] = useState("");
   const [deletionNotice, setDeletionNotice] = useState("");
@@ -85,6 +90,7 @@ export function SettingsPanel(props: {
   const [groundSearch, setGroundSearch] = useState({ origin: "Paris", destination: "Lyon", departureDate: "" });
   const [shoppingListDraft, setShoppingListDraft] = useState({ name: "Weekly groceries", items: "Oats, apples, milk" });
   const [paymentSimulation, setPaymentSimulation] = useState({ payee: "Example Utility", amount: 42.5, currency: "EUR" });
+  const [calComApiKey, setCalComApiKey] = useState("");
 
   function submitCreatorRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -128,6 +134,7 @@ export function SettingsPanel(props: {
   const showCreatorRequestForm = !props.canUseCreatorTools && props.creatorAccessRequest?.status !== "pending";
   const googleAccount = props.connectedAccounts.find((account) => account.provider === "google" && account.status === "active");
   const microsoftAccount = props.connectedAccounts.find((account) => account.provider === "microsoft" && account.status === "active");
+  const calComConnection = props.providerConnections.connections.find((connection) => connection.providerId === "cal-com");
 
   function requestDisconnect(account: ConnectedAccount) {
     props.onRequestConfirmation({
@@ -146,6 +153,16 @@ export function SettingsPanel(props: {
       confirmLabel: "Remove automation",
       tone: "danger",
       onConfirm: async () => { await props.workflows.deleteWorkflow(workflowId); }
+    });
+  }
+
+  function requestCalComDisconnect(connectionId: string) {
+    props.onRequestConfirmation({
+      title: "Disconnect Cal.com?",
+      message: "AI Agent Hub will delete the encrypted credential and immediately stop live appointment access. Delete or rotate the API key in Cal.com too if you want it invalidated at the provider.",
+      confirmLabel: "Disconnect Cal.com",
+      tone: "danger",
+      onConfirm: async () => { await props.providerConnections.disconnect(connectionId); }
     });
   }
 
@@ -211,32 +228,74 @@ export function SettingsPanel(props: {
         {exportNotice ? <small className="settings-action-note" role="status" aria-live="polite">{exportNotice}</small> : null}
       </section>
 
+      <LocalAiSettingsPanel />
+
       <section className="settings-connector-card">
         <div>
           <strong>Connected accounts</strong>
           <span>Connect services your agents can use. Agents still need your approval before using private info or taking sensitive actions.</span>
         </div>
+        <div className="connector-readiness-row">
+          <span className={`status-pill ${props.isConnectorServiceAvailable === true ? "green" : props.isConnectorServiceAvailable === false ? "red" : "amber"}`}>
+            {props.isConnectorServiceAvailable === true ? "Agent service connected" : props.isConnectorServiceAvailable === false ? "Agent service offline" : "Checking agent service"}
+          </span>
+          <button disabled={props.isConnectorSaving} onClick={() => void props.onRefreshConnectors()} type="button"><RefreshCw size={16} /> Check connection</button>
+        </div>
         <div className="connector-row">
           <div>
             <strong>Google</strong>
-            <span>{googleAccount ? `${googleAccount.accountLabel} · ${googleAccount.status}${googleAccount.lastRefreshAt ? ` · refreshed ${new Date(googleAccount.lastRefreshAt).toLocaleString()}` : ""}` : "Connect Gmail, Calendar, and Drive metadata"}</span>
+            <span>{googleAccount ? `${googleAccount.accountLabel} connected${googleAccount.lastRefreshAt ? ` · refreshed ${new Date(googleAccount.lastRefreshAt).toLocaleString()}` : ""}` : "Connect Gmail, Calendar, and Drive metadata"}</span>
           </div>
           {googleAccount ? (
             <button disabled={props.isConnectorSaving} onClick={() => requestDisconnect(googleAccount)} type="button">
               <Unplug size={16} /> Disconnect
             </button>
           ) : (
-            <button disabled={props.isConnectorSaving} onClick={() => void props.onConnectGoogle()} type="button">
+            <button disabled={props.isConnectorSaving || props.isConnectorServiceAvailable !== true} onClick={() => void props.onConnectGoogle()} type="button">
               <Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : "Connect Google"}
             </button>
           )}
         </div>
         <div className="connector-row">
-          <div><strong>Microsoft</strong><span>{microsoftAccount ? `${microsoftAccount.accountLabel} · ${microsoftAccount.status}${microsoftAccount.lastRefreshAt ? ` · refreshed ${new Date(microsoftAccount.lastRefreshAt).toLocaleString()}` : ""}` : "Connect Outlook, Calendar, and your OneDrive files"}</span></div>
-          {microsoftAccount ? <button disabled={props.isConnectorSaving} onClick={() => requestDisconnect(microsoftAccount)} type="button"><Unplug size={16} /> Disconnect</button> : <button disabled={props.isConnectorSaving} onClick={() => void props.onConnectMicrosoft()} type="button"><Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : "Connect Microsoft"}</button>}
+          <div><strong>Microsoft</strong><span>{microsoftAccount ? `${microsoftAccount.accountLabel} connected${microsoftAccount.lastRefreshAt ? ` · refreshed ${new Date(microsoftAccount.lastRefreshAt).toLocaleString()}` : ""}` : "Connect Outlook, Calendar, and your OneDrive files"}</span></div>
+          {microsoftAccount ? <button disabled={props.isConnectorSaving} onClick={() => requestDisconnect(microsoftAccount)} type="button"><Unplug size={16} /> Disconnect</button> : <button disabled={props.isConnectorSaving || props.isConnectorServiceAvailable !== true} onClick={() => void props.onConnectMicrosoft()} type="button"><Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : "Connect Microsoft"}</button>}
         </div>
+        {props.isConnectorServiceAvailable === false ? <small>Google and Microsoft connections require the agent service because OAuth tokens and permissions are enforced there. This development desktop build expects it at <code>http://localhost:4141</code>.</small> : null}
         {props.connectorMessage ? <small className="settings-action-note" role="status" aria-live="polite">{props.connectorMessage}</small> : null}
         {props.connectorError ? <small className="form-error">{props.connectorError}</small> : null}
+      </section>
+
+      <section className="settings-connector-card" aria-labelledby="calcom-connection-heading">
+        <div>
+          <strong id="calcom-connection-heading">Cal.com appointments</strong>
+          <span>Connect a Cal.com API v2 key for real availability and approval-protected booking.</span>
+        </div>
+        <div className="provider-permission-disclosure">
+          <strong>What AI Agent Hub will use</strong>
+          <span>Read event types and availability; read booking status; create, reschedule, or cancel only after your explicit approval.</span>
+          <small>Important: a Cal.com API key is an account-level credential. AI Agent Hub encrypts it and limits its own use to these appointment endpoints, but Cal.com does not make this key itself narrowly scoped.</small>
+        </div>
+        {calComConnection ? <div className="connector-row">
+          <div>
+            <strong>{calComConnection.displayName} · {calComConnection.status}</strong>
+            <span>Credential …{calComConnection.credentialFingerprint.slice(-8)} · {calComConnection.lastSuccessAt ? `tested ${formatDateTime(calComConnection.lastSuccessAt)}` : "not tested yet"}</span>
+            {calComConnection.lastFailureReason ? <small>{calComConnection.lastFailureReason}</small> : null}
+          </div>
+          <div className="settings-primary-actions">
+            <button disabled={props.providerConnections.isSaving} onClick={() => void props.providerConnections.testConnection(calComConnection.id)} type="button"><Play size={16} /> Test</button>
+            <button disabled={props.providerConnections.isSaving} onClick={() => requestCalComDisconnect(calComConnection.id)} type="button"><Unplug size={16} /> Disconnect</button>
+          </div>
+        </div> : null}
+        <form className="provider-credential-form" onSubmit={(event) => { event.preventDefault(); void props.providerConnections.saveCalCom(calComApiKey.trim()).then((connection) => { if (connection) setCalComApiKey(""); }); }}>
+          <label>
+            <span>{calComConnection ? "Replace API v2 key" : "Cal.com API v2 key"}</span>
+            <input autoComplete="off" minLength={8} onChange={(event) => setCalComApiKey(event.currentTarget.value)} placeholder="cal_live_…" required type="password" value={calComApiKey} />
+          </label>
+          <button disabled={props.providerConnections.isSaving || !calComApiKey.trim()} type="submit"><Link2 size={16} /> {calComConnection ? "Reconnect" : "Connect Cal.com"}</button>
+        </form>
+        <small>Create the key in Cal.com under Settings → Developer → API Keys. Never paste it into chat.</small>
+        {props.providerConnections.message ? <small className="settings-action-note" role="status" aria-live="polite">{props.providerConnections.message}</small> : null}
+        {props.providerConnections.error ? <small className="form-error" role="alert">{props.providerConnections.error}</small> : null}
       </section>
 
       <section className="settings-consumer-card danger-zone">

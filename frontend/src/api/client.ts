@@ -75,11 +75,19 @@ async function parseApiError(response: globalThis.Response): Promise<ApiErrorPay
   return { message: text.trim() || undefined };
 }
 
-async function parseApiResponse<T>(response: globalThis.Response): Promise<T> {
+async function parseApiResponse<T>(response: globalThis.Response, method: ApiMethod, path: string): Promise<T> {
   if (response.status === 204) return undefined as T;
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) return response.json() as Promise<T>;
-  return response.text() as Promise<T>;
+  // Every application API endpoint is JSON. Returning bundled HTML (for
+  // example after a desktop base-URL mistake) as a typed object lets the
+  // invalid value travel deep into React and causes unrelated startup errors.
+  throw new ApiError({
+    message: "The agent service returned an unexpected response. Check the configured API address.",
+    status: response.status,
+    method,
+    path
+  });
 }
 
 async function apiRequest<T>(method: ApiMethod, path: string, body?: unknown): Promise<T> {
@@ -99,7 +107,7 @@ async function apiRequest<T>(method: ApiMethod, path: string, body?: unknown): P
       details: payload.details
     });
   }
-  return parseApiResponse<T>(response);
+  return parseApiResponse<T>(response, method, path);
 }
 
 export async function apiGet<T>(path: string): Promise<T> {

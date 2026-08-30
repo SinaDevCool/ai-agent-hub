@@ -16,6 +16,23 @@ test("Cal.com availability stays disabled until explicitly enabled", async () =>
   assert.equal(result.status, "blocked");
 });
 
+test("Cal.com availability discovers the first event type when the prompt omits its ID", async () => {
+  env.LIVE_APPOINTMENTS_ENABLED = "true";
+  const urls: string[] = [];
+  const versions: string[] = [];
+  setCalComFetchForTest(async (url, init) => {
+    urls.push(String(url));
+    versions.push(new Headers(init?.headers).get("cal-api-version") ?? "");
+    if (String(url).includes("/event-types")) return new Response(JSON.stringify({ status: "success", data: [{ id: 42, title: "AI Agent Hub Test", slug: "ai-agent-hub-test" }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ status: "success", data: { "2026-09-07": [{ start: "2026-09-07T09:00:00Z" }] } }), { status: 200, headers: { "Content-Type": "application/json" } });
+  });
+  const result = await calComProvider.execute({ userId: "u", agentId: "a", capability: capability("appointments.availability.search"), action: "search", input: { startDate: "2026-09-07", endDate: "2026-09-11" }, attempt: 1, providerConnection: connection });
+  assert.equal(result.status, "ok");
+  assert.match(urls[0], /\/event-types\?sortCreatedAt=asc$/);
+  assert.match(urls[1], /eventTypeId=42/);
+  assert.deepEqual(versions, ["2024-06-14", "2024-09-04"]);
+});
+
 test("Cal.com booking uses current API version, approval reference, and idempotency", async () => {
   env.LIVE_APPOINTMENTS_ENABLED = "true";
   const userId = `cal-provider-${Date.now()}`;

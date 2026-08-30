@@ -118,8 +118,9 @@ function buildPrompt(input: OpenAiRuntimeInput) {
 }
 
 export async function generateRuntimeReply(input: OpenAiRuntimeInput): Promise<OpenAiRuntimeResult> {
-  if (!env.OPENAI_API_KEY) {
-    if (env.NODE_ENV === "production") {
+  const cloudEnabled = env.AI_RUNTIME_MODE === "cloud" || env.CLOUD_LLM_FALLBACK_ENABLED === "true";
+  if (!cloudEnabled || !env.OPENAI_API_KEY) {
+    if (env.NODE_ENV === "production" && cloudEnabled) {
       throw new RuntimeProviderUnavailableError("OpenAI runtime is not configured for production.");
     }
     logger.warn("OpenAI runtime API key is not configured; using local fallback");

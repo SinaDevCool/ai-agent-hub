@@ -1,0 +1,17 @@
+{
+  "name": "ai-agent-hub-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "stage:sidecar": "node scripts/stage-llama-sidecar.mjs",
+    "dev": "tauri dev",
+    "build": "npm run stage:sidecar && tauri build",
+    "typecheck": "node -e \"console.log('Desktop TypeScript is provided by the frontend workspace.')\"",
+    "test": "node --test tests/*.test.mjs",
+    "lint": "node -e \"console.log('Desktop Rust lint runs through cargo clippy.')\""
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.0"
+  }
+}

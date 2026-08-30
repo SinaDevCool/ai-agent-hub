@@ -18,4 +18,10 @@ backend-core/private-exports/
 .codex-run-logs/
 *.log
 *.tsbuildinfo
+desktop/src-tauri/target/
+desktop/src-tauri/binaries/*
+!desktop/src-tauri/binaries/README.md
+!desktop/src-tauri/binaries/.gitkeep
+desktop/.sidecar-cache/
 dashboard-*.png
+supabase/.temp/

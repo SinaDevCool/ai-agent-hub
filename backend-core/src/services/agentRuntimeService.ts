@@ -14,6 +14,8 @@ import { runProviderRuntimeIntent } from "./agentProviderRuntimeService.js";
 import { finishAgentRun, recordAgentRunStep, runtimeStatusToAgentRunStatus, startAgentRun } from "./agentRunService.js";
 import { getRuntimeIntent } from "./runtimeIntentService.js";
 import { runVaultSearchIntent } from "./agentVaultRuntimeService.js";
+import { interpretAgentMessage, interpretationExecutionMessage, validateInterpretationForManifest } from "./agentInterpretationService.js";
+import type { ClientRuntimeProvenance, InterpretationResult } from "./agentInterpretationSchema.js";
 
 export { getOrCreateAgentConversation };
 
@@ -46,6 +48,8 @@ async function persistRuntimeResult(input: {
       requestId: input.result.requestId,
       provider: input.result.provider,
       model: input.result.model,
+      interpretation: input.result.interpretation,
+      clientRuntime: input.result.clientRuntime,
       providerReceiptId: input.result.providerReceipt?.id
     },
     error: input.result.reason
@@ -58,8 +62,13 @@ async function persistRuntimeResult(input: {
   });
 }
 
-export async function runAgentForUser(input: { userId: string; agentId: string; message: string }): Promise<RuntimeResult & { conversation?: unknown }> {
-  const message = input.message.trim();
+export async function runAgentForUser(input: {
+  userId: string;
+  agentId: string;
+  message?: string;
+  interpretation?: InterpretationResult;
+  clientRuntime?: ClientRuntimeProvenance;
+}): Promise<RuntimeResult & { conversation?: unknown }> {
   const agent = await prisma.agent.findFirst({
     where: {
       id: input.agentId,
@@ -79,7 +88,24 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
   const runtimeAgent: RuntimeAgent = agent;
   const manifest = decodeJson<AgentCapabilityManifest>(runtimeAgent.capabilityManifest, {});
   const tools = new Set(manifest.tools ?? []);
-  const intent = getRuntimeIntent(message);
+  const suppliedMessage = input.message?.trim() ?? "";
+  const interpretation = input.interpretation ?? await interpretAgentMessage({ message: suppliedMessage, manifest });
+  const validation = validateInterpretationForManifest({ interpretation, manifest });
+  const message = suppliedMessage || interpretationExecutionMessage(interpretation) || "Locally interpreted request";
+  if (!validation.ok) {
+    const result: RuntimeResult = {
+      status: "blocked",
+      intent: "blocked",
+      reply: validation.reason,
+      reason: validation.reason,
+      runtimeState: "blocked",
+      nextStep: interpretation.missingFields.length ? "Provide the missing information and try again." : "Choose a capability supported by this agent.",
+      interpretation,
+      clientRuntime: input.clientRuntime
+    };
+    return withPersistedConversation({ userId: input.userId, agent: runtimeAgent, message, result });
+  }
+  const intent = input.interpretation ? interpretation.intent : getRuntimeIntent(message);
   const activeImportedProvider = getActiveImportedRuntimeProvider(manifest);
   const activationBlock = importedRuntimeNeedsActivation(manifest);
 
@@ -104,10 +130,12 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
     intent,
     userGoal: message,
     plan: {
-      source: "agent_runtime",
+      source: input.interpretation ? "client_interpretation" : "agent_runtime",
       tools: manifest.tools ?? [],
       requestedSchemas: manifest.requestedSchemas ?? [],
-      highRiskActions: manifest.highRiskActions ?? []
+      highRiskActions: manifest.highRiskActions ?? [],
+      interpretation,
+      clientRuntime: input.clientRuntime
     }
   });
 
@@ -117,7 +145,7 @@ export async function runAgentForUser(input: { userId: string; agentId: string; 
       agent: runtimeAgent,
       agentRunId: agentRun.id,
       message,
-      result,
+      result: { ...result, interpretation, clientRuntime: input.clientRuntime },
       step
     });
 

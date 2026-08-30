@@ -36,10 +36,40 @@ test("production env rejects localhost frontend origin and missing migration dir
     (error) => {
       const output = String((error as { stderr?: Buffer }).stderr ?? "");
       return output.includes("DIRECT_URL is required in production")
-        && output.includes("FRONTEND_ORIGIN cannot include localhost origins in production")
-        && output.includes("OPENAI_API_KEY is required in production");
+        && output.includes("FRONTEND_ORIGIN cannot include localhost origins in production");
     }
   );
+});
+
+test("production rules mode does not require a cloud AI credential", () => {
+  assert.doesNotThrow(() => runEnvParse({
+    NODE_ENV: "production",
+    AI_RUNTIME_MODE: "rules",
+    CLOUD_LLM_FALLBACK_ENABLED: "false",
+    DATABASE_URL: "postgresql://app:secret@example.test:5432/app",
+    DIRECT_URL: "postgresql://app:secret@example.test:5432/app",
+    FRONTEND_ORIGIN: "https://ai-agent-hub.example.com",
+    API_PUBLIC_URL: "https://api.ai-agent-hub.example.com",
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_ANON_KEY: "test-anon-key",
+    OPENAI_API_KEY: "",
+    VAULT_ENCRYPTION_KEY: "123456789012345678901234"
+  }));
+});
+
+test("production cloud mode requires a cloud AI credential", () => {
+  assert.throws(() => runEnvParse({
+    NODE_ENV: "production",
+    AI_RUNTIME_MODE: "cloud",
+    DATABASE_URL: "postgresql://app:secret@example.test:5432/app",
+    DIRECT_URL: "postgresql://app:secret@example.test:5432/app",
+    FRONTEND_ORIGIN: "https://ai-agent-hub.example.com",
+    API_PUBLIC_URL: "https://api.ai-agent-hub.example.com",
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_ANON_KEY: "test-anon-key",
+    OPENAI_API_KEY: "",
+    VAULT_ENCRYPTION_KEY: "123456789012345678901234"
+  }), (error) => String((error as { stderr?: Buffer }).stderr ?? "").includes("OPENAI_API_KEY is required when cloud AI"));
 });
 
 test("production env accepts explicit auth, database, deployed frontend origins, and AI provider config", () => {

@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { apiGet, apiPost } from "../api/client";
 import type { Agent, AgentConversation, AgentRunResult, ChatMessageDisplay, HitlRequest, ProviderReceipt, VaultDocument, WorkflowResultCard } from "../api/types";
 import { friendlyActionName } from "../lib/display";
+import { generateReplyLocally, getLocalAiPrivacyMode, interpretPromptLocally } from "../lib/localAiBridge";
 
 type AgentMessageStatus = "success" | "blocked_by_policy" | "pending_human_approval" | "error" | null;
 
@@ -153,7 +154,7 @@ function chatItemFromMessage(message: AgentConversation["messages"][number], age
     status: typeof metadata.status === "string" ? metadata.status as AgentMessageStatus : null,
     requestId: typeof metadata.requestId === "string" ? metadata.requestId : undefined,
     actionName: typeof metadata.actionName === "string" ? metadata.actionName : undefined,
-    provider: metadata.provider === "openai" || metadata.provider === "local" || metadata.provider === "workflow" ? metadata.provider : undefined,
+    provider: metadata.provider === "openai" || metadata.provider === "local" || metadata.provider === "rules" || metadata.provider === "workflow" ? metadata.provider : undefined,
     model: typeof metadata.model === "string" ? metadata.model : undefined,
     providerFallbackReason: typeof metadata.providerFallbackReason === "string" ? metadata.providerFallbackReason : undefined,
     runtimeState: typeof metadata.runtimeState === "string" ? metadata.runtimeState as AgentRunResult["runtimeState"] : undefined,
@@ -261,8 +262,45 @@ export function useAgentChat(input: {
     setAgentRunResult(null);
     setLastFailedPrompt("");
     try {
-      const result = await apiPost<AgentRunResult>(`/api/me/agents/${input.selectedAgent.id}/run`, { message: cleanPrompt });
-      applyAgentRunResult(result);
+      const localPlan = await interpretPromptLocally({ prompt: cleanPrompt, agent: input.selectedAgent });
+      if (localPlan && getLocalAiPrivacyMode() === "local-only") {
+        const localOnlyReply = localPlan.interpretation.intent === "action"
+          ? "Local-only mode blocked this action. Switch to Local first if you want the protected backend to validate permissions and request approval."
+          : "Local-only mode kept this request on your device. No approved local document context is available for this agent yet, so nothing was sent to the backend.";
+        applyAgentRunResult({
+          status: "blocked",
+          intent: localPlan.interpretation.intent,
+          reply: localOnlyReply,
+          reason: "local_only_network_block",
+          runtimeState: "blocked",
+          nextStep: "Import approved local documents or switch to Local first.",
+          provider: "local",
+          interpretation: localPlan.interpretation,
+          clientRuntime: localPlan.clientRuntime,
+          model: localPlan.clientRuntime.modelId
+        });
+        return;
+      }
+      let result = localPlan
+        ? await apiPost<AgentRunResult>(`/api/me/agents/${input.selectedAgent.id}/run-plan`, localPlan)
+        : await apiPost<AgentRunResult>(`/api/me/agents/${input.selectedAgent.id}/run`, { message: cleanPrompt });
+      if (localPlan && result.status === "ok" && result.documents?.length) {
+        const generated = await generateReplyLocally({
+          task: cleanPrompt,
+          contexts: result.documents.map((document) => `${document.title}\n${document.excerpt}`)
+        });
+        if (generated) {
+          result = {
+            ...result,
+            reply: generated.reply,
+            display: result.display ? { ...result.display, body: generated.reply } : result.display,
+            provider: "local",
+            model: generated.clientRuntime.modelId,
+            clientRuntime: generated.clientRuntime
+          };
+        }
+      }
+      applyAgentRunResult(localPlan ? { ...result, conversation: undefined } : result);
       await input.refresh();
     } catch (error) {
       const message = friendlyChatError(error);

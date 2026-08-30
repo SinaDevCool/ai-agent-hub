@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "models": [
+    {
+      "id": "ministral-3-3b-q4",
+      "label": "Ministral 3 3B",
+      "version": "2512",
+      "quantization": "Q4_K_M",
+      "role": "default",
+      "license": "Apache-2.0",
+      "source": "mistralai/Ministral-3-3B-Instruct-2512-GGUF",
+      "downloadUrl": "https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF/resolve/main/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf?download=true",
+      "fileName": "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
+      "sha256": "9ed150d4367e68df0ac8e1540f6ddc65b42d0ee26378329d1ecbca60f93fc5f8",
+      "sizeBytes": 2147023008,
+      "minimumMemoryBytes": 6442450944,
+      "recommendedMemoryBytes": 8589934592,
+      "enabled": true
+    },
+    {
+      "id": "ministral-3-8b-q4",
+      "label": "Ministral 3 8B",
+      "version": "2512",
+      "quantization": "Q4_K_M",
+      "role": "quality",
+      "license": "Apache-2.0",
+      "source": "mistralai/Ministral-3-8B-Instruct-2512-GGUF",
+      "downloadUrl": "https://huggingface.co/mistralai/Ministral-3-8B-Instruct-2512-GGUF/resolve/main/Ministral-3-8B-Instruct-2512-Q4_K_M.gguf?download=true",
+      "fileName": "Ministral-3-8B-Instruct-2512-Q4_K_M.gguf",
+      "sha256": "33e7a72cf5e6e2cfc2f2847075acc013d68bba023e35310cef86b5cf8fdca761",
+      "sizeBytes": 5198911904,
+      "minimumMemoryBytes": 12884901888,
+      "recommendedMemoryBytes": 17179869184,
+      "enabled": true
+    },
+    {
+      "id": "nomic-embed-v2-moe-q4",
+      "label": "Nomic Embed Text v2 MoE",
+      "version": "main-b5fb2811",
+      "quantization": "Q4_K_M",
+      "role": "embedding",
+      "license": "Apache-2.0",
+      "source": "nomic-ai/nomic-embed-text-v2-moe-GGUF",
+      "downloadUrl": "https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF/resolve/main/nomic-embed-text-v2-moe.Q4_K_M.gguf?download=true",
+      "fileName": "nomic-embed-text-v2-moe.Q4_K_M.gguf",
+      "sha256": "b5fb2811647b8ef461519a68a3bf67014a84a66a130c8a2af9413ff9f06d3f22",
+      "sizeBytes": 344120288,
+      "minimumMemoryBytes": 1073741824,
+      "recommendedMemoryBytes": 2147483648,
+      "enabled": true
+    }
+  ],
+  "evaluationOnly": [
+    { "id": "apertus-8b", "reason": "Enable only after an official pinned GGUF passes safety and multilingual gates." },
+    { "id": "liquid-lfm2", "reason": "Enable only after performance and commercial-license review." }
+  ]
+}

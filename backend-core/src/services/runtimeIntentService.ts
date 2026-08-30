@@ -5,9 +5,14 @@ export function getRuntimeIntent(message: string): RuntimeIntent {
   if (!cleanMessage) return "blocked";
 
   const explicitlySearchOnly = /\bsearch\s+only\b/i.test(cleanMessage)
-    || /\b(?:do\s+not|don't|never)\s+(?:book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open)\b/i.test(cleanMessage)
+    || /\b(?:do\s+not|don't|never)\b[^.!?]{0,80}\b(?:book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open|change)\b/i.test(cleanMessage)
     || /\bwithout\s+(?:booking|buying|purchasing|transferring|paying|reserving|sending|sharing|signing|executing|applying|opening)\b/i.test(cleanMessage);
-  const asksForResults = /\b(find|search|show|compare|list|options?|flights?|hotels?)\b/i.test(cleanMessage);
+  const asksForResults = /\b(find|search|show|compare|list|options?|flights?|hotels?|suche|finde|zeige)\b/i.test(cleanMessage);
+  const containsQuotedOrRetrievedInstruction = /\b(retrieved|quoted|document|note|content)\b[^.!?]{0,80}\b(says?|instructs?|asks?)\b/i.test(cleanMessage);
+
+  // Negated writes and instructions embedded in retrieved text never override
+  // the user's explicit read request. Execution policy still validates tools.
+  if ((explicitlySearchOnly || containsQuotedOrRetrievedInstruction) && asksForResults) return "search";
 
   if (/\b(find|search|look up|show)\b.*\b(document|file|drive)\b/i.test(cleanMessage)) return "document_search";
   if (/\b(create|add|schedule)\b.*\b(calendar event|event on (?:my )?calendar)\b/i.test(cleanMessage)) return "action";
@@ -25,7 +30,6 @@ export function getRuntimeIntent(message: string): RuntimeIntent {
     if (/\b(send|sent)\b/i.test(cleanMessage) && !/\b(draft|prepare)\b/i.test(cleanMessage)) return "action";
     return "email_search";
   }
-  if (explicitlySearchOnly && asksForResults) return "search";
   if (/\b(book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open)\b/i.test(message)) return "action";
   return "search";
 }

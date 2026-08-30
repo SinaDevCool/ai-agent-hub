@@ -507,7 +507,8 @@ async function runConnectionTest(input: {
     runtimeConfig: config,
     baseHeaders: {
       accept: "application/json",
-      "content-type": "application/json"
+      "content-type": "application/json",
+      ...(config.headers ?? {})
     }
   });
   if (!authHeaders.ok) {

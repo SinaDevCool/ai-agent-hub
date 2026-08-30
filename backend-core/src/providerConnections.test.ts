@@ -365,6 +365,30 @@ test("provider connection test marks rejected credentials as reconnect required"
   assert.doesNotMatch(JSON.stringify(body), /secret-api-key|unauthorized secret/i);
 });
 
+test("Cal.com connection test verifies API v2 credentials with the required version header", async () => {
+  const { user } = await createUserAndAgent("calcom-test-ready");
+  const createResponse = await api("/api/provider-connections", user.id, {
+    method: "POST",
+    body: JSON.stringify({ providerId: "cal-com", credentials: { accessToken: "cal_live_test_secret" }, scopes: ["availability:read", "booking:write"] })
+  });
+  assert.equal(createResponse.status, 201);
+  const createBody = await createResponse.json() as { connection: { id: string } };
+  setProviderConnectionTestFetchForTest(async (url, init) => {
+    const headers = new Headers(init?.headers);
+    assert.equal(String(url), "https://api.cal.com/v2/me");
+    assert.equal(headers.get("authorization"), "Bearer cal_live_test_secret");
+    assert.equal(headers.get("cal-api-version"), "2026-02-25");
+    return new Response(JSON.stringify({ status: "success", data: { username: "beta-user" } }), { status: 200 });
+  });
+  const response = await api(`/api/provider-connections/${createBody.connection.id}/test`, user.id, { method: "POST" });
+  const body = await response.json() as { connection: { status: string; lastSuccessAt: string | null }; test: { status: string } };
+  assert.equal(response.status, 200);
+  assert.equal(body.test.status, "ready");
+  assert.equal(body.connection.status, "active");
+  assert.ok(body.connection.lastSuccessAt);
+  assert.doesNotMatch(JSON.stringify(body), /cal_live_test_secret/);
+});
+
 test("expired provider connection validates as expired and blocks execution", async () => {
   const { user, agent } = await createUserAndAgent("expired");
   const createResponse = await api("/api/provider-connections", user.id, {

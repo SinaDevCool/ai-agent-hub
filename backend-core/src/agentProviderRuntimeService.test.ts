@@ -84,6 +84,19 @@ test("appointment sandbox prompts select the built-in life sandbox provider", ()
   );
 });
 
+test("Cal.com availability prompts select the live provider and parse a named date range", () => {
+  const message = "Using Cal.com, find my available appointment slots from September 7, 2026 to September 11, 2026.";
+  assert.equal(preferredProviderFromMessage(message), "cal-com");
+  assert.deepEqual(structuredWorkflowInput("appointments.availability.search", message), {
+    message,
+    providerId: "cal-com",
+    startDate: "2026-09-07",
+    endDate: "2026-09-11",
+    start: "2026-09-07",
+    end: "2026-09-11"
+  });
+});
+
 test("appointment management prompts identify operation and provider without inventing approval", () => {
   assert.deepEqual(
     structuredWorkflowInput("appointments.booking.manage", "Cancel appointment with sandbox-clinic"),

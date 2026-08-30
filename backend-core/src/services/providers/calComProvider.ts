@@ -8,14 +8,15 @@ let calFetch: FetchLike = fetch;
 export function setCalComFetchForTest(value: FetchLike) { calFetch = value; }
 export function resetCalComFetchForTest() { calFetch = fetch; }
 const version = "2026-02-25";
+// The environment kill switch is checked again for every outbound Cal.com request.
 function blocked(input: ProviderExecutionInput, reason: string, code: "invalid_input" | "connector_not_connected" | "provider_error" = "invalid_input"): ProviderExecutionResult { return { status: "blocked", toolRunId: input.previousToolRunId ?? randomUUID(), reason, code, userMessage: reason, nextAction: code === "connector_not_connected" ? "connect_account" : code === "provider_error" ? "try_again" : "add_missing_info", retryable: code === "provider_error" }; }
 function text(value: unknown) { return typeof value === "string" ? value.trim() : ""; }
-async function request(input: ProviderExecutionInput, path: string, method: string, body?: unknown) {
+async function request(input: ProviderExecutionInput, path: string, method: string, body?: unknown, apiVersion = version) {
   if (env.LIVE_APPOINTMENTS_ENABLED !== "true") return { error: blocked(input, "Live appointments are not enabled in this environment.") };
   const token = text(input.providerConnection?.credentials.accessToken ?? input.providerConnection?.credentials.apiKey);
   if (!token) return { error: blocked(input, "Connect Cal.com before using live appointments.", "connector_not_connected") };
   try {
-    const response = await calFetch(`https://api.cal.com/v2${path}`, { method, signal: globalThis.AbortSignal.timeout(env.APPOINTMENTS_PROVIDER_TIMEOUT_MS), headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}`, "cal-api-version": version, ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+    const response = await calFetch(`https://api.cal.com/v2${path}`, { method, signal: globalThis.AbortSignal.timeout(env.APPOINTMENTS_PROVIDER_TIMEOUT_MS), headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}`, "cal-api-version": apiVersion, ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
     const value = await response.json() as Record<string, unknown>;
     if (!response.ok || value.status === "error") return { error: blocked(input, `Cal.com returned HTTP ${response.status}.`, "provider_error") };
     return { value };
@@ -24,11 +25,21 @@ async function request(input: ProviderExecutionInput, path: string, method: stri
 async function execute(input: ProviderExecutionInput): Promise<ProviderExecutionResult> {
   const toolRunId = input.previousToolRunId ?? randomUUID();
   if (input.capability.key === "appointments.availability.search" && input.action === "search") {
-    const start = text(input.input.start); const end = text(input.input.end); const eventTypeId = Number(input.input.eventTypeId);
-    if (!start || !end || !Number.isInteger(eventTypeId)) return blocked(input, "Start, end, and event type ID are required.");
+    const start = text(input.input.start ?? input.input.startDate); const end = text(input.input.end ?? input.input.endDate);
+    let eventTypeId = Number(input.input.eventTypeId);
+    let eventType: Record<string, unknown> | undefined;
+    if (!start || !end) return blocked(input, "Start and end dates are required.");
+    if (!Number.isInteger(eventTypeId)) {
+      const eventTypesResult = await request(input, "/event-types?sortCreatedAt=asc", "GET", undefined, "2024-06-14");
+      if (eventTypesResult.error) return eventTypesResult.error;
+      const eventTypes = Array.isArray(eventTypesResult.value?.data) ? eventTypesResult.value.data : [];
+      eventType = eventTypes.find((candidate): candidate is Record<string, unknown> => Boolean(candidate) && typeof candidate === "object" && Number.isInteger(Number((candidate as Record<string, unknown>).id)));
+      eventTypeId = Number(eventType?.id);
+      if (!Number.isInteger(eventTypeId)) return blocked(input, "Create at least one Cal.com event type before searching availability.");
+    }
     const query = new URLSearchParams({ start, end, eventTypeId: String(eventTypeId), format: "range" });
-    const result = await request(input, `/slots?${query}`, "GET"); if (result.error) return result.error;
-    return { status: "ok", toolRunId, result: { provider: "cal-com", inventoryMode: "live", fetchedAt: new Date().toISOString(), slots: result.value?.data ?? {} } };
+    const result = await request(input, `/slots?${query}`, "GET", undefined, "2024-09-04"); if (result.error) return result.error;
+    return { status: "ok", toolRunId, result: { provider: "cal-com", inventoryMode: "live", fetchedAt: new Date().toISOString(), eventType: eventType ? { id: eventTypeId, title: text(eventType.title), slug: text(eventType.slug) } : { id: eventTypeId }, slots: result.value?.data ?? {} } };
   }
   if (input.capability.key === "appointments.booking.manage" && ["reserve", "execute_action"].includes(input.action)) {
     if (!input.idempotencyKey || !text(input.input.approvalRequestId)) return blocked(input, "Approval reference and idempotency key are required.");
@@ -70,4 +81,4 @@ async function syncBooking(input: ProviderExecutionInput, raw: unknown, fallback
   const updatedLife = priorUid ? await prisma.lifeTransaction.updateMany({ where: { userId: input.userId, externalReference: priorUid }, data: lifeData }) : { count: 0 };
   if (!updatedLife.count) await prisma.lifeTransaction.upsert({ where: { userId_idempotencyKey: { userId: input.userId, idempotencyKey: input.idempotencyKey } }, update: lifeData, create: { userId: input.userId, capabilityKey: "appointments.booking.manage", executionLevel: "transact", ...lifeData, approvalRequired: true, idempotencyKey: input.idempotencyKey, inputJson: JSON.stringify({ appointment: true }) } });
 }
-export const calComProvider: ProviderAdapter = { providerId: "cal-com", label: "Cal.com", kind: "api", toolName: "cal.appointments", capabilities: ["appointments.availability.search", "appointments.booking.manage"], actions: ["search", "reserve", "execute_action", "status", "sync_status", "cancel"], requiresConnectedAccount: true, credentialType: "bearer_token", credentialFields: [{ key: "accessToken", label: "Cal.com API key or OAuth token", type: "password", required: true }], authType: "api_key", riskLevel: "high", description: "Gated Cal.com availability and appointment lifecycle adapter.", supportsHealthCheck: true, canHandle(input) { return (!input.preferredProviderId || input.preferredProviderId === this.providerId) && this.capabilities.includes(input.capabilityKey) && this.actions.includes(input.action); }, execute, async healthCheck() { return { state: env.LIVE_APPOINTMENTS_ENABLED === "true" ? "healthy" : "disabled", message: env.LIVE_APPOINTMENTS_ENABLED === "true" ? "Cal.com adapter is enabled; connection health is checked per account." : "Live appointments are disabled.", checkedAt: new Date().toISOString() }; } };
+export const calComProvider: ProviderAdapter = { providerId: "cal-com", label: "Cal.com", kind: "api", toolName: "cal.appointments", capabilities: ["appointments.availability.search", "appointments.booking.manage"], actions: ["search", "reserve", "execute_action", "status", "sync_status", "cancel"], requiresConnectedAccount: true, credentialType: "bearer_token", credentialFields: [{ key: "accessToken", label: "Cal.com API v2 key", type: "password", required: true, helpText: "Create this in Cal.com under Settings → Developer → API Keys. It is encrypted and never returned to the browser." }], runtimeConfig: { healthEndpointUrl: "https://api.cal.com/v2/me", healthMethod: "GET", headers: { "cal-api-version": version }, timeoutMs: 8000 }, authType: "api_key", riskLevel: "high", description: "Gated Cal.com availability and appointment lifecycle adapter.", supportsHealthCheck: true, canHandle(input) { return (!input.preferredProviderId || input.preferredProviderId === this.providerId) && this.capabilities.includes(input.capabilityKey) && this.actions.includes(input.action); }, execute, async healthCheck() { return { state: env.LIVE_APPOINTMENTS_ENABLED === "true" ? "healthy" : "disabled", message: env.LIVE_APPOINTMENTS_ENABLED === "true" ? "Cal.com adapter is enabled; connection health is checked per account." : "Live appointments are disabled.", checkedAt: new Date().toISOString() }; } };

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-30T00:34:35.763Z",
+  "runtime": "runtime-rules-v1",
+  "totalCases": 500,
+  "metrics": {
+    "intentAccuracy": 0.9,
+    "unsafeWriteRate": 0
+  },
+  "gates": {
+    "minimumCases": true,
+    "unsafeWriteRateZero": true,
+    "intentAccuracyAtLeast80Percent": true
+  },
+  "failureIds": []
+}

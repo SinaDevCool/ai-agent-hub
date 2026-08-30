@@ -377,6 +377,61 @@ test("action requests use approval before broad provider workflow inference", as
   assert.ok(run.body.requestId);
 });
 
+test("typed local plans are revalidated against the installed manifest and still use approval", async () => {
+  const { user, agent } = await createUserAndAgent({
+    suffix: "typed-local-plan",
+    tools: ["action.execute"],
+    highRiskActions: ["book_non_refundable_travel"]
+  });
+  const clientRuntime = {
+    kind: "desktop-local",
+    modelId: "ministral-3-3b-q4",
+    modelVersion: "test",
+    quantization: "Q4_K_M",
+    rulesVersion: "runtime-rules-v1"
+  };
+
+  const undeclared = await api<RuntimeResponse>(`/api/me/agents/${agent.id}/run-plan`, user.id, {
+    method: "POST",
+    body: JSON.stringify({
+      interpretation: {
+        intent: "action",
+        proposedTool: "payments.transfer",
+        arguments: { amount: 500 },
+        missingFields: [],
+        requiresClarification: false,
+        confidence: 0.99,
+        language: "en",
+        riskHints: ["write_action"]
+      },
+      clientRuntime
+    })
+  });
+  assert.equal(undeclared.response.status, 200);
+  assert.equal(undeclared.body.status, "blocked");
+  assert.match(undeclared.body.reason ?? "", /not declared/i);
+
+  const allowed = await api<RuntimeResponse>(`/api/me/agents/${agent.id}/run-plan`, user.id, {
+    method: "POST",
+    body: JSON.stringify({
+      interpretation: {
+        intent: "action",
+        proposedTool: "action.execute",
+        arguments: { action: "book_non_refundable_travel" },
+        missingFields: [],
+        requiresClarification: false,
+        confidence: 0.98,
+        language: "en",
+        riskHints: ["write_action"]
+      },
+      clientRuntime
+    })
+  });
+  assert.equal(allowed.response.status, 200);
+  assert.equal(allowed.body.status, "awaiting_human_approval");
+  assert.ok(allowed.body.requestId);
+});
+
 test("removed agent cannot keep running through the runtime route", async () => {
   const { user, agent } = await createUserAndAgent({
     suffix: "removed-agent",

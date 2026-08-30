@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-const requiredGates = ["security", "backup_restore", "accessibility", "performance", "privacy_legal", "observability_incident", "release_rollback"];
+const requiredGates = ["security", "backup_restore", "accessibility", "performance", "privacy_legal", "observability_incident", "release_rollback", "local_ai"];
 const filename = process.env.RELEASE_EVIDENCE_FILE;
 if (!filename) throw new Error("RELEASE_EVIDENCE_FILE is required.");
 const resolved = path.resolve(process.env.INIT_CWD ?? process.cwd(), filename);

@@ -18,8 +18,14 @@ export function useCurrentUser(input: { formatError: (error: unknown) => string 
     setError("");
     try {
       const result = await getCurrentUser();
-      setUser(result.user);
-      setCapabilities(result.capabilities);
+      setUser(result.user ?? null);
+      // Treat capabilities as untrusted API data. Older or misconfigured API
+      // endpoints may omit this object; startup must remain fail-closed rather
+      // than crashing while reading an authorization flag.
+      setCapabilities({
+        ...defaultCapabilities,
+        ...(result.capabilities ?? {})
+      });
     } catch (refreshError) {
       setUser(null);
       setCapabilities(defaultCapabilities);

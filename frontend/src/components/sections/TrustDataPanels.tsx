@@ -21,6 +21,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
     creatorAccess,
     workflows,
     lifePlatform,
+    providerConnections,
     decidingApprovalId,
     decideHitl,
     deleteVaultItem,
@@ -152,11 +153,13 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         connectorMessage={connectors.message}
         agentCount={agents.length}
         isConnectorSaving={connectors.isSaving}
+        isConnectorServiceAvailable={connectors.isServiceAvailable}
         isCreatorAccessSaving={creatorAccess.isSaving}
         onConnectGoogle={connectors.connectGoogle}
         onConnectMicrosoft={connectors.connectMicrosoft}
         onCreatorAccessReasonChange={creatorAccess.setReason}
         onDisconnectConnector={connectors.disconnectAccount}
+        onRefreshConnectors={connectors.refreshConnectors}
         onRequestConfirmation={requestConfirmation}
         onExportData={exportMyData}
         onManageAccess={() => scrollToSection("clearance")}
@@ -169,6 +172,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         visibleAgents={agents}
         workflows={workflows}
         lifePlatform={lifePlatform}
+        providerConnections={providerConnections}
       /><BetaFeedbackPanel className={`mobile-section desktop-section ${activeMobileClass("settings")} ${sectionClass("settings")}`} /></Suspense> : null}
     </>
   );

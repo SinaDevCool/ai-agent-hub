@@ -2,6 +2,18 @@ import { type FormEvent, useEffect, useState } from "react";
 import { setApiAccessToken } from "../api/client";
 import { isAuthConfigured, supabase, type AuthSession } from "../api/supabaseClient";
 
+const isDesktopRuntime = () => "__TAURI_INTERNALS__" in window;
+
+function authCodeFromDeepLink(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "ai-agent-hub:" || url.hostname !== "auth" || url.pathname !== "/callback") return null;
+    return url.searchParams.get("code");
+  } catch {
+    return null;
+  }
+}
+
 export function useAuthSession() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(isAuthConfigured);
@@ -30,6 +42,36 @@ export function useAuthSession() {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!supabase || !isDesktopRuntime()) return;
+    const authClient = supabase;
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    const acceptUrls = async (urls: string[]) => {
+      const code = urls.map(authCodeFromDeepLink).find(Boolean);
+      if (!code) return;
+      setAuthMessage("Completing sign-in…");
+      const { error } = await authClient.auth.exchangeCodeForSession(code);
+      setAuthMessage(error ? error.message : "Signed in successfully.");
+      if (!error) window.focus();
+    };
+
+    void import("@tauri-apps/plugin-deep-link").then(async ({ getCurrent, onOpenUrl }) => {
+      const current = await getCurrent();
+      if (current) await acceptUrls(current);
+      const dispose = await onOpenUrl(acceptUrls);
+      if (cancelled) dispose(); else unlisten = dispose;
+    }).catch((error: unknown) => {
+      setAuthMessage(error instanceof Error ? error.message : "Desktop sign-in callback is unavailable.");
+    });
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
   async function sendMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase) return;
@@ -39,7 +81,12 @@ export function useAuthSession() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.origin }
+        options: {
+          emailRedirectTo: isDesktopRuntime()
+            ? (import.meta.env.VITE_DESKTOP_AUTH_RELAY_URL as string | undefined)
+              ?? "https://ai-agent-hub-staging.pages.dev/desktop-auth"
+            : window.location.origin
+        }
       });
       if (error) throw error;
       setAuthMessage("Check your email for the sign-in link.");

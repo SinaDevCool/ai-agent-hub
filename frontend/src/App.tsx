@@ -22,6 +22,7 @@ import { usePermissionWorkflow } from "./hooks/usePermissionWorkflow";
 import { useVaultWorkflow } from "./hooks/useVaultWorkflow";
 import { useWorkflows } from "./hooks/useWorkflows";
 import { useLifePlatform } from "./hooks/useLifePlatform";
+import { useProviderConnections } from "./hooks/useProviderConnections";
 import { useWorkspaceData } from "./hooks/useWorkspaceData";
 import {
   agentCannotDo,
@@ -97,6 +98,7 @@ export function App() {
   const connectors = useConnectors({ formatError: friendlyAppError });
   const workflows = useWorkflows({ formatError: friendlyAppError });
   const lifePlatform = useLifePlatform({ formatError: friendlyAppError });
+  const providerConnections = useProviderConnections({ formatError: friendlyAppError });
   const {
     agentSearch,
     agentStatusFilter,
@@ -694,6 +696,7 @@ export function App() {
             creatorAccess,
             workflows,
             lifePlatform,
+            providerConnections,
             decidingApprovalId,
             decideHitl,
             deleteVaultItem,

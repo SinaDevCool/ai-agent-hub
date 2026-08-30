@@ -59,6 +59,34 @@ export type CurrentUser = {
   role: "user" | "creator" | "moderator" | "admin";
 };
 
+export type ProviderConnection = {
+  id: string;
+  providerId: string;
+  providerKind: string;
+  authType: string;
+  status: "active" | "refreshing" | "expired" | "reconnect_required" | "revoked" | "error" | "disabled";
+  displayName: string;
+  credentialFingerprint: string;
+  scopes: string[];
+  expiresAt: string | null;
+  externalAccountLabel: string | null;
+  lastValidatedAt: string | null;
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastFailureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProviderConnectionTest = {
+  status: "ready" | "needs_setup" | "expired" | "unreachable" | "unsafe_endpoint";
+  message: string;
+  providerId: string;
+  providerLabel: string;
+  checkedAt: string;
+  retryable: boolean;
+};
+
 export type CreatorAccessStatus = "pending" | "approved" | "denied";
 
 export type CreatorAccessRequest = {
@@ -283,7 +311,24 @@ export type AgentRunResult = {
   usedSchemas?: string[];
   documents?: VaultDocument[];
   conversation?: AgentConversation;
-  provider?: "openai" | "local" | "workflow";
+  provider?: "openai" | "local" | "rules" | "workflow";
+  interpretation?: {
+    intent: AgentRunResult["intent"];
+    proposedTool: string | null;
+    arguments: Record<string, unknown>;
+    missingFields: string[];
+    requiresClarification: boolean;
+    confidence: number;
+    language: string;
+    riskHints: string[];
+  };
+  clientRuntime?: {
+    kind: "desktop-local" | "browser-local" | "rules" | "cloud";
+    modelId: string;
+    modelVersion: string;
+    quantization?: string;
+    rulesVersion: string;
+  };
   model?: string;
   providerFallbackReason?: string;
   workflowResult?: WorkflowResultCard;

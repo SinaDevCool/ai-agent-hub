@@ -15,6 +15,14 @@ type Job = {
   lastErrorMessage?: string | null; correlationId?: string | null;
 };
 type Stats = { counts: Record<string, number>; oldestPendingAt?: string | null };
+type Activation = {
+  providerId: string; providerLabel: string; generatedAt: string; status: "ready" | "conditional" | "blocked";
+  mode: "live" | "sandbox"; killSwitch: { environmentKey: string; engaged: boolean };
+  health: { state: string; message: string; checkedAt: string };
+  connections: { total: number; active: number; lastSuccessAt: string | null; lastFailureAt: string | null; lastFailureReason: string | null };
+  checks: Check[];
+};
+type LocalAiReadiness = { status: "ready" | "conditional" | "blocked"; generatedAt: string; flags: Record<string, boolean>; evaluation: { generatedAt?: string; totalCases?: number; metrics?: Record<string, number> } | null; checks: Check[]; rollback: string };
 
 function readable(value: string) { return value.replace(/_/g, " "); }
 
@@ -25,17 +33,21 @@ export function OperationsPanel({ className }: { className?: string }) {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [activation, setActivation] = useState<Activation | null>(null);
+  const [localAi, setLocalAi] = useState<LocalAiReadiness | null>(null);
 
   const refresh = useCallback(async () => {
     setError("");
     try {
       const suffix = status ? `?status=${encodeURIComponent(status)}&limit=50` : "?limit=50";
-      const [summaryResult, statsResult, jobsResult] = await Promise.all([
+      const [summaryResult, statsResult, jobsResult, activationResult, localAiResult] = await Promise.all([
         apiGet<Summary>("/api/admin/operations/summary"),
         apiGet<{ stats: Stats }>("/api/admin/durable-jobs/stats"),
-        apiGet<{ jobs: Job[] }>(`/api/admin/durable-jobs${suffix}`)
+        apiGet<{ jobs: Job[] }>(`/api/admin/durable-jobs${suffix}`),
+        apiGet<{ activation: Activation }>("/api/admin/operations/activation-readiness/cal-com"),
+        apiGet<{ readiness: LocalAiReadiness }>("/api/admin/operations/local-ai-readiness")
       ]);
-      setSummary(summaryResult); setStats(statsResult.stats); setJobs(jobsResult.jobs);
+      setSummary(summaryResult); setStats(statsResult.stats); setJobs(jobsResult.jobs); setActivation(activationResult.activation); setLocalAi(localAiResult.readiness);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Operations data could not be loaded."); }
   }, [status]);
 
@@ -61,6 +73,27 @@ export function OperationsPanel({ className }: { className?: string }) {
       <article><span>Active queue</span><strong>{queued}</strong></article>
       <article><span>Dead letters</span><strong>{stats?.counts.dead_letter ?? 0}</strong></article>
     </div>
+    <section className="operations-card activation-readiness" aria-label="Cal.com activation readiness">
+      <div className="operations-list-heading"><div><p className="eyebrow">Provider activation</p><h3>Cal.com · {activation?.status ?? "Loading…"}</h3></div><span>{activation?.mode ?? "—"} mode</span></div>
+      <div className="operations-metrics">
+        <article><span>Kill switch</span><strong>{activation?.killSwitch.engaged ? "Engaged" : "Released"}</strong></article>
+        <article><span>Provider health</span><strong>{activation?.health.state ?? "—"}</strong></article>
+        <article><span>Active connections</span><strong>{activation?.connections.active ?? 0}</strong></article>
+        <article><span>Last staging test</span><strong>{activation?.connections.lastSuccessAt ? new Date(activation.connections.lastSuccessAt).toLocaleString() : "Missing"}</strong></article>
+      </div>
+      <div className="operations-checks">{activation?.checks.map((item) => <article key={item.key} className={`operation-check is-${item.status}`}><span>{item.status}</span><div><strong>{item.label}</strong><p>{item.detail}</p></div></article>)}</div>
+    </section>
+    <section className="operations-card activation-readiness" aria-label="Local AI activation readiness">
+      <div className="operations-list-heading"><div><p className="eyebrow">Local inference activation</p><h3>Desktop AI · {localAi?.status ?? "Loading…"}</h3></div><span>{localAi?.evaluation?.totalCases ?? 0} eval cases</span></div>
+      <div className="operations-metrics">
+        <article><span>Local AI</span><strong>{localAi?.flags.localAi ? "Enabled" : "Disabled"}</strong></article>
+        <article><span>Typed plans</span><strong>{localAi?.flags.planEndpoint ? "Enabled" : "Disabled"}</strong></article>
+        <article><span>Cloud fallback</span><strong>{localAi?.flags.cloudFallback ? "Enabled" : "Off"}</strong></article>
+        <article><span>Last evaluation</span><strong>{localAi?.evaluation?.generatedAt ? new Date(localAi.evaluation.generatedAt).toLocaleString() : "Missing"}</strong></article>
+      </div>
+      <div className="operations-checks">{localAi?.checks.map((item) => <article key={item.key} className={`operation-check is-${item.status}`}><span>{item.status}</span><div><strong>{item.label}</strong><p>{item.detail}</p></div></article>)}</div>
+      <small>Rollback: {localAi?.rollback ?? "Loading…"}</small>
+    </section>
     <div className="operations-grid">
       <section className="operations-card"><h3>Activation checklist</h3>
         <div className="operations-checks">{summary?.phase5.checks.map((check) => <article key={check.key} className={`operation-check is-${check.status}`}><span>{check.status}</span><div><strong>{check.label}</strong><p>{check.detail}</p></div></article>)}</div>

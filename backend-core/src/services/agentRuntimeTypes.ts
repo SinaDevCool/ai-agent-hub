@@ -1,6 +1,7 @@
 import type { NormalizedWorkflowResult } from "./workflowResultNormalizer.js";
 import type { SerializedProviderReceipt } from "./providerReceiptService.js";
 import type { RuntimeChatDisplay } from "./runtimeChatDisplayService.js";
+import type { ClientRuntimeProvenance, InterpretationResult } from "./agentInterpretationSchema.js";
 
 export type RuntimeIntent = "search" | "action" | "workflow" | "email_search" | "email_draft" | "calendar_free_time" | "document_search" | "blocked";
 
@@ -37,7 +38,9 @@ export type RuntimeResult = {
   requestId?: string;
   usedSchemas?: string[];
   documents?: unknown[];
-  provider?: "openai" | "local" | "workflow";
+  provider?: "openai" | "local" | "rules" | "workflow";
+  interpretation?: InterpretationResult;
+  clientRuntime?: ClientRuntimeProvenance;
   providerFallbackReason?: string;
   model?: string;
   workflowResult?: NormalizedWorkflowResult;

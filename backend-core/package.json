@@ -15,6 +15,7 @@
     "smoke:production": "node scripts/smoke_production_backend.mjs",
     "verify:release": "node scripts/verify_release.mjs",
     "verify:release-evidence": "node scripts/verify_release_evidence.mjs",
+    "evaluate:local-ai": "tsx scripts/evaluate_local_ai.ts",
     "verify:backup": "node scripts/verify_backup.mjs",
     "drill:restore": "node scripts/restore_drill.mjs",
     "drill:phase5": "node scripts/run_phase5_drills.mjs",

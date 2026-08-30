@@ -29,6 +29,16 @@ const schema = z.object({
   EMBEDDING_PROVIDER: z.enum(["local-hash", "ollama"]).default("local-hash"),
   OLLAMA_EMBEDDING_URL: z.string().url().default("http://localhost:11434/api/embeddings"),
   OLLAMA_EMBEDDING_MODEL: z.string().default("nomic-embed-text"),
+  AI_RUNTIME_MODE: z.enum(["rules", "local", "hybrid", "cloud"]).default("rules"),
+  CLOUD_LLM_PROVIDER: z.enum(["openai"]).default("openai"),
+  CLOUD_LLM_FALLBACK_ENABLED: z.enum(["true", "false"]).default("false"),
+  LOCAL_AI_ENABLED: z.enum(["true", "false"]).default("true"),
+  LOCAL_AI_PLAN_ENDPOINT_ENABLED: z.enum(["true", "false"]).default("true"),
+  LOCAL_RESPONSE_GENERATION_ENABLED: z.enum(["true", "false"]).default("false"),
+  LOCAL_EMBEDDINGS_ENABLED: z.enum(["true", "false"]).default("false"),
+  LOCAL_AI_MODEL_3B_ENABLED: z.enum(["true", "false"]).default("true"),
+  LOCAL_AI_MODEL_8B_ENABLED: z.enum(["true", "false"]).default("false"),
+  LOCAL_AI_KILL_SWITCH: z.enum(["true", "false"]).default("false"),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
   DIRECT_URL: z.string().min(1).optional(),
@@ -38,7 +48,7 @@ const schema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   NOTIFICATION_FROM_EMAIL: z.string().min(3).default("AI Agent Hub <onboarding@resend.dev>"),
   MODERATOR_USER_IDS: z.string().default(""),
-  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).optional()),
   OPENAI_MODEL: z.string().min(1).default("gpt-4o-mini"),
   GOOGLE_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
@@ -117,11 +127,14 @@ const schema = z.object({
       message: "DIRECT_URL is required in production for PostgreSQL migrations"
     });
   }
-  if (!value.OPENAI_API_KEY) {
+  if ((value.AI_RUNTIME_MODE === "cloud" || value.CLOUD_LLM_FALLBACK_ENABLED === "true") && !value.OPENAI_API_KEY) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "OPENAI_API_KEY is required in production for the agent runtime"
+      message: "OPENAI_API_KEY is required when cloud AI or cloud fallback is enabled"
     });
+  }
+  if (value.EMBEDDING_PROVIDER === "local-hash" && value.LOCAL_EMBEDDINGS_ENABLED === "true") {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "LOCAL_EMBEDDINGS_ENABLED requires a semantic embedding provider; local-hash is test-only" });
   }
   if (value.LIVE_APPOINTMENTS_ENABLED === "true" && !value.CALCOM_WEBHOOK_SECRET) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "CALCOM_WEBHOOK_SECRET is required when live appointments are enabled" });
@@ -170,9 +183,16 @@ export const deploymentInfo = {
   migrationVersion: env.MIGRATION_VERSION
 } as const;
 
-export const frontendOrigins = env.FRONTEND_ORIGIN.split(",")
+const configuredFrontendOrigins = env.FRONTEND_ORIGIN.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+export const frontendOrigins = [...new Set([
+  ...configuredFrontendOrigins,
+  "http://tauri.localhost",
+  "https://tauri.localhost",
+  "tauri://localhost"
+])];
 
 export const resolvedVaultPath = path.resolve(process.cwd(), env.VAULT_LOCAL_PATH);
 

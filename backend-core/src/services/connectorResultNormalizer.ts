@@ -36,6 +36,24 @@ function sanitize(value: unknown, maxLength = 600) {
 }
 
 function listFromRawResult(rawResult?: Record<string, unknown>) {
+  const slotGroups = rawResult?.slots;
+  if (slotGroups && typeof slotGroups === "object" && !Array.isArray(slotGroups)) {
+    const eventType = rawResult?.eventType && typeof rawResult.eventType === "object" ? rawResult.eventType as Record<string, unknown> : {};
+    const providerId = text(rawResult?.provider);
+    return Object.entries(slotGroups as Record<string, unknown>)
+      .flatMap(([date, value]) => Array.isArray(value) ? value.map((slot) => {
+        const record: Record<string, unknown> = slot && typeof slot === "object" ? slot as Record<string, unknown> : { start: slot };
+        return {
+          ...record,
+          date,
+          startsAt: record.start,
+          endsAt: record.end,
+          providerId,
+          providerName: text(eventType.title) || "Cal.com appointment",
+          eventTypeId: text(eventType.id)
+        };
+      }) : []);
+  }
   const candidates = [
     rawResult?.items,
     rawResult?.options,
@@ -43,7 +61,7 @@ function listFromRawResult(rawResult?: Record<string, unknown>) {
     rawResult?.hotels,
     rawResult?.flights,
     rawResult?.cars,
-    rawResult?.slots,
+    slotGroups,
     rawResult?.results
   ];
   return candidates.find((value): value is unknown[] => Array.isArray(value)) ?? [];

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { getOrCreateAgentConversation, runAgentForUser } from "../services/agentRuntimeService.js";
+import { runAgentPlanSchema } from "../services/agentInterpretationSchema.js";
+import { env } from "../config/env.js";
 
 export const agentRuntimeRoutes = Router();
 
@@ -25,6 +27,22 @@ agentRuntimeRoutes.post("/:agentId/run", async (req, res) => {
     userId: req.userId,
     agentId: req.params.agentId,
     message: input.message
+  });
+  res.json(result);
+});
+
+agentRuntimeRoutes.post("/:agentId/run-plan", async (req, res) => {
+  if (!req.userId) return res.status(401).json({ error: { message: "No user context" } });
+  if (env.LOCAL_AI_KILL_SWITCH === "true" || env.LOCAL_AI_ENABLED !== "true" || env.LOCAL_AI_PLAN_ENDPOINT_ENABLED !== "true") {
+    return res.status(503).json({ error: { code: "LOCAL_AI_DISABLED", message: "Local AI planning is currently disabled." } });
+  }
+  const input = runAgentPlanSchema.parse(req.body);
+  const result = await runAgentForUser({
+    userId: req.userId,
+    agentId: req.params.agentId,
+    message: input.displayText,
+    interpretation: input.interpretation,
+    clientRuntime: input.clientRuntime
   });
   res.json(result);
 });
