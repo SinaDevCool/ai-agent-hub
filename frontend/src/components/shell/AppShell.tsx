@@ -5,15 +5,8 @@ import { useTheme } from "../../hooks/useTheme";
 import { consumerNavIds, navItems, type SectionHeading, type SectionId } from "../../lib/appNavigation";
 import { pathForSection } from "../../lib/appRoutes";
 
-type NavShortcut = {
-  id: string;
-  label: string;
-  meta?: string;
-};
-
 export function AppShell(props: {
   activeSection: SectionId;
-  agentPoolShortcuts?: NavShortcut[];
   canUseCreatorTools: boolean;
   canModerateMarketplace: boolean;
   children: ReactNode;
@@ -21,7 +14,6 @@ export function AppShell(props: {
   environmentLabel?: string;
   heading: SectionHeading;
   onAddPrivateInfo: () => void;
-  onOpenAgentPoolNeed?: (needId: string) => void;
   onOpenAgentPool: () => void;
   onNavigate: (section: SectionId) => void;
   onSignOut?: () => void;
@@ -101,7 +93,7 @@ export function AppShell(props: {
               {theme === "dark" ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}
             </button>
             {props.environmentLabel ? <span className="environment-chip">{props.environmentLabel}</span> : null}
-            <span aria-live="polite" className={`connection-status ${props.connectionState === "live" ? "is-live" : props.connectionState === "offline" ? "is-offline" : "is-syncing"}`} title={`Connection: ${props.connectionState}`}>
+            <span aria-live="polite" className={`connection-status ${props.connectionState === "live" ? "is-live" : props.connectionState === "offline" ? "is-offline" : "is-syncing"}`}>
               <span aria-hidden="true" className="connection-dot" />
               <span className="connection-text">{connectionLabel}</span>
             </span>

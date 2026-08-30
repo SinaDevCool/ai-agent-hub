@@ -637,7 +637,6 @@ export function App() {
   return (
     <AppShell
       activeSection={activeSection}
-      agentPoolShortcuts={marketplaceNeedOptions.slice(0, 5).map((need) => ({ id: need.id, label: need.title }))}
       canModerateMarketplace={canModerateMarketplace}
       canUseCreatorTools={canUseCreatorTools}
       connectionState={connectionState}
@@ -646,13 +645,6 @@ export function App() {
       onAddPrivateInfo={() => {
         setIsAddingVaultItem(true);
         scrollToSection("vault");
-      }}
-      onOpenAgentPoolNeed={(needId) => {
-        const need = marketplaceNeedOptions.find((item) => item.id === needId);
-        clearMarketplaceNeedContext();
-        setMarketplaceCategory(need?.category ?? "All");
-        setMarketplaceSearch(need?.query ?? "");
-        scrollToSection("marketplace");
       }}
       onOpenAgentPool={() => openMarketplace()}
       onNavigate={scrollToSection}
