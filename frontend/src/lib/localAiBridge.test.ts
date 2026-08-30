@@ -65,3 +65,51 @@ describe("browser-local Appointment Coordinator interpretation", () => {
     expect(result.interpretation.riskHints).toContain("backend_policy_required");
   });
 });
+
+const catalogCases = [
+  ["Personal Administration Assistant", "Summarize important messages and deadlines", ["vault.search", "email.search", "email.draft_reply", "calendar.find_free_time", "workflow.run", "action.execute"]],
+  ["Trip Companion", "Plan a weekend trip using my preferences", ["vault.search", "workflow.run", "action.execute"]],
+  ["Budget Guard", "Find the spending rule I should follow", ["vault.search", "workflow.run", "action.execute"]],
+  ["Daily Task Helper", "Make a plan for my errands today", ["vault.search", "workflow.run", "action.execute"]],
+  ["Shopping Scout", "Help me choose without buying anything", ["vault.search", "workflow.run", "action.execute"]],
+  ["Health Notes Organizer", "Find allergy details in my private notes", ["vault.search", "workflow.run"]],
+  ["Job Application Coach", "Draft a cover letter using my career profile", ["vault.search", "email.search", "email.draft_reply"]],
+  ["Inbox Follow-Up Helper", "Draft a polite follow-up email to Alex saying thank you", ["vault.search", "email.search", "email.draft_reply", "calendar.find_free_time"]],
+  ["Home Maintenance Helper", "Find the last note about this appliance", ["vault.search", "workflow.run", "action.execute"]],
+  ["Private Info Librarian", "Find what private info I have saved", ["vault.search"]],
+  ["Appointment Coordinator", "Find a dentist in Berlin", ["vault.search", "workflow.run", "action.execute"]],
+  ["Leisure Concierge", "Show events this weekend", ["vault.search", "workflow.run", "action.execute"]],
+  ["Smart Home and Energy Assistant", "Explain yesterday's energy use", ["vault.search", "workflow.run", "action.execute"]]
+] as const;
+
+describe("browser-local catalog compatibility", () => {
+  it.each(catalogCases)("creates a portable plan for %s", (name, prompt, tools) => {
+    const agent = {
+      ...appointmentAgent,
+      id: name.toLowerCase().replace(/\s+/g, "-"),
+      name,
+      capabilityManifest: { tools: [...tools], capabilities: [], requestedSchemas: [], highRiskActions: [] }
+    } as Agent;
+    const result = interpretPromptWithBrowserRules({ prompt, agent });
+
+    expect(result.interpretation.arguments.task).toBe(prompt);
+    expect(result.interpretation.requiresClarification).toBe(false);
+    if (result.interpretation.proposedTool) expect(tools).toContain(result.interpretation.proposedTool);
+  });
+
+  it.each([
+    ["Search my inbox for the invoice", "email_search", "email.search", "query"],
+    ["Draft an email to Alex saying thank you", "email_draft", "email.draft_reply", "body"],
+    ["When am I free in the next 3 days?", "calendar_free_time", "calendar.find_free_time", "days"],
+    ["Find the proposal document in Drive", "document_search", "drive.search", "query"]
+  ] as const)("maps %s to declared domain tooling", (prompt, intent, tool, argument) => {
+    const agent = {
+      ...appointmentAgent,
+      capabilityManifest: { tools: ["vault.search", "email.search", "email.draft_reply", "calendar.find_free_time", "drive.search"], capabilities: [], requestedSchemas: [], highRiskActions: [] }
+    } as Agent;
+    const result = interpretPromptWithBrowserRules({ prompt, agent });
+    expect(result.interpretation.intent).toBe(intent);
+    expect(result.interpretation.proposedTool).toBe(tool);
+    expect(result.interpretation.arguments[argument]).toBeTruthy();
+  });
+});

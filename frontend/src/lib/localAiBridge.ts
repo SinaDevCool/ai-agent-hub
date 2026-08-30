@@ -116,22 +116,47 @@ export function interpretPromptWithBrowserRules(input: { prompt: string; agent: 
   const readOnly = /\b(?:do not|don't|never)\b[^.!?]{0,80}\b(?:book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open|change|cancel|delete|create|update)\b/i.test(prompt)
     || /\bsearch only\b/i.test(prompt);
   const action = !readOnly && /\b(book|buy|purchase|transfer|pay|reserve|send|share|sign|execute|apply|open|cancel|delete|create|update)\b/i.test(prompt);
-  const intent: LocalInterpretation["intent"] = action ? "action" : "search";
+  const documentSearch = /\b(find|search|look up|show)\b.*\b(document|file|drive)\b/i.test(prompt);
+  const calendarLookup = !action && !isAppointmentRequest(prompt) && /\b(calendar|schedule|meeting|meetings|availability|available|free time|free slot|when am i free|open slot)\b/i.test(prompt);
+  const emailRequest = /\b(emails?|gmail|inbox|messages?|mail)\b/i.test(prompt);
+  const emailDraft = emailRequest && /\b(draft|write|prepare|reply|respond|compose)\b/i.test(prompt);
+  const intent: LocalInterpretation["intent"] = action ? "action"
+    : documentSearch ? "document_search"
+      : emailDraft ? "email_draft"
+        : emailRequest ? "email_search"
+          : calendarLookup ? "calendar_free_time"
+            : "search";
   const actionName = action
     ? input.agent.capabilityManifest.highRiskActions?.find((candidate) => prompt.toLowerCase().includes(candidate.replace(/_/g, " ").toLowerCase()))
       ?? (/\btransfer|pay\b/i.test(prompt) ? "transfer_funds" : /\bbook|reserve\b/i.test(prompt) ? "book_non_refundable_travel" : /\bcredit|card|open\b/i.test(prompt) ? "open_credit_card" : undefined)
     : undefined;
-  const isAppointment = /\b(appointment|appointments|dentist|doctor|clinic|dermatologist|cardiologist|physiotherapist|therapist|optometrist)\b/i.test(prompt);
-  const candidates = action ? ["execute", "reserve", "book", "send", "create", "update", "cancel"] : ["search", "find", "availability"];
+  const isAppointment = isAppointmentRequest(prompt);
+  const toolPreferences: Record<LocalInterpretation["intent"], string[]> = {
+    search: ["search", "find", "availability"],
+    action: ["action.execute", "execute", "reserve", "book", "send", "create", "update", "cancel"],
+    workflow: ["workflow.run"],
+    email_search: ["email.search", "gmail.search", "mail.search"],
+    email_draft: ["email.draft_reply", "email.draft", "gmail.draft", "mail.draft"],
+    calendar_free_time: ["calendar.find_free_time", "calendar.free_time", "calendar.availability"],
+    document_search: ["drive.search", "document.search", "vault.search"],
+    blocked: []
+  };
   const proposedTool = isAppointment && tools.includes("workflow.run")
     ? "workflow.run"
-    : tools.find((tool) => candidates.some((candidate) => tool.toLowerCase().includes(candidate))) ?? null;
+    : toolPreferences[intent]
+      .map((candidate) => tools.find((tool) => tool.toLowerCase().includes(candidate)))
+      .find(Boolean) ?? null;
   const dates = [...prompt.matchAll(/\b(20\d{2}-\d{2}-\d{2})\b/g)].map((match) => match[1]);
   const providerId = prompt.match(/\b(?:for|with|at)\s+([a-z0-9][a-z0-9_-]{2,80})(?=\s+(?:from|between|on)\b|[,.]|$)/i)?.[1];
   const specialty = prompt.match(/\b(dentist|dermatologist|cardiologist|physiotherapist|therapist|optometrist|specialist|doctor|clinic)\b/i)?.[1];
   const location = prompt.match(/\b(?:in|near)\s+([A-Za-z][A-Za-z\s-]{1,50}?)(?=\s+(?:on|from|between|for|next|this|with)\b|[,.]|$)/i)?.[1]?.trim();
   const appointmentAvailability = isAppointment && /\b(availability|available|slots?)\b/i.test(prompt);
-  const arguments_: Record<string, unknown> = actionName ? { actionName } : {};
+  const arguments_: Record<string, unknown> = { task: normalizeTask(prompt) };
+  if (actionName) arguments_.actionName = actionName;
+  if (intent === "email_search") arguments_.query = emailQuery(prompt);
+  if (intent === "email_draft") Object.assign(arguments_, emailDraftInput(prompt));
+  if (intent === "document_search") arguments_.query = documentQuery(prompt);
+  if (intent === "calendar_free_time") arguments_.days = calendarDays(prompt);
   if (isAppointment) {
     arguments_.requestType = appointmentAvailability ? "appointment availability" : "appointment provider search";
     if (providerId) arguments_.providerId = providerId;
@@ -154,6 +179,39 @@ export function interpretPromptWithBrowserRules(input: { prompt: string; agent: 
     },
     clientRuntime: { kind: "browser-local" as const, modelId: "browser-rules", modelVersion: "1", rulesVersion: "runtime-rules-v1" }
   };
+}
+
+function normalizeTask(prompt: string) {
+  return prompt.replace(/\s+/g, " ").trim().slice(0, 1200);
+}
+
+function isAppointmentRequest(prompt: string) {
+  return /\b(appointment|appointments|dentist|doctor|clinic|dermatologist|cardiologist|physiotherapist|therapist|optometrist)\b/i.test(prompt);
+}
+
+function emailQuery(prompt: string) {
+  return prompt.replace(/\b(search|find|look up|summarize|check|show|get|recent|my|the|emails?|gmail|inbox|messages?|mail)\b/gi, " ").replace(/\s+/g, " ").trim() || "recent";
+}
+
+function documentQuery(prompt: string) {
+  return prompt.replace(/\b(find|search|look up|show|my|the|document|documents|file|files|in|google|drive)\b/gi, " ").replace(/\s+/g, " ").trim() || "recent";
+}
+
+function calendarDays(prompt: string) {
+  if (/\btoday\b/i.test(prompt)) return 1;
+  if (/\btomorrow\b/i.test(prompt)) return 2;
+  const match = prompt.match(/\b(?:next|in)\s+(\d{1,2})\s+days?\b/i);
+  if (match) return Math.min(Math.max(Number(match[1]), 1), 30);
+  return /\bmonth\b/i.test(prompt) ? 30 : 7;
+}
+
+function emailDraftInput(prompt: string) {
+  const to = prompt.match(/\bto\s+([^\s,;]+@[^\s,;]+|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i)?.[1]?.trim();
+  const subject = prompt.match(/\bsubject\s+["“]?([^"”]+)["”]?/i)?.[1]?.trim() || "Draft from AI Agent Hub";
+  const body = (prompt.match(/\b(?:saying|say|body|message)\s+["“]?([^"”]+)["”]?/i)?.[1]
+    ?? prompt.match(/\b(?:reply|respond)\s+["“]?([^"”]+)["”]?/i)?.[1]
+    ?? prompt.replace(/\bto\s+([^\s,;]+@[^\s,;]+|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i, " ").replace(/\b(draft|write|prepare|compose|an?|email|reply|respond)\b/gi, " ").replace(/\s+/g, " ").trim()).trim();
+  return { ...(to ? { to } : {}), subject, body };
 }
 
 export async function installLocalModel(modelId: string) {

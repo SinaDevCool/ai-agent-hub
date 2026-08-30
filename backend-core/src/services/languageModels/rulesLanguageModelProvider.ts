@@ -1,5 +1,5 @@
 import type { InterpretationResult } from "../agentInterpretationSchema.js";
-import { getEmailDraftInput, getRuntimeIntent } from "../runtimeIntentService.js";
+import { getCalendarLookupDays, getDriveSearchQuery, getEmailDraftInput, getEmailSearchQuery, getNormalizedTask, getRuntimeIntent } from "../runtimeIntentService.js";
 import type { InterpretationRequest, LanguageModelProvider } from "./languageModelProvider.js";
 
 export const RULES_VERSION = "runtime-rules-v1";
@@ -15,17 +15,22 @@ function inferTool(intent: InterpretationResult["intent"], tools: string[]) {
     workflow: ["workflow.run"],
     email_search: ["gmail.search", "email.search", "mail.search"],
     email_draft: ["gmail.draft", "email.draft", "mail.draft"],
-    calendar_free_time: ["calendar.free_time", "calendar.availability"],
+    calendar_free_time: ["calendar.find_free_time", "calendar.free_time", "calendar.availability"],
     document_search: ["drive.search", "document.search", "vault.search"],
     blocked: []
   };
-  return tools.find((tool) => preferences[intent].some((candidate) => tool.toLowerCase().includes(candidate))) ?? null;
+  return preferences[intent]
+    .map((candidate) => tools.find((tool) => tool.toLowerCase().includes(candidate)))
+    .find(Boolean) ?? null;
 }
 
 export function interpretWithRules(request: InterpretationRequest): InterpretationResult {
   const intent = getRuntimeIntent(request.message);
-  const arguments_: Record<string, unknown> = {};
+  const arguments_: Record<string, unknown> = { task: getNormalizedTask(request.message) };
   if (intent === "email_draft") Object.assign(arguments_, getEmailDraftInput(request.message));
+  if (intent === "email_search") arguments_.query = getEmailSearchQuery(request.message);
+  if (intent === "document_search") arguments_.query = getDriveSearchQuery(request.message);
+  if (intent === "calendar_free_time") arguments_.days = getCalendarLookupDays(request.message);
   return {
     intent,
     proposedTool: inferTool(intent, request.manifest.tools ?? []),
@@ -45,4 +50,3 @@ export const rulesLanguageModelProvider: LanguageModelProvider = {
     return interpretWithRules(request);
   }
 };
-

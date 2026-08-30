@@ -158,13 +158,13 @@ pub async fn interpret(
         return Err("Agent manifest exceeds local interpretation limits.".into());
     }
     let (port, token, model) = ensure_running(app, state).await?;
-    let schema = json!({"type":"object","additionalProperties":false,"required":["intent","proposedTool","arguments","missingFields","requiresClarification","confidence","language","riskHints"],"properties":{"intent":{"enum":["search","action","workflow","email_search","email_draft","calendar_free_time","document_search","blocked"]},"proposedTool":{"type":["string","null"]},"arguments":{"type":"object"},"missingFields":{"type":"array","items":{"type":"string"}},"requiresClarification":{"type":"boolean"},"confidence":{"type":"number","minimum":0,"maximum":1},"language":{"type":"string"},"riskHints":{"type":"array","items":{"type":"string"}}}});
+    let schema = json!({"type":"object","additionalProperties":false,"required":["intent","proposedTool","arguments","missingFields","requiresClarification","confidence","language","riskHints"],"properties":{"intent":{"enum":["search","action","workflow","email_search","email_draft","calendar_free_time","document_search","blocked"]},"proposedTool":{"type":["string","null"]},"arguments":{"type":"object","additionalProperties":false,"properties":{"actionName":{"type":"string"},"query":{"type":"string"},"to":{"type":"string"},"subject":{"type":"string"},"body":{"type":"string"},"days":{"type":"number"},"requestType":{"type":"string"},"providerId":{"type":"string"},"startDate":{"type":"string"},"endDate":{"type":"string"},"specialty":{"type":"string"},"location":{"type":"string"}}},"missingFields":{"type":"array","items":{"type":"string"},"maxItems":20},"requiresClarification":{"type":"boolean"},"confidence":{"type":"number","minimum":0,"maximum":1},"language":{"type":"string"},"riskHints":{"type":"array","items":{"type":"string"},"maxItems":20}}});
     let body = json!({
         "model": model.id,
         "temperature": 0,
         "max_tokens": 500,
         "messages": [
-            {"role":"system","content":"Return only a schema-valid interpretation. Never execute, approve, or invent a tool. proposedTool must be null or one declared tool. Search-only and negated write requests must never become actions. Put normalized task details in arguments so the backend does not need the raw prompt. For appointment availability include requestType='appointment availability', providerId, startDate, and endDate when stated. For provider search include requestType='appointment provider search', specialty, and location. For an action, copy the matching declared high-risk action into arguments.actionName."},
+            {"role":"system","content":"Return only a schema-valid interpretation. Never execute, approve, or invent a tool. proposedTool must be null or one declared tool. Search-only and negated write requests must never become actions. Do not repeat, summarize, or answer the request; the trusted host preserves it. Use arguments only for the short structured fields allowed by the schema. For appointment availability include requestType='appointment availability', providerId, startDate, and endDate when stated. For provider search include requestType='appointment provider search', specialty, and location. For an action, copy the matching declared high-risk action into arguments.actionName."},
             {"role":"user","content": serde_json::to_string(&json!({"request":request.prompt,"declaredTools":request.tools,"declaredCapabilities":request.capabilities,"highRiskActions":request.high_risk_actions})).unwrap_or_default()}
         ],
         "response_format": {"type":"json_schema","json_schema":{"name":"agent_interpretation","strict":true,"schema":schema}}
@@ -188,12 +188,57 @@ pub async fn interpret(
         .pointer("/choices/0/message/content")
         .and_then(Value::as_str)
         .ok_or_else(|| "Local model returned no interpretation.".to_string())?;
-    let interpretation: Value = serde_json::from_str(content)
+    let mut interpretation: Value = serde_json::from_str(content)
         .map_err(|_| "Local model returned invalid JSON.".to_string())?;
+    // Every locally validated plan must retain enough normalized context for
+    // any agent domain. This deterministic fallback prevents small models from
+    // dropping the user's task while still keeping the raw prompt off the API.
+    inject_normalized_task(&mut interpretation, &request.prompt);
     Ok(InterpretResponse {
         interpretation,
         client_runtime: json!({"kind":"desktop-local","modelId":model.id,"modelVersion":model.version,"quantization":model.quantization,"rulesVersion":"runtime-rules-v1"}),
     })
+}
+
+fn inject_normalized_task(interpretation: &mut Value, prompt: &str) {
+    if let Some(arguments) = interpretation
+        .get_mut("arguments")
+        .and_then(Value::as_object_mut)
+    {
+        arguments.insert(
+            "task".into(),
+            Value::String(
+                prompt
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .chars()
+                    .take(1200)
+                    .collect(),
+            ),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::inject_normalized_task;
+    use serde_json::json;
+
+    #[test]
+    fn trusted_host_injects_a_bounded_normalized_task() {
+        let mut interpretation = json!({"arguments":{"query":"invoice"}});
+        inject_normalized_task(&mut interpretation, "  Find   my\ninvoice  ");
+        assert_eq!(interpretation["arguments"]["task"], "Find my invoice");
+        assert_eq!(interpretation["arguments"]["query"], "invoice");
+    }
+
+    #[test]
+    fn trusted_host_overwrites_model_generated_task_text() {
+        let mut interpretation = json!({"arguments":{"task":"invented expansion"}});
+        inject_normalized_task(&mut interpretation, "User request");
+        assert_eq!(interpretation["arguments"]["task"], "User request");
+    }
 }
 
 pub async fn generate_reply(

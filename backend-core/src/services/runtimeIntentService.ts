@@ -34,6 +34,10 @@ export function getRuntimeIntent(message: string): RuntimeIntent {
   return "search";
 }
 
+export function getNormalizedTask(message: string) {
+  return message.replace(/\s+/g, " ").trim().slice(0, 1200);
+}
+
 export function getDriveSearchQuery(message: string) {
   return message.replace(/\b(find|search|look up|show|my|the|document|documents|file|files|in|google|drive)\b/gi, " ").replace(/\s+/g, " ").trim() || "recent";
 }
