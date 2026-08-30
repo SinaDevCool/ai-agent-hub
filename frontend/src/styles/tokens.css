@@ -475,6 +475,7 @@ small {
 :root[data-theme="light"] .status-pill.amber { background: #fff3d6; border-color: #e8bd61; color: #7a4b00; }
 :root[data-theme="light"] .status-pill.red { background: #fee2e2; border-color: #efa2a2; color: #991b1b; }
 :root[data-theme="light"] .status-pill.blue { background: #e0f2fe; border-color: #8bc7e8; color: #075985; }
+:root[data-theme="light"] .onboarding-footer span { color: #1e293b; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
