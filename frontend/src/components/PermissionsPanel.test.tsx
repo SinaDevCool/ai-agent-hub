@@ -48,6 +48,8 @@ describe("PermissionsPanel", () => {
         className="panel"
         onAddPrivateInfo={vi.fn()}
         onTogglePermission={vi.fn()}
+        grantingSchemaName=""
+        notice=""
         permissionCenterRows={[
           { schema: travelSchema, allowedAgents: [concierge], requestingAgents: [concierge] },
           { schema: identitySchema, allowedAgents: [], requestingAgents: [concierge] }

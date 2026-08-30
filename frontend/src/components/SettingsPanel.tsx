@@ -1,6 +1,6 @@
 import { Clipboard, Download, KeyRound, Link2, LogOut, Moon, Pencil, Play, RefreshCw, ShieldOff, Sun, Trash2, Unplug, Workflow } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import type { Agent, ConnectedAccount, CreatorAccessRequest, WorkflowProvider } from "../api/types";
+import type { AccountConnectorReadiness, Agent, ConnectedAccount, CreatorAccessRequest, WorkflowProvider } from "../api/types";
 import type { useWorkflows } from "../hooks/useWorkflows";
 import type { useLifePlatform } from "../hooks/useLifePlatform";
 import type { useProviderConnections } from "../hooks/useProviderConnections";
@@ -38,6 +38,7 @@ export function SettingsPanel(props: {
   creatorAccessReason: string;
   creatorAccessRequest: CreatorAccessRequest | null;
   connectedAccounts: ConnectedAccount[];
+  connectorProviders: AccountConnectorReadiness[];
   connectorError: string;
   connectorMessage: string;
   agentCount: number;
@@ -143,6 +144,8 @@ export function SettingsPanel(props: {
   const googleAccount = props.connectedAccounts.find((account) => account.provider === "google" && account.status === "active");
   const microsoftAccount = props.connectedAccounts.find((account) => account.provider === "microsoft" && account.status === "active");
   const calComConnection = props.providerConnections.connections.find((connection) => connection.providerId === "cal-com");
+  const googleReadiness = props.connectorProviders.find((provider) => provider.provider === "google");
+  const microsoftReadiness = props.connectorProviders.find((provider) => provider.provider === "microsoft");
 
   function requestDisconnect(account: ConnectedAccount) {
     props.onRequestConfirmation({
@@ -261,6 +264,12 @@ export function SettingsPanel(props: {
           <button onClick={exportData} type="button"><Download size={16} /> Export my data</button>
         </div>
         {exportNotice ? <small className="settings-action-note" role="status" aria-live="polite">{exportNotice}</small> : null}
+        <div className="privacy-detail-grid">
+          <article><strong>Private Data vault</strong><span>Your saved notes are stored in your signed-in workspace so web and desktop can use the same source of truth.</span><small>Agents receive only the categories you approve.</small></article>
+          <article><strong>Search & retrieval</strong><span>Postgres text search is the free baseline. Desktop can add local multilingual embeddings without uploading raw notes to an AI provider.</span><small>A separate graph database is not required for launch.</small></article>
+          <article><strong>AI processing</strong><span>Desktop Local only keeps prompts on-device. Web requests use the protected backend and its configured runtime.</span><small>External actions always remain behind policy checks and approval.</small></article>
+          <article><strong>Your controls</strong><span>Review access by agent, export a copy, revoke every grant, or schedule account deletion.</span><small>Connection credentials are encrypted and are never displayed again.</small></article>
+        </div>
       </section>
 
       <div className={`settings-view settings-view-local-ai ${activeView === "local-ai" ? "is-active" : ""}`}><LocalAiSettingsPanel /></div>
@@ -284,28 +293,29 @@ export function SettingsPanel(props: {
         </div>
         <div className="connector-readiness-row">
           <span className={`status-pill ${props.isConnectorServiceAvailable === true ? "green" : props.isConnectorServiceAvailable === false ? "red" : "amber"}`}>
-            {props.isConnectorServiceAvailable === true ? "Agent service connected" : props.isConnectorServiceAvailable === false ? "Agent service offline" : "Checking agent service"}
+            {props.isConnectorServiceAvailable === true ? "Agent service online" : props.isConnectorServiceAvailable === false ? "Agent service offline" : "Checking agent service"}
           </span>
           <button disabled={props.isConnectorSaving} onClick={() => void props.onRefreshConnectors()} type="button"><RefreshCw size={16} /> Check connection</button>
         </div>
         <div className="connector-row">
           <div>
             <strong>Google</strong>
-            <span>{googleAccount ? `${googleAccount.accountLabel} connected${googleAccount.lastRefreshAt ? ` · refreshed ${new Date(googleAccount.lastRefreshAt).toLocaleString()}` : ""}` : "Connect Gmail, Calendar, and Drive metadata"}</span>
+            <span>{googleAccount ? `${googleAccount.accountLabel} connected${googleAccount.lastRefreshAt ? ` · refreshed ${new Date(googleAccount.lastRefreshAt).toLocaleString()}` : ""}` : (googleReadiness?.message ?? "Checking Google setup…")}</span>
+            {!googleAccount && googleReadiness ? <small>{googleReadiness.configured ? `${googleReadiness.scopes.length} permissions requested during Google consent.` : "This requires the app operator to add Google OAuth credentials; no account data has been requested."}</small> : null}
           </div>
           {googleAccount ? (
             <button disabled={props.isConnectorSaving} onClick={() => requestDisconnect(googleAccount)} type="button">
               <Unplug size={16} /> Disconnect
             </button>
           ) : (
-            <button disabled={props.isConnectorSaving || props.isConnectorServiceAvailable !== true} onClick={() => void props.onConnectGoogle()} type="button">
-              <Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : "Connect Google"}
+            <button disabled={props.isConnectorSaving || props.isConnectorServiceAvailable !== true || googleReadiness?.configured === false} onClick={() => void props.onConnectGoogle()} type="button">
+              <Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : googleReadiness?.configured === false ? "Setup required" : "Connect Google"}
             </button>
           )}
         </div>
         <div className="connector-row">
-          <div><strong>Microsoft</strong><span>{microsoftAccount ? `${microsoftAccount.accountLabel} connected${microsoftAccount.lastRefreshAt ? ` · refreshed ${new Date(microsoftAccount.lastRefreshAt).toLocaleString()}` : ""}` : "Connect Outlook, Calendar, and your OneDrive files"}</span></div>
-          {microsoftAccount ? <button disabled={props.isConnectorSaving} onClick={() => requestDisconnect(microsoftAccount)} type="button"><Unplug size={16} /> Disconnect</button> : <button disabled={props.isConnectorSaving || props.isConnectorServiceAvailable !== true} onClick={() => void props.onConnectMicrosoft()} type="button"><Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : "Connect Microsoft"}</button>}
+          <div><strong>Microsoft</strong><span>{microsoftAccount ? `${microsoftAccount.accountLabel} connected${microsoftAccount.lastRefreshAt ? ` · refreshed ${new Date(microsoftAccount.lastRefreshAt).toLocaleString()}` : ""}` : (microsoftReadiness?.message ?? "Checking Microsoft setup…")}</span>{!microsoftAccount && microsoftReadiness ? <small>{microsoftReadiness.configured ? `${microsoftReadiness.scopes.length} permissions requested during Microsoft consent.` : "This requires the app operator to add Microsoft OAuth credentials; no account data has been requested."}</small> : null}</div>
+          {microsoftAccount ? <button disabled={props.isConnectorSaving} onClick={() => requestDisconnect(microsoftAccount)} type="button"><Unplug size={16} /> Disconnect</button> : <button disabled={props.isConnectorSaving || props.isConnectorServiceAvailable !== true || microsoftReadiness?.configured === false} onClick={() => void props.onConnectMicrosoft()} type="button"><Link2 size={16} /> {props.isConnectorSaving ? "Opening…" : microsoftReadiness?.configured === false ? "Setup required" : "Connect Microsoft"}</button>}
         </div>
         {props.isConnectorServiceAvailable === false ? <small>Google and Microsoft connections require the agent service because OAuth tokens and permissions are enforced there. This development desktop build expects it at <code>http://localhost:4141</code>.</small> : null}
         {props.connectorMessage ? <small className="settings-action-note" role="status" aria-live="polite">{props.connectorMessage}</small> : null}

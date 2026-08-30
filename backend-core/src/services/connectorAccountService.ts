@@ -146,6 +146,31 @@ function getMicrosoftConfigState() {
   return { configured: Boolean(env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET && redirectUri), redirectUri, missing: [!env.MICROSOFT_CLIENT_ID ? "MICROSOFT_CLIENT_ID" : "", !env.MICROSOFT_CLIENT_SECRET ? "MICROSOFT_CLIENT_SECRET" : "", !redirectUri ? "MICROSOFT_REDIRECT_URI or APP_PUBLIC_URL" : ""].filter(Boolean) };
 }
 
+export function listAccountConnectorReadiness() {
+  const google = getGoogleConfigState();
+  const microsoft = getMicrosoftConfigState();
+  return [
+    {
+      provider: "google" as const,
+      configured: google.configured,
+      missing: google.missing,
+      scopes: requestedScopes("google"),
+      message: google.configured
+        ? "Ready to connect Gmail, Google Calendar, and Drive metadata."
+        : "Google sign-in is not configured by the operator yet."
+    },
+    {
+      provider: "microsoft" as const,
+      configured: microsoft.configured,
+      missing: microsoft.missing,
+      scopes: requestedScopes("microsoft"),
+      message: microsoft.configured
+        ? "Ready to connect Outlook, Microsoft Calendar, and OneDrive."
+        : "Microsoft sign-in is not configured by the operator yet."
+    }
+  ];
+}
+
 function serializeAccount(account: {
   id: string;
   provider: string;

@@ -1,0 +1,210 @@
+/* Light mode is a separate visual system, loaded last to neutralize legacy dark-only declarations. */
+:root[data-theme="light"] {
+  --page: #f3f6fa;
+  --sidebar: #fbfcfe;
+  --surface: #ffffff;
+  --surface-subtle: #f5f7fa;
+  --surface-hover: #edf3f9;
+  --surface-raised: #ffffff;
+  --surface-sunken: #eaf0f6;
+  --text: #142033;
+  --text-muted: #53647a;
+  --text-subtle: #718096;
+  --border: #d7e0ea;
+  --border-strong: #becbd9;
+  --accent: #145f9f;
+  --accent-hover: #0f4e86;
+  --accent-soft: #e6f1fb;
+  --success: #147a4d;
+  --success-soft: #e5f6ed;
+  --warning: #8a5700;
+  --warning-soft: #fff4d8;
+  --danger: #a72b35;
+  --danger-soft: #fdebed;
+  --shadow-card: 0 1px 2px rgba(20, 32, 51, .05), 0 8px 24px rgba(20, 32, 51, .06);
+  --shadow-overlay: 0 18px 50px rgba(20, 32, 51, .16);
+}
+
+:root[data-theme="light"] body {
+  background: radial-gradient(circle at 58% -10%, #ffffff 0, transparent 38%), var(--page);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+:root[data-theme="light"] .app-shell {
+  background: linear-gradient(145deg, rgba(20, 95, 159, .035), transparent 38%), var(--page);
+}
+
+:root[data-theme="light"] :is(h1, h2, h3, .panel-title, .topbar-heading > h1) {
+  color: var(--text);
+  letter-spacing: -.018em;
+  text-wrap: balance;
+}
+
+:root[data-theme="light"] :is(p, small, .empty, .mobile-section-intro) {
+  color: var(--text-muted);
+}
+
+:root[data-theme="light"] :is(.panel, .home-card, .marketplace-card, .installed-agent-card, .agent-tab-panel, .settings-consumer-card, .settings-connector-card, .settings-advanced-card, .operations-card, .beta-admin-card) {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
+  color: var(--text);
+}
+
+:root[data-theme="light"] :is(button, .upload-button, .topbar-secondary, .mobile-settings-button) {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="light"] :is(button, a, .upload-button):hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+}
+
+:root[data-theme="light"] button:hover,
+:root[data-theme="light"] .upload-button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+:root[data-theme="light"] :is(button.primary-action, .topbar-primary) {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 5px 14px rgba(20, 95, 159, .18);
+  color: #fff;
+}
+
+:root[data-theme="light"] :is(button.primary-action, .topbar-primary):hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #fff;
+}
+
+:root[data-theme="light"] button:disabled {
+  background: #edf1f5;
+  border-color: #dde4ec;
+  color: #77869a;
+  opacity: 1;
+}
+
+:root[data-theme="light"] button.danger {
+  background: var(--danger-soft);
+  border-color: #e9b4ba;
+  color: var(--danger);
+}
+
+:root[data-theme="light"] :is(input, select, textarea) {
+  background: #fff;
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+:root[data-theme="light"] :is(input, textarea)::placeholder { color: #7b899a; opacity: 1; }
+
+/* Navigation and global chrome */
+:root[data-theme="light"] .nav-rail {
+  background: color-mix(in srgb, var(--sidebar) 96%, transparent);
+  border-color: var(--border);
+  box-shadow: 10px 0 28px rgba(20, 32, 51, .035);
+}
+
+:root[data-theme="light"] :is(.nav-brand, .nav-link, .nav-rail a, .nav-rail button) { color: var(--text-muted); }
+:root[data-theme="light"] :is(.nav-link, .nav-rail a).nav-active,
+:root[data-theme="light"] .nav-rail :is(a, button)[aria-current="page"] {
+  background: var(--accent-soft);
+  border-color: #b8d4ec;
+  color: var(--accent);
+}
+:root[data-theme="light"] .nav-group-label { color: var(--text-subtle); }
+:root[data-theme="light"] :is(.topbar, .mobile-topbar) { background: color-mix(in srgb, var(--page) 88%, transparent); border-color: var(--border); }
+:root[data-theme="light"] :is(.connection-status, .user-chip) { background: #fff; border-color: var(--border); color: var(--text); }
+
+/* Home and onboarding: hierarchy without dark slabs. */
+:root[data-theme="light"] :is(.onboarding-panel, .home-primary-card) {
+  background: linear-gradient(145deg, #ffffff 0%, #edf5fc 100%);
+  border-color: #c7dbea;
+}
+:root[data-theme="light"] :is(.onboarding-choice, .home-category-grid button, .home-how-it-works > div, .home-setup-list li, .setup-step, .home-agent-card, .install-success-summary div) {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+:root[data-theme="light"] .onboarding-footer { background: #e6edf5; border-color: #c8d5e2; }
+:root[data-theme="light"] .onboarding-footer span { color: #52647a; }
+:root[data-theme="light"] :is(.onboarding-choice:first-child, .home-category-grid button:first-child, .home-agent-card:hover) {
+  background: var(--accent-soft);
+  border-color: #a9cce8;
+}
+:root[data-theme="light"] :is(.onboarding-copy p, .onboarding-choice small, .onboarding-footer span, .home-card-intro, .home-primary-card p, .home-category-grid small, .home-how-it-works span, .home-setup-list small, .setup-step small, .home-agent-main small, .install-success-copy p, .install-success-summary span) { color: var(--text-muted); }
+:root[data-theme="light"] :is(.onboarding-choice span, .onboarding-footer strong, .home-category-grid span, .home-how-it-works strong, .setup-step strong, .home-agent-main strong, .install-success-copy h2, .install-success-summary strong) { color: var(--text); }
+:root[data-theme="light"] :is(.home-agent-count, .setup-step > span) { background: var(--accent-soft); border-color: #b8d4ec; color: var(--accent); }
+:root[data-theme="light"] :is(.setup-step.done, .home-setup-list li.done) { background: var(--success-soft); border-color: #b3ddc8; }
+:root[data-theme="light"] :is(.setup-step.done > span, .home-setup-list li.done > span, .home-agent-meta) { color: var(--success); }
+
+/* Discover and marketplace */
+:root[data-theme="light"] .discover-hero { background: linear-gradient(135deg, #fff 0%, #edf5fc 100%); border-color: #cbddea; }
+:root[data-theme="light"] :is(.marketplace-results-section, .agent-match-panel, .marketplace-options-panel, .external-import-panel, .external-import-review, .marketplace-detail-sheet) { background: var(--surface); border-color: var(--border); color: var(--text); }
+:root[data-theme="light"] :is(.marketplace-need-row button, .beta-collections button, .marketplace-filter-row, .private-info-more-panel, .marketplace-card-access, .marketplace-card-safety, .marketplace-card-runtime, .marketplace-detail-section) { background: var(--surface-subtle); border-color: var(--border); color: var(--text); }
+:root[data-theme="light"] :is(.marketplace-need-row button.selected, .segmented-control button.selected, .marketplace-assist-row button[aria-expanded="true"]) { background: var(--accent-soft); border-color: #a9cce8; color: var(--accent); }
+:root[data-theme="light"] :is(.marketplace-card-top small, .marketplace-need-row span, .marketplace-recommendation-banner span, .marketplace-card p, .marketplace-card small, .external-import-copy p, .agent-match-panel span) { color: var(--text-muted); }
+:root[data-theme="light"] :is(.marketplace-card-top strong, .marketplace-need-row strong, .marketplace-recommendation-banner strong, .marketplace-card strong, .external-import-review strong) { color: var(--text); }
+:root[data-theme="light"] .marketplace-recommendation-banner { background: var(--accent-soft); border-color: #b8d4ec; }
+
+/* Installed agents and conversations */
+:root[data-theme="light"] :is(.agent-filter-panel, .agent-add-panel, .mobile-agent-card, .agent-profile-tabs, .agent-simple-summary div, .agent-quick-summary, .chat-command-center, .chat-empty-state, .chat-current-state-note, .suggestion-card, .send-preview div, .mini-log-row, .manifest-grid div, .external-trust-card) {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+:root[data-theme="light"] :is(.installed-agent-card.selected, .mobile-agent-card.selected, .agent-profile-tabs button[aria-selected="true"]) {
+  background: var(--accent-soft);
+  border-color: #9fc6e4;
+  color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+:root[data-theme="light"] :is(.agent-row span, .agent-search-label > span, .agent-test-toggle small, .installed-agent-status small, .agent-list-footer, .mobile-agent-foot small, .chat-heading p, .agent-simple-summary span, .agent-quick-summary span, .agent-activity-card small, .suggestion-card small, .send-preview span, .mini-log-row span, .manifest-grid span, .external-trust-card small) { color: var(--text-muted); }
+:root[data-theme="light"] :is(.agent-test-toggle span, .mobile-agent-main span, .agent-simple-summary strong, .agent-quick-summary strong, .agent-tab-panel > strong, .suggestion-card strong, .send-preview strong, .manifest-grid strong, .external-trust-card strong) { color: var(--text); }
+:root[data-theme="light"] .mobile-agent-filter-label { color: var(--text-muted); }
+:root[data-theme="light"] :is(.approval-card, .chat-approval-banner, .suggestion-card.approval) { background: var(--warning-soft); border-color: #e4c77e; color: #694300; }
+:root[data-theme="light"] .suggestion-card.safe { background: var(--success-soft); border-color: #b3ddc8; }
+
+/* Approvals, data, receipts and settings */
+:root[data-theme="light"] :is(.permission-center-summary div, .permission-category-row, .permission-secondary-group, .doc-row, .vault-category-summary button, .friendly-empty-state, .hitl-row, .receipt-row, .activity-row, .settings-grid > div, .settings-section-grid > section, .privacy-detail-grid article, .runtime-platform-card) {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+:root[data-theme="light"] :is(.permission-secondary-group summary, .permission-category-row strong, .doc-row strong, .private-info-row strong, .friendly-empty-state strong, .hitl-row strong, .receipt-row strong, .settings-grid strong, .settings-section-grid strong) { color: var(--text); }
+:root[data-theme="light"] :is(.permission-category-row small, .doc-row span, .private-info-row p, .friendly-empty-state p, .hitl-row span, .hitl-row small, .receipt-row span, .receipt-row small, .settings-grid span, .settings-section-grid span) { color: var(--text-muted); }
+:root[data-theme="light"] .permission-state { color: var(--text-muted); }
+:root[data-theme="light"] .permission-state.is-allowed { color: var(--success); }
+:root[data-theme="light"] .permission-scope-note { background: var(--accent-soft); border-color: #b8d4ec; }
+:root[data-theme="light"] .permission-notice { background: var(--success-soft); border-color: #b3ddc8; }
+:root[data-theme="light"] .memory-model { background: linear-gradient(135deg, #edf5fc, #fff 72%); border-color: #bdd6e9; }
+:root[data-theme="light"] :is(.memory-type-grid article, .memory-private-badge) { background: #fff; border-color: var(--border); }
+:root[data-theme="light"] :is(.private-info-icon, .agent-avatar) { background: var(--accent-soft); color: var(--accent); }
+
+/* Creator, operator and beta pages */
+:root[data-theme="light"] :is(.creator-panel, .moderation-panel, .operations-panel, .beta-panel, .creator-card, .moderation-card, .moderation-item, .operation-row, .beta-metrics article, .creator-status-summary div) {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+:root[data-theme="light"] :is(.creator-form, .moderation-summary, .operation-detail, .beta-progress, .creator-preview, .creator-empty-state) { background: var(--surface-subtle); border-color: var(--border); color: var(--text); }
+:root[data-theme="light"] :is(.creator-panel small, .moderation-panel small, .operations-panel small, .beta-panel small, .creator-card p, .moderation-card p) { color: var(--text-muted); }
+
+/* Dialogs, authentication and transient feedback */
+:root[data-theme="light"] :is(.modal-backdrop, .marketplace-detail-backdrop) { background: rgba(20, 32, 51, .38); }
+:root[data-theme="light"] :is(.modal, .confirm-dialog, .auth-card, .auth-panel, .guided-setup-panel, .agent-match-panel) {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-overlay);
+  color: var(--text);
+}
+:root[data-theme="light"] :is(.error-message, .error-banner, [role="alert"].danger) { background: var(--danger-soft); border-color: #e9b4ba; color: var(--danger); }
+
+@media (prefers-contrast: more) {
+  :root[data-theme="light"] { --text-muted: #3f5065; --border: #aebdcd; --border-strong: #899bae; }
+}

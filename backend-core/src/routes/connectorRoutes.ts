@@ -6,6 +6,7 @@ import {
   completeMicrosoftOAuth,
   disconnectConnectedAccount,
   getConnectorStartState,
+  listAccountConnectorReadiness,
   listConnectedAccounts,
   connectorCapabilityKeys
 } from "../services/connectorAccountService.js";
@@ -66,7 +67,7 @@ publicConnectorRoutes.get("/microsoft/callback", async (req, res) => {
 
 connectorRoutes.get("/", async (req, res) => {
   if (!req.userId) return res.status(401).json({ error: { message: "No user context" } });
-  res.json({ accounts: await listConnectedAccounts(req.userId) });
+  res.json({ accounts: await listConnectedAccounts(req.userId), providers: listAccountConnectorReadiness() });
 });
 
 connectorRoutes.get("/providers", async (req, res) => {

@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { apiDelete, apiPost, apiPut } from "../api/client";
+import { apiDelete, apiGet, apiPost, apiPut } from "../api/client";
 import type { Agent, VaultDocument, VaultSchema } from "../api/types";
 
 type VaultItemDraft = {
@@ -77,18 +77,15 @@ export function useVaultWorkflow(input: {
 
   async function searchVault(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!input.selectedAgent) return;
     setIsSearchingVault(true);
     try {
-      const schema = input.schemas.find((item) => item.id === searchSchemaId);
-      const result = await apiPost<{ status: string; documents?: VaultDocument[]; reason?: string }>("/api/mcp/tool-call", {
-        agentId: input.selectedAgent.id,
-        toolName: "vault.search",
-        arguments: { query: searchQuery, schema: schema?.name }
-      });
-      setSearchResults(result.documents ?? []);
-      input.setToolResult(input.friendlyResult(result as Record<string, unknown>));
-      await input.refresh();
+      const parameters = new URLSearchParams({ q: searchQuery });
+      if (searchSchemaId) parameters.set("schemaId", searchSchemaId);
+      const result = await apiGet<{ results: VaultDocument[] }>(`/api/vault/search?${parameters.toString()}`);
+      setSearchResults(result.results);
+      input.setToolResult(result.results.length
+        ? `Found ${result.results.length} saved ${result.results.length === 1 ? "item" : "items"}.`
+        : "No saved information matched that search.");
     } finally {
       setIsSearchingVault(false);
     }

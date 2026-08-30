@@ -36,3 +36,30 @@ test("primary mobile surface has no serious automated WCAG violations", async ({
   await expect(page.getByRole("heading", { name: "What do you want help with first?" })).toBeVisible();
   await expectNoSeriousViolations(page, "mobile-home");
 });
+
+test("every consumer route remains readable in light mode", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    window.localStorage.setItem("ai-agent-hub-user-id", `a11y-light-${Date.now()}`);
+    window.localStorage.setItem("ai-agent-hub-theme", "light");
+  });
+
+  const routes = [
+    "/", "/discover", "/agents", "/approvals", "/activity", "/private-data", "/settings",
+    "/creator", "/operator/review", "/operator/operations", "/operator/beta"
+  ];
+  for (const route of routes) {
+    await page.goto(route);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator("main")).toBeVisible();
+    if (route === "/settings") await expect(page.locator("#settings")).toBeVisible();
+    await expectNoSeriousViolations(page, `light:${route}`);
+    await page.screenshot({ fullPage: true, path: test.info().outputPath(`light-${route === "/" ? "home" : route.slice(1)}.png`) });
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const route of ["/", "/discover", "/agents", "/private-data", "/settings"]) {
+    await page.goto(route);
+    await expectNoSeriousViolations(page, `light-mobile:${route}`);
+  }
+});

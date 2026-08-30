@@ -63,6 +63,17 @@ test("connector start returns provider readiness as a normal response", async ()
   const body = await response.json() as { status?: string; message?: string };
   assert.ok(["ready", "not_configured"].includes(body.status ?? ""));
   assert.ok(body.message);
+
+  const listResponse = await fetch(`${baseUrl}/api/connectors`, {
+    headers: { "x-user-id": userId, "x-user-email": `${userId}@example.test` }
+  });
+  assert.equal(listResponse.status, 200);
+  const listBody = await listResponse.json() as {
+    providers?: Array<{ provider: string; configured: boolean; missing: string[]; scopes: string[]; message: string }>;
+  };
+  assert.deepEqual(listBody.providers?.map((provider) => provider.provider), ["google", "microsoft"]);
+  assert.ok(listBody.providers?.every((provider) => typeof provider.configured === "boolean" && provider.message.length > 0));
+  assert.doesNotMatch(JSON.stringify(listBody.providers), /client-secret-test|google-secret-test/i);
 });
 
 test("request id middleware preserves valid incoming ids and errors echo them", async () => {

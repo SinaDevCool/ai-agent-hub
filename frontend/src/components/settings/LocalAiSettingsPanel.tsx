@@ -1,4 +1,6 @@
-import { Cpu, Download, FolderOpen, Play, Trash2 } from "lucide-react";
+import { Cloud, Cpu, Download, FolderOpen, Globe2, HardDrive, Play, ShieldCheck, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { apiGet } from "../../api/client";
 import { useLocalAi } from "../../hooks/useLocalAi";
 
 function formatBytes(value?: number) {
@@ -8,6 +10,12 @@ function formatBytes(value?: number) {
 
 export function LocalAiSettingsPanel() {
   const localAi = useLocalAi();
+  const [cloudRuntime, setCloudRuntime] = useState<{ configured: boolean; model: string; mode: string } | null>(null);
+  useEffect(() => {
+    void apiGet<{ openAi?: { configured: boolean; model: string }; aiRuntime?: { mode: string } }>("/health")
+      .then((health) => setCloudRuntime({ configured: Boolean(health.openAi?.configured), model: health.openAi?.model ?? "Not selected", mode: health.aiRuntime?.mode ?? "rules" }))
+      .catch(() => setCloudRuntime(null));
+  }, []);
   const installedModel = localAi.status?.modelId;
   const languageModels = localAi.status?.availableModels?.filter((model) => model.role !== "embedding") ?? [];
   const installedLanguageBytes = languageModels.length
@@ -18,11 +26,32 @@ export function LocalAiSettingsPanel() {
     ? Math.min(100, Math.round(localAi.downloadProgress.receivedBytes / localAi.downloadProgress.totalBytes * 100))
     : 0;
   return (
-    <section className="settings-connector-card" aria-labelledby="local-ai-heading">
+    <section className="settings-connector-card ai-runtime-settings" aria-labelledby="local-ai-heading">
       <div>
-        <strong id="local-ai-heading"><Cpu size={16} /> Local AI</strong>
-        <span>Interpret requests on this device. Provider access, approvals, and external actions remain protected by the backend.</span>
+        <strong id="local-ai-heading"><Cpu size={16} /> AI runtime</strong>
+        <span>The web and desktop apps share agents and permissions, but they do not use the same inference runtime.</span>
       </div>
+      <div className="runtime-platform-grid">
+        <article className="runtime-platform-card">
+          <div className="runtime-platform-heading"><Globe2 aria-hidden="true" size={18} /><div><strong>Web app</strong><span>Server-managed</span></div></div>
+          <p>Your browser sends requests to the protected agent service. The deterministic planner remains the free default; cloud generation is used only when the operator enables it.</p>
+          <dl>
+            <div><dt>Active mode</dt><dd>{cloudRuntime?.mode ?? "Checking…"}</dd></div>
+            <div><dt>Cloud model</dt><dd>{cloudRuntime?.configured ? cloudRuntime.model : "Not configured"}</dd></div>
+          </dl>
+          <small><Cloud aria-hidden="true" size={14} /> Recommended hosted path: a small OpenAI model for quality, or Cloudflare Workers AI for a limited free launch allocation. Neither is presented as free unlimited compute.</small>
+        </article>
+        <article className="runtime-platform-card">
+          <div className="runtime-platform-heading"><HardDrive aria-hidden="true" size={18} /><div><strong>Desktop app</strong><span>Runs on this device</span></div></div>
+          <p>Downloaded models interpret prompts locally. Only an approved, validated action plan can reach the backend in Local first mode.</p>
+          <dl>
+            <div><dt>Runtime</dt><dd>{localAi.status?.runtime === "tauri" ? "Desktop available" : "Requires desktop app"}</dd></div>
+            <div><dt>Model</dt><dd>{localAi.status?.modelLabel ?? "Not installed"}</dd></div>
+          </dl>
+          <small><ShieldCheck aria-hidden="true" size={14} /> Model files and raw local prompts stay on this device unless you explicitly choose Cloud assisted.</small>
+        </article>
+      </div>
+      <div className="settings-subsection-heading"><strong>Desktop model controls</strong><span>{localAi.status?.runtime === "tauri" ? "Manage models installed on this computer." : "Open this page in the desktop app to install or test a local model."}</span></div>
       <div className="settings-grid">
         <div><strong>Runtime</strong><span>{localAi.status?.runtime === "tauri" ? "Desktop" : "Browser compatibility"}</span></div>
         <div><strong>Status</strong><span>{localAi.status?.state ?? "Checking…"}</span></div>

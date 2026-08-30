@@ -32,6 +32,7 @@ const grantDuration: string = "3600000";
 export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
   const { agents, formatError, schemas, selectedAgent, refresh, setConfirmation, setSelectedAgentId, setToolResult } = input;
   const [grantingSchemaName, setGrantingSchemaName] = useState("");
+  const [permissionNotice, setPermissionNotice] = useState("");
 
   const permissionReview = useMemo(() => {
     if (!selectedAgent) return [];
@@ -82,15 +83,19 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
 
   async function togglePermission(schema: VaultSchema, enabled: boolean) {
     setGrantingSchemaName(schema.name);
+    setPermissionNotice("");
     try {
       await updatePermission(schema, enabled);
       await refresh();
-      setToolResult(enabled
+      const message = enabled
         ? `${selectedAgent?.name ?? "This agent"} can now read ${schema.name}.`
-        : `${selectedAgent?.name ?? "This agent"} can no longer read ${schema.name}.`
-      );
+        : `${selectedAgent?.name ?? "This agent"} can no longer read ${schema.name}.`;
+      setPermissionNotice(message);
+      setToolResult(message);
     } catch (error) {
-      setToolResult(formatError(error));
+      const message = formatError(error);
+      setPermissionNotice(message);
+      setToolResult(message);
     } finally {
       setGrantingSchemaName("");
     }
@@ -215,6 +220,7 @@ export function usePermissionWorkflow(input: UsePermissionWorkflowInput) {
   return {
     allowedPermissionCount,
     grantingSchemaName,
+    permissionNotice,
     grantAllRequestedSchemas,
     grantRequestedSchema,
     permissionCenterRows,

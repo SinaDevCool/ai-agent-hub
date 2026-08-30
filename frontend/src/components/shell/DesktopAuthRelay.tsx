@@ -10,7 +10,7 @@ export function DesktopAuthRelay() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const destination = callback.kind === "success" ? desktopDeepLink(callback.code) : "";
+  const destination = callback.kind === "success" ? desktopDeepLink(callback.code, callback.mode) : "";
 
   useEffect(() => {
     if (!destination) return;

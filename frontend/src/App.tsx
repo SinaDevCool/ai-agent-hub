@@ -474,6 +474,7 @@ export function App() {
   const {
     allowedPermissionCount,
     grantingSchemaName,
+    permissionNotice,
     grantAllRequestedSchemas,
     grantRequestedSchema,
     permissionCenterRows,
@@ -615,21 +616,20 @@ export function App() {
     return <AuthLoadingScreen />;
   }
 
-  if (auth.isAuthConfigured && !auth.session) {
+  if (auth.isAuthConfigured && (!auth.session || auth.authMode === "reset-password")) {
     return (
       <AuthSignInScreen
         authMessage={auth.authMessage}
+        authMode={auth.authMode}
         email={auth.email}
-        magicLinkSentTo={auth.magicLinkSentTo}
         password={auth.password}
-        isSendingMagicLink={auth.isSendingMagicLink}
-        isSigningInWithPassword={auth.isSigningInWithPassword}
-        isStagingPasswordSignInEnabled={auth.isStagingPasswordSignInEnabled}
+        confirmPassword={auth.confirmPassword}
+        isSubmitting={auth.isSubmitting}
         onEmailChange={auth.setEmail}
         onPasswordChange={auth.setPassword}
-        onPasswordSubmit={(event) => void auth.signInWithPassword(event)}
-        onResetMagicLink={auth.resetMagicLink}
-        onSubmit={(event) => void auth.sendMagicLink(event)}
+        onConfirmPasswordChange={auth.setConfirmPassword}
+        onModeChange={auth.setAuthMode}
+        onSubmit={(event) => void auth.submitAuth(event)}
       />
     );
   }
@@ -773,6 +773,7 @@ export function App() {
             openMarketplaceForNeed,
             pendingApproval,
             permissionCenterRows,
+            permissionNotice,
             permissionProgress,
             permissionReview,
             pinnedAgentIds,

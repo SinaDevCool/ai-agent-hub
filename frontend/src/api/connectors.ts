@@ -1,8 +1,8 @@
 import { apiDelete, apiGet, apiPost } from "./client";
-import type { ConnectedAccount, ConnectorStartResponse } from "./types";
+import type { AccountConnectorReadiness, ConnectedAccount, ConnectorStartResponse } from "./types";
 
 export function listConnectedAccounts() {
-  return apiGet<{ accounts: ConnectedAccount[] }>("/api/connectors");
+  return apiGet<{ accounts: ConnectedAccount[]; providers: AccountConnectorReadiness[] }>("/api/connectors");
 }
 
 export type ConnectorCapability = "email_read" | "email_write" | "calendar_read" | "calendar_write" | "files_read";

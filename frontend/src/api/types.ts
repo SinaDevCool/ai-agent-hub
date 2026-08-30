@@ -435,6 +435,14 @@ export type ConnectorStartResponse = {
   message: string;
 };
 
+export type AccountConnectorReadiness = {
+  provider: "google" | "microsoft";
+  configured: boolean;
+  missing: string[];
+  scopes: string[];
+  message: string;
+};
+
 export type WorkflowConnectionStatus = "draft" | "active" | "failed" | "disabled";
 
 export type WorkflowProvider = "n8n" | "make" | "zapier" | "custom";

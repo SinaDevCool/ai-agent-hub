@@ -35,6 +35,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
     isSearchingVault,
     logs,
     permissionCenterRows,
+    permissionNotice,
     providerReceipts,
     recentLogs,
     recentProviderReceipts,
@@ -71,6 +72,8 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
           scrollToSection("vault");
         }}
         onTogglePermission={togglePermission}
+        grantingSchemaName={props.grantingSchemaName}
+        notice={permissionNotice}
         permissionCenterRows={permissionCenterRows}
         selectedAgent={selectedAgent}
         ungrantedRequestedCount={ungrantedRequestedSchemas.length}
@@ -149,6 +152,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         creatorAccessReason={creatorAccess.reason}
         creatorAccessRequest={creatorAccess.request}
         connectedAccounts={connectors.accounts}
+        connectorProviders={connectors.providers}
         connectorError={connectors.error}
         connectorMessage={connectors.message}
         agentCount={agents.length}
@@ -159,7 +163,7 @@ export function TrustDataPanels({ props }: { props: WorkspaceSectionsProps }) {
         onConnectMicrosoft={connectors.connectMicrosoft}
         onCreatorAccessReasonChange={creatorAccess.setReason}
         onDisconnectConnector={connectors.disconnectAccount}
-        onRefreshConnectors={connectors.refreshConnectors}
+        onRefreshConnectors={connectors.checkConnectors}
         onRequestConfirmation={requestConfirmation}
         onExportData={exportMyData}
         onManageAccess={() => scrollToSection("clearance")}

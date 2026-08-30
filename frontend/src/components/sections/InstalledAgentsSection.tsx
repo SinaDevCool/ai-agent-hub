@@ -193,7 +193,7 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
           {canUseCreatorTools ? <button onClick={openAgentWizard} type="button"><Pencil size={16} /> Create custom</button> : null}
         </div>
       ) : null}
-      <div className="mobile-agent-list" aria-label="My AI agents for mobile">
+      <section className="mobile-agent-list" aria-label="My AI agents for mobile">
         {displayedInstalledAgentCards.map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
           const mobileStatusLabel = pendingApprovals ? "Waiting for you" : permissions.missing ? "Needs access" : "Ready";
           const accessActionLabel = pendingApprovals ? "Review" : permissions.missing ? "Access" : "Access";
@@ -230,7 +230,7 @@ export function InstalledAgentsSection(props: InstalledAgentsSectionProps) {
             </article>
           );
         })}
-      </div>
+      </section>
       <div className="installed-agent-list desktop-agent-list">
         {displayedInstalledAgentCards.map(({ agent, readiness: cardReadiness, permissions, pendingApprovals }) => {
           const cardActionLabel = pendingApprovals ? "Review" : permissions.missing ? "Review access" : "Open chat";

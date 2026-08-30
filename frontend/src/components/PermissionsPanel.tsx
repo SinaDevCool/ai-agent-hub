@@ -1,4 +1,4 @@
-import { FilePlus } from "lucide-react";
+import { Check, Clock3, FilePlus, KeyRound, LockKeyhole } from "lucide-react";
 import type { Agent, VaultSchema } from "../api/types";
 import { isExternalAgent } from "../lib/externalRuntimeDisplay";
 import { StatusPill } from "./StatusPill";
@@ -18,6 +18,8 @@ type PermissionsPanelProps = {
   permissionCenterRows: PermissionCenterRow[];
   onAddPrivateInfo: () => void;
   onTogglePermission: (schema: VaultSchema, enabled: boolean) => void | Promise<void>;
+  grantingSchemaName: string;
+  notice: string;
 };
 
 export function PermissionsPanel(props: PermissionsPanelProps) {
@@ -29,7 +31,9 @@ export function PermissionsPanel(props: PermissionsPanelProps) {
     approvalCount,
     permissionCenterRows,
     onAddPrivateInfo,
-    onTogglePermission
+    onTogglePermission,
+    grantingSchemaName,
+    notice
   } = props;
   const selectedIsExternal = isExternalAgent(selectedAgent);
   const requestedRows = permissionCenterRows.filter(({ schema }) => selectedAgent?.capabilityManifest.requestedSchemas?.includes(schema.name));
@@ -44,12 +48,13 @@ export function PermissionsPanel(props: PermissionsPanelProps) {
     const requestSummary = requestingAgents.length
       ? `${requestingAgents.length} agent${requestingAgents.length === 1 ? "" : "s"} may ask for this info.`
       : "";
+    const isSaving = grantingSchemaName === schema.name || grantingSchemaName === "all";
     return (
       <div className="clearance-row permission-category-row" key={schema.id}>
-        <label>
-          <input type="checkbox" checked={granted} onChange={(event) => void onTogglePermission(schema, event.currentTarget.checked)} />
-          <span>{granted ? "Allowed" : selectedRequestsThis ? "Needs access" : "Not allowed"}</span>
-        </label>
+        <span className={`permission-state ${granted ? "is-allowed" : ""}`}>
+          {granted ? <Check aria-hidden="true" size={15} /> : <LockKeyhole aria-hidden="true" size={15} />}
+          {granted ? "Allowed" : selectedRequestsThis ? "Needs access" : "Not allowed"}
+        </span>
         <div>
           <strong>{schema.name}</strong>
           <small>{schema.description}</small>
@@ -63,10 +68,11 @@ export function PermissionsPanel(props: PermissionsPanelProps) {
         </div>
         <button
           aria-label={`${granted ? "Remove access to" : "Allow access to"} ${schema.name} for ${selectedAgent?.name ?? "this agent"}`}
+          disabled={isSaving}
           onClick={() => void onTogglePermission(schema, !granted)}
           type="button"
         >
-          {granted ? "Remove access" : selectedRequestsThis ? "Allow access" : "Allow"}
+          {isSaving ? "Saving…" : granted ? "Remove access" : selectedRequestsThis ? "Allow access" : "Allow"}
         </button>
       </div>
     );
@@ -88,10 +94,12 @@ export function PermissionsPanel(props: PermissionsPanelProps) {
         </StatusPill>
       </div>
       <div className="permission-center-summary">
-        <div><strong>{approvalCount}</strong><span>Waiting for you</span></div>
-        <div><strong>{ungrantedRequestedCount}</strong><span>Needs access</span></div>
-        <div><strong>{allowedPermissionCount}</strong><span>Allowed</span></div>
+        <div><Clock3 aria-hidden="true" size={17} /><strong>{approvalCount}</strong><span>Waiting for you</span></div>
+        <div><LockKeyhole aria-hidden="true" size={17} /><strong>{ungrantedRequestedCount}</strong><span>Needs access</span></div>
+        <div><KeyRound aria-hidden="true" size={17} /><strong>{allowedPermissionCount}</strong><span>Allowed</span></div>
       </div>
+      <p className="permission-scope-note"><LockKeyhole aria-hidden="true" size={15} /> Access is read-only, expires after one hour, and can be removed at any time.</p>
+      {notice ? <p className="permission-notice" role="status" aria-live="polite">{notice}</p> : null}
       {permissionCenterRows.length === 0 ? (
         <div className="friendly-empty-state">
           <strong>No saved info yet</strong>

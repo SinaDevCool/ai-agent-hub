@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { FilePlus, FileSearch, Pencil, Search, Trash2, Upload } from "lucide-react";
+import { BookOpenText, Brain, FilePlus, FileSearch, History, Pencil, Search, ShieldCheck, SlidersHorizontal, Trash2, Upload } from "lucide-react";
 import type { VaultDocument, VaultSchema } from "../api/types";
 import { publicPrivateInfoSchemas } from "../lib/privateInfoDisplay";
 
@@ -65,6 +65,21 @@ export function VaultPanel(props: VaultPanelProps) {
         </div>
         <span className="status-pill blue">{documents.length} saved</span>
       </div>
+      <section className="memory-model" aria-labelledby="memory-model-title">
+        <div className="memory-model-heading">
+          <div>
+            <span className="eyebrow"><Brain aria-hidden="true" size={14} /> Your memory, under your control</span>
+            <strong id="memory-model-title">Agents remember only what you save and allow</strong>
+          </div>
+          <span className="memory-private-badge"><ShieldCheck aria-hidden="true" size={15} /> Private by default</span>
+        </div>
+        <div className="memory-type-grid">
+          <article><SlidersHorizontal aria-hidden="true" size={18} /><div><strong>Facts & preferences</strong><span>Stable details you can edit anytime</span></div></article>
+          <article><BookOpenText aria-hidden="true" size={18} /><div><strong>Reference notes</strong><span>Searchable context and documents</span></div></article>
+          <article><History aria-hidden="true" size={18} /><div><strong>Activity history</strong><span>Receipts stay separate and auditable</span></div></article>
+        </div>
+        <p>Nothing is silently learned from a conversation. Saved items stay account-scoped; an agent receives only permitted matches, never the whole vault.</p>
+      </section>
       <div className="mobile-panel-actions">
         <button className="primary-action private-info-add-action" onClick={onToggleAddVaultItem} type="button"><FilePlus aria-hidden="true" size={16} /> Add info</button>
         <button aria-expanded={isMoreOpen} onClick={() => setIsMoreOpen((current) => !current)} type="button">More</button>
@@ -134,8 +149,8 @@ export function VaultPanel(props: VaultPanelProps) {
       {visibleDocuments.map((document) => (
         <article className="doc-row private-info-row" key={document.id}>
           <div>
-            <strong>{document.title}</strong>
-            <span>{document.vaultSchema?.name ?? "Uncategorized"}</span>
+            <span className="private-info-icon"><BookOpenText aria-hidden="true" size={17} /></span>
+            <div><strong>{document.title}</strong><span>{document.vaultSchema?.name ?? "Reference note"}</span></div>
           </div>
           <p>{document.excerpt}</p>
           <button className="private-info-manage" aria-expanded={managedDocumentId === document.id} aria-label={`Manage ${document.title}`} onClick={() => setManagedDocumentId((current) => current === document.id ? "" : document.id)} type="button">Manage</button>

@@ -1051,7 +1051,9 @@ textarea:focus-visible {
   }
 
   .marketplace-card-install-action {
-    display: none;
+    display: inline-flex;
+    min-height: 44px;
+    width: 100%;
   }
 
   .marketplace-card-detail-action {

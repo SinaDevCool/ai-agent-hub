@@ -55,7 +55,7 @@ export function MarketplaceAgentCard(props: MarketplaceAgentCardProps) {
         <button aria-label={`View details for ${agent.name}`} className="marketplace-card-detail-action" onClick={() => onOpenDetails(agent)} type="button">View Agent <ArrowRight aria-hidden="true" size={15} /></button>
         <button
           aria-label={alreadyInstalled ? `Open ${agent.name}` : `Add ${agent.name}`}
-          className="primary-action marketplace-card-install-action"
+          className="marketplace-card-install-action"
           disabled={(alreadyInstalled && !installedAgent) || installingAgentId === agent.id}
           onClick={() => {
             if (installedAgent) {

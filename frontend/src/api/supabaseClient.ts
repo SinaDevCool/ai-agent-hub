@@ -12,6 +12,9 @@ export const supabase = isAuthConfigured ? createClient(supabaseUrl!, supabaseAn
     // the registered ai-agent-hub:// protocol.
     persistSession: true,
     autoRefreshToken: true,
+    // PKCE lets an email-verification or recovery link open in the browser,
+    // then return a short-lived code to the desktop app for exchange there.
+    flowType: "pkce",
     detectSessionInUrl: !("__TAURI_INTERNALS__" in globalThis),
     storageKey: "ai-agent-hub-auth"
   }

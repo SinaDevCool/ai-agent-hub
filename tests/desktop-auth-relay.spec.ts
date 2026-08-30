@@ -18,3 +18,9 @@ test("successful desktop callbacks offer the registered app handoff", async ({ p
     "ai-agent-hub://auth/callback?code=test-code"
   );
 });
+
+test("password recovery callbacks preserve recovery mode for desktop", async ({ page }) => {
+  await page.goto("/desktop-auth?mode=recovery&code=reset-code");
+  await expect(page.getByRole("heading", { name: "Email verified" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open AI Agent Hub" })).toHaveAttribute("href", "ai-agent-hub://auth/callback?code=reset-code&mode=recovery");
+});

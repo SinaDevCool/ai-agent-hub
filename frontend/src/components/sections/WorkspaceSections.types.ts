@@ -170,6 +170,7 @@ export type WorkspaceSectionsProps = {
   openMarketplaceForNeed: (need: OnboardingNeed) => void;
   pendingApproval: HitlRequest | undefined;
   permissionCenterRows: Array<{ schema: VaultSchema; allowedAgents: Agent[]; requestingAgents: Agent[] }>;
+  permissionNotice: string;
   permissionProgress: (agent: Agent | undefined, schemas: VaultSchema[]) => PermissionProgress;
   permissionReview: PermissionReviewItem[];
   pinnedAgentIds: string[];

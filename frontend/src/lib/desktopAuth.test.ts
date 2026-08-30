@@ -15,6 +15,11 @@ describe("desktop authentication callbacks", () => {
     });
   });
 
+  it("preserves password recovery when handing a browser callback to desktop", () => {
+    expect(parseDesktopAuthCallback("https://example.test/desktop-auth?mode=recovery&code=reset-code")).toEqual({ kind: "success", code: "reset-code", mode: "recovery" });
+    expect(desktopDeepLink("reset-code", "recovery")).toBe("ai-agent-hub://auth/callback?code=reset-code&mode=recovery");
+  });
+
   it("provides useful recovery copy", () => {
     expect(friendlyAuthError("Email link has expired")).toContain("new link");
     expect(friendlyAuthError("email rate limit exceeded")).toContain("Wait");

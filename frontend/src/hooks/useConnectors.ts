@@ -1,23 +1,26 @@
 import { useCallback, useState } from "react";
 import { disconnectConnector, listConnectedAccounts, startConnector } from "../api/connectors";
-import type { ConnectedAccount } from "../api/types";
+import type { AccountConnectorReadiness, ConnectedAccount } from "../api/types";
 import { openExternalUrl } from "../lib/localAiBridge";
 
 export function useConnectors(input: { formatError: (error: unknown) => string }) {
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
+  const [providers, setProviders] = useState<AccountConnectorReadiness[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isServiceAvailable, setIsServiceAvailable] = useState<boolean | null>(null);
 
-  const refreshConnectors = useCallback(async () => {
+  const refreshConnectors = useCallback(async (announce = false) => {
     setIsLoading(true);
     setError("");
     try {
       const result = await listConnectedAccounts();
       setAccounts(result.accounts ?? []);
+      setProviders(result.providers ?? []);
       setIsServiceAvailable(true);
+      if (announce) setMessage("Connection check complete. The agent service is online; provider setup is shown below.");
       return true;
     } catch (refreshError) {
       setIsServiceAvailable(false);
@@ -43,7 +46,8 @@ export function useConnectors(input: { formatError: (error: unknown) => string }
         setMessage(`Finish connecting ${provider === "google" ? "Google" : "Microsoft"} in the browser, then return here and select Check connection.`);
         return;
       }
-      setMessage(result.message);
+      if (result.status === "not_configured") setError(`${result.message} Ask the workspace operator to finish provider setup.`);
+      else setError(result.message);
     } catch (connectError) {
       setError(input.formatError(connectError));
     } finally {
@@ -68,6 +72,7 @@ export function useConnectors(input: { formatError: (error: unknown) => string }
 
   return {
     accounts,
+    providers,
     connectGoogle: () => connect("google"),
     connectMicrosoft: () => connect("microsoft"),
     disconnectAccount,
@@ -77,6 +82,7 @@ export function useConnectors(input: { formatError: (error: unknown) => string }
     isServiceAvailable,
     message,
     refreshConnectors,
+    checkConnectors: () => refreshConnectors(true),
     setMessage
   };
 }

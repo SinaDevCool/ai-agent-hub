@@ -1,5 +1,5 @@
 export type DesktopAuthCallback =
-  | { kind: "success"; code: string }
+  | { kind: "success"; code: string; mode?: "recovery" }
   | { kind: "error"; code: string; description: string }
   | { kind: "incomplete" };
 
@@ -13,7 +13,7 @@ export function parseDesktopAuthCallback(value: string): DesktopAuthCallback {
   try {
     const { query, fragment } = callbackParams(value);
     const code = query.get("code");
-    if (code) return { kind: "success", code };
+    if (code) return query.get("mode") === "recovery" ? { kind: "success", code, mode: "recovery" } : { kind: "success", code };
 
     const errorCode = query.get("error_code") ?? fragment.get("error_code")
       ?? query.get("error") ?? fragment.get("error");
@@ -31,8 +31,8 @@ export function parseDesktopAuthCallback(value: string): DesktopAuthCallback {
   return { kind: "incomplete" };
 }
 
-export function desktopDeepLink(code: string) {
-  return `ai-agent-hub://auth/callback?code=${encodeURIComponent(code)}`;
+export function desktopDeepLink(code: string, mode?: "recovery") {
+  return `ai-agent-hub://auth/callback?code=${encodeURIComponent(code)}${mode ? `&mode=${mode}` : ""}`;
 }
 
 export function friendlyAuthError(message: string) {
