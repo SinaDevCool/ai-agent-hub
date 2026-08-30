@@ -10,6 +10,8 @@ test("desktop build uses relative assets and its explicit desktop environment", 
   assert.match(vite, /base:\s*["']\.\/["']/);
   assert.match(environment, /VITE_API_BASE_URL=https:\/\/ai-agent-hub-api-staging\.onrender\.com/);
   assert.match(environment, /VITE_APP_ENV=staging/);
+  assert.match(environment, /VITE_DESKTOP_AUTH_REDIRECT_URL=ai-agent-hub:\/\/auth\/callback/);
+  assert.match(environment, /VITE_DESKTOP_AUTH_RECOVERY_URL=https:\/\/ai-agent-hub-staging\.pages\.dev\/desktop-auth/);
   assert.doesNotMatch(environment, /localhost:4141/);
   assert.match(tauri.app.security.csp, /http:\/\/localhost:\*/);
   assert.match(tauri.app.security.csp, /ws:\/\/localhost:\*/);

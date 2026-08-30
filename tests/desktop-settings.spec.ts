@@ -56,6 +56,7 @@ test("desktop Local AI lifecycle and external OAuth controls remain operable", a
   }));
 
   await page.goto("/settings");
+  await page.getByRole("button", { name: "Local AI", exact: true }).click();
   await page.getByRole("button", { name: "Download recommended model" }).click();
   await expect(page.getByText("Ministral 3 3B", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Test model" }).click();
@@ -67,6 +68,7 @@ test("desktop Local AI lifecycle and external OAuth controls remain operable", a
   await page.getByRole("button", { name: "Open model folder" }).click();
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __desktopTest: { folderOpened: boolean } }).__desktopTest.folderOpened)).toBe(true);
 
+  await page.getByRole("button", { name: "Connections", exact: true }).click();
   await page.getByRole("button", { name: "Connect Google" }).click();
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __desktopTest: { openedUrl: string } }).__desktopTest.openedUrl)).toContain("accounts.google.com");
   await page.getByRole("button", { name: "Check connection" }).click();

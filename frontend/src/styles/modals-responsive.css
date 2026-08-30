@@ -221,6 +221,8 @@ textarea:focus-visible {
     padding: 14px 14px calc(78px + env(safe-area-inset-bottom, 0px));
   }
 
+  .nav-collapse { display: none; }
+
   .nav-rail {
     position: fixed;
     left: 0;
@@ -326,11 +328,22 @@ textarea:focus-visible {
   .topbar-actions {
     display: grid;
     gap: 8px;
-    grid-template-columns: 44px 44px;
+    grid-template-columns: repeat(3, 44px);
     align-items: stretch;
     justify-content: end;
     width: auto;
   }
+
+  :root[data-theme="light"] .topbar {
+    background: rgba(246, 248, 251, 0.94);
+    border-color: var(--border);
+  }
+
+  :root[data-theme="light"] .topbar .mobile-topbar-brand { color: var(--text); }
+
+  .settings-tabs { margin-left: -2px; margin-right: -2px; }
+  .settings-welcome { align-items: flex-start; display: grid; }
+  .settings-overview-actions { grid-template-columns: 1fr; }
 
   .topbar-primary {
     display: none;

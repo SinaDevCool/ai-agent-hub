@@ -62,6 +62,10 @@ export function SettingsPanel(props: {
   lifePlatform: ReturnType<typeof useLifePlatform>;
   providerConnections: ReturnType<typeof useProviderConnections>;
 }) {
+  type SettingsView = "overview" | "connections" | "local-ai" | "privacy" | "advanced";
+  const settingsViews: SettingsView[] = ["overview", "connections", "local-ai", "privacy", "advanced"];
+  const requestedView = new URLSearchParams(window.location.search).get("view") as SettingsView | null;
+  const [activeView, setActiveView] = useState<SettingsView>(requestedView && settingsViews.includes(requestedView) ? requestedView : "overview");
   const [exportNotice, setExportNotice] = useState("");
   const [deletionNotice, setDeletionNotice] = useState("");
   const [creatorValidation, setCreatorValidation] = useState("");
@@ -209,14 +213,43 @@ export function SettingsPanel(props: {
         </div>
       </div>
 
+      <nav aria-label="Settings sections" className="settings-tabs">
+        {([
+          ["overview", "Overview"],
+          ["connections", "Connections"],
+          ["local-ai", "Local AI"],
+          ["privacy", "Privacy"],
+          ["advanced", "Advanced"]
+        ] as const).map(([id, label]) => (
+          <button aria-current={activeView === id ? "page" : undefined} className={activeView === id ? "is-active" : ""} key={id} onClick={() => {
+            setActiveView(id);
+            const url = new URL(window.location.href);
+            if (id === "overview") url.searchParams.delete("view");
+            else url.searchParams.set("view", id);
+            window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+          }} type="button">{label}</button>
+        ))}
+      </nav>
+
+      <div className={`settings-view settings-view-overview ${activeView === "overview" ? "is-active" : ""}`}>
+        <div className="settings-welcome">
+          <div><strong>Your workspace</strong><span>Everything important at a glance. Open a section above when you need to make a change.</span></div>
+          <span className={`status-pill ${props.isConnectorServiceAvailable === true ? "green" : "amber"}`}>{props.isConnectorServiceAvailable === true ? "Services ready" : "Checking services"}</span>
+        </div>
       <div className="settings-grid">
         <div><strong>Agents</strong><span>{props.agentCount}</span></div>
         <div><strong>Saved info</strong><span>{props.privateInfoCount}</span></div>
         <div><strong>Activity</strong><span>{props.activityCount}</span></div>
         <div><strong>Account</strong><span>{props.userEmail}</span></div>
       </div>
+      <div className="settings-overview-actions">
+        <button onClick={() => setActiveView("connections")} type="button">Manage connections</button>
+        <button onClick={() => setActiveView("local-ai")} type="button">Configure Local AI</button>
+        <button onClick={() => setActiveView("privacy")} type="button">Review privacy</button>
+      </div>
+      </div>
 
-      <section className="settings-consumer-card">
+      <section className={`settings-consumer-card settings-view settings-view-privacy ${activeView === "privacy" ? "is-active" : ""}`}>
         <div>
           <strong>Privacy & data</strong>
           <span>Control what agents can read and keep a copy of your workspace data.</span>
@@ -228,9 +261,9 @@ export function SettingsPanel(props: {
         {exportNotice ? <small className="settings-action-note" role="status" aria-live="polite">{exportNotice}</small> : null}
       </section>
 
-      <LocalAiSettingsPanel />
+      <div className={`settings-view settings-view-local-ai ${activeView === "local-ai" ? "is-active" : ""}`}><LocalAiSettingsPanel /></div>
 
-      <section className="settings-connector-card">
+      <section className={`settings-connector-card settings-view settings-view-connections ${activeView === "connections" ? "is-active" : ""}`}>
         <div>
           <strong>Connected accounts</strong>
           <span>Connect services your agents can use. Agents still need your approval before using private info or taking sensitive actions.</span>
@@ -265,7 +298,7 @@ export function SettingsPanel(props: {
         {props.connectorError ? <small className="form-error">{props.connectorError}</small> : null}
       </section>
 
-      <section className="settings-connector-card" aria-labelledby="calcom-connection-heading">
+      <section className={`settings-connector-card settings-view settings-view-connections ${activeView === "connections" ? "is-active" : ""}`} aria-labelledby="calcom-connection-heading">
         <div>
           <strong id="calcom-connection-heading">Cal.com appointments</strong>
           <span>Connect a Cal.com API v2 key for real availability and approval-protected booking.</span>
@@ -298,7 +331,7 @@ export function SettingsPanel(props: {
         {props.providerConnections.error ? <small className="form-error" role="alert">{props.providerConnections.error}</small> : null}
       </section>
 
-      <section className="settings-consumer-card danger-zone">
+      <section className={`settings-consumer-card danger-zone settings-view settings-view-privacy ${activeView === "privacy" ? "is-active" : ""}`}>
         <div>
           <strong>Safety</strong>
           <span>Remove every agent's saved-info access if you want to reset permissions. Agents stop using saved info until you allow access again.</span>
@@ -310,7 +343,7 @@ export function SettingsPanel(props: {
         {deletionNotice ? <small className="settings-action-note" role="status" aria-live="polite">{deletionNotice}</small> : null}
       </section>
 
-      <section className="settings-connector-card">
+      <section className={`settings-connector-card settings-view settings-view-advanced ${activeView === "advanced" ? "is-active" : ""}`}>
         <div>
           <strong>Life services</strong>
           <span>{props.lifePlatform.capabilities.length} capabilities across {new Set(props.lifePlatform.capabilities.map((item) => item.domain)).size} areas, with provider availability shown honestly.</span>
@@ -476,7 +509,7 @@ export function SettingsPanel(props: {
         {props.lifePlatform.error ? <small className="form-error">{props.lifePlatform.error}</small> : null}
       </section>
 
-      <section className="settings-connector-card">
+      <section className={`settings-connector-card settings-view settings-view-advanced ${activeView === "advanced" ? "is-active" : ""}`}>
         <div><strong>Read-only finance</strong><span>Synchronize deterministic sandbox accounts and transactions. This feature cannot transfer money, trade, or change a bank account.</span></div>
         <button disabled={props.lifePlatform.isSaving} onClick={() => void props.lifePlatform.syncFinance()} type="button">{props.lifePlatform.financeSummary?.sandbox ? "Refresh finance sandbox" : "Load finance sandbox"}</button>
         {props.lifePlatform.financeSummary ? <>
@@ -498,7 +531,7 @@ export function SettingsPanel(props: {
         </form>
       </section>
 
-      <div className="settings-section-grid">
+      <div className={`settings-section-grid settings-view settings-view-advanced ${activeView === "advanced" ? "is-active" : ""}`}>
         {props.canUseCreatorTools ? <section>
           <strong>Creator tools available</strong>
           <span>Create and publish agents when you want to supply the marketplace.</span>
@@ -546,7 +579,7 @@ export function SettingsPanel(props: {
         </section>
       </div>
 
-      <section className="settings-advanced-card">
+      <section className={`settings-advanced-card settings-view settings-view-advanced ${activeView === "advanced" ? "is-active" : ""}`}>
         <div className="settings-advanced-heading">
           <div>
             <strong>Connected automations</strong>

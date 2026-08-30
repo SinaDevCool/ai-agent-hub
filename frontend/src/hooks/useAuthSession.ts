@@ -85,8 +85,8 @@ export function useAuthSession() {
         options: {
           shouldCreateUser: true,
           emailRedirectTo: isDesktopRuntime()
-            ? (import.meta.env.VITE_DESKTOP_AUTH_RELAY_URL as string | undefined)
-              ?? "https://ai-agent-hub-staging.pages.dev/desktop-auth"
+            ? (import.meta.env.VITE_DESKTOP_AUTH_REDIRECT_URL as string | undefined)
+              ?? "ai-agent-hub://auth/callback"
             : window.location.origin
         }
       });

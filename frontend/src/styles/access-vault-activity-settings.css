@@ -731,7 +731,56 @@
 
 .settings-panel {
   grid-column: span 2;
+  margin: 0 auto;
+  max-width: 1120px;
+  width: 100%;
 }
+
+.settings-tabs {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding: 4px;
+  scrollbar-width: none;
+}
+
+.settings-tabs button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+  flex: 1 0 auto;
+  min-height: 40px;
+}
+
+.settings-tabs button.is-active {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.settings-view { display: none !important; }
+.settings-view.is-active { display: grid !important; }
+
+.settings-welcome {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 18px;
+}
+.settings-welcome > div { display: grid; gap: 5px; }
+.settings-welcome strong { color: var(--text); font-size: 18px; }
+.settings-welcome span { color: var(--text-muted); font-size: 13px; }
+.settings-overview-actions { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 .settings-grid {
   display: grid;
@@ -767,11 +816,11 @@
   align-content: start;
   background: rgba(7, 17, 31, 0.24);
   border: 1px solid rgba(137, 163, 196, 0.09);
-  border-radius: 7px;
+  border-radius: 14px;
   display: grid;
   gap: 12px;
   margin-bottom: 12px;
-  padding: 12px;
+  padding: 18px;
 }
 
 .settings-consumer-card {

@@ -1,5 +1,7 @@
-import { Bot, FilePlus, LogOut, Settings, ShieldCheck } from "lucide-react";
+import { Bot, FilePlus, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck, Sun } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
+import { useTheme } from "../../hooks/useTheme";
 import { consumerNavIds, navItems, type SectionHeading, type SectionId } from "../../lib/appNavigation";
 
 type NavShortcut = {
@@ -24,11 +26,26 @@ export function AppShell(props: {
   onSignOut?: () => void;
   userEmail?: string;
 }) {
+  const { theme, toggleTheme } = useTheme();
+  const [isNavCompact, setIsNavCompact] = useState(() => window.localStorage.getItem("ai-agent-hub-nav") === "compact");
+
+  function toggleNavigation() {
+    setIsNavCompact((current) => {
+      window.localStorage.setItem("ai-agent-hub-nav", current ? "expanded" : "compact");
+      return !current;
+    });
+  }
+
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${isNavCompact ? "nav-is-compact" : ""}`}>
       <a className="skip-link" href="#workspace-content">Skip to main content</a>
       <aside className="nav-rail">
-        <div className="brand-mark" role="heading" aria-level={1}><ShieldCheck size={22} /> AI Agent Hub</div>
+        <div className="nav-brand-row">
+          <div className="brand-mark" role="heading" aria-level={1}><ShieldCheck aria-hidden="true" size={22} /><span>AI Agent Hub</span></div>
+          <button aria-label={isNavCompact ? "Expand navigation" : "Collapse navigation"} className="nav-collapse" onClick={toggleNavigation} title={isNavCompact ? "Expand navigation" : "Collapse navigation"} type="button">
+            {isNavCompact ? <PanelLeftOpen aria-hidden="true" size={18} /> : <PanelLeftClose aria-hidden="true" size={18} />}
+          </button>
+        </div>
         <nav>
           {navItems.filter((item) => consumerNavIds.has(item.id) || (item.id === "creator" && props.canUseCreatorTools) || ((item.id === "moderation" || item.id === "operations" || item.id === "beta") && props.canModerateMarketplace)).map(({ id, label, mobileLabel, icon: Icon, mobileVisible }) => (
             <div className="nav-item-group" key={id}>
@@ -40,8 +57,8 @@ export function AppShell(props: {
                 onClick={() => props.onNavigate(id)}
                 type="button"
               >
-                <Icon size={18} />
-                <span aria-hidden="true" className="nav-label-full">{label}</span>
+                <Icon aria-hidden="true" size={18} />
+                <span className="nav-label-full">{label}</span>
               </button>
               {id === "marketplace" && props.agentPoolShortcuts?.length ? (
                 <div className="nav-sublist" aria-label="Agent Pool categories">
@@ -68,6 +85,9 @@ export function AppShell(props: {
             <p>{props.heading.description}</p>
           </div>
           <div className="topbar-actions">
+            <button aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} className="theme-toggle" onClick={toggleTheme} title={`Use ${theme === "dark" ? "light" : "dark"} theme`} type="button">
+              {theme === "dark" ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}
+            </button>
             {props.environmentLabel ? <span className="environment-chip">{props.environmentLabel}</span> : null}
             <span className={`connection-status ${props.connectionState === "live" ? "is-live" : "is-syncing"}`} title={`Connection: ${props.connectionState}`}>
               <span className="connection-dot" />

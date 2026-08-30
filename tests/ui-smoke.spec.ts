@@ -59,13 +59,16 @@ test("loads dashboard and exercises safe primary UI flows", async ({ page }) => 
   await nav.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("button", { name: "Open Creator Studio" })).toHaveCount(0);
   await expect(page.locator("#settings")).toContainText("Manage your account, saved info access, and data export.");
+  await page.getByRole("button", { name: "Privacy", exact: true }).click();
   await expect(page.getByRole("button", { name: "Manage access" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Export my data" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Remove all agent access" })).toBeVisible();
+  await page.getByRole("button", { name: "Advanced", exact: true }).click();
   await expect(page.locator("#settings")).toContainText("Request creator access when you are ready.");
   await page.getByLabel("What do you want to publish?").fill("I want to publish safe travel agents that ask before booking.");
   await page.getByRole("button", { name: "Request creator access" }).click();
   await expect(page.locator("#settings")).toContainText("Creator request pending.");
+  await page.getByRole("button", { name: "Privacy", exact: true }).click();
   await page.getByRole("button", { name: "Manage access" }).click();
   await expect(page.locator("#clearance")).toContainText("Access & Approvals");
   await expect(page.locator("#clearance")).toContainText("Waiting for you");
@@ -217,7 +220,7 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   const nav = page.locator(".nav-rail");
   await expect(nav.getByRole("button", { name: "Agent Pool", exact: true })).toHaveAttribute("data-mobile-label", "Pool");
   await expect(nav.getByRole("button", { name: "My Agents", exact: true })).toHaveAttribute("data-mobile-label", "Agents");
-  await expect(nav.getByRole("button")).toHaveCount(5);
+  await expect(nav.locator(".nav-item-group > button:visible")).toHaveCount(5);
   await expect(nav.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Plan a trip Flights, hotels, loyalty, itineraries" })).toBeVisible();
   await nav.getByRole("button", { name: "My Agents", exact: true }).click();
@@ -241,11 +244,14 @@ test("mobile layout keeps the app simple and tab-focused", async ({ page }) => {
   await page.locator(".topbar").getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settings")).toBeVisible();
   await expect(page.locator("#settings")).toContainText("Manage your account, saved info access, and data export.");
+  await page.getByRole("button", { name: "Privacy", exact: true }).click();
   await expect(page.getByRole("button", { name: "Manage access" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Export my data" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Remove all agent access" })).toBeVisible();
+  await page.getByRole("button", { name: "Advanced", exact: true }).click();
   await expect(page.locator("#settings")).toContainText("Want to publish agents?");
   await expect(page.getByRole("button", { name: "Open Creator Studio" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Privacy", exact: true }).click();
   await page.getByRole("button", { name: "Manage access" }).click();
   await expect(page.locator("#clearance")).toBeVisible();
   await expect(page.locator("#clearance")).toContainText("Access & Approvals");
@@ -344,6 +350,7 @@ test("connector returns land in settings and disconnect requires confirmation", 
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.locator("#settings")).toContainText("journey@example.test connected");
 
+  await page.getByRole("button", { name: "Connections", exact: true }).click();
   await page.locator("#settings").getByRole("button", { name: "Disconnect" }).click();
   const dialog = page.getByRole("dialog", { name: "Disconnect Google?" });
   await expect(dialog).toContainText("Agents will immediately lose access");
