@@ -4,6 +4,7 @@ import { prisma } from "./db/prisma.js";
 import { env } from "./config/env.js";
 import {
   completeGoogleOAuth,
+  completeMicrosoftOAuth,
   disconnectConnectedAccount,
   getConnectorStartState,
   getValidConnectorToken,
@@ -19,11 +20,21 @@ const originalGoogle = {
   clientSecret: env.GOOGLE_CLIENT_SECRET,
   redirectUri: env.GOOGLE_REDIRECT_URI
 };
+const originalMicrosoft = {
+  clientId: env.MICROSOFT_CLIENT_ID,
+  clientSecret: env.MICROSOFT_CLIENT_SECRET,
+  redirectUri: env.MICROSOFT_REDIRECT_URI,
+  tenantId: env.MICROSOFT_TENANT_ID
+};
 
 before(async () => {
   env.GOOGLE_CLIENT_ID = "google-client-test";
   env.GOOGLE_CLIENT_SECRET = "google-secret-test";
   env.GOOGLE_REDIRECT_URI = "https://api.example.test/api/connectors/google/callback";
+  env.MICROSOFT_CLIENT_ID = "microsoft-client-test";
+  env.MICROSOFT_CLIENT_SECRET = "microsoft-secret-test";
+  env.MICROSOFT_REDIRECT_URI = "https://api.example.test/api/connectors/microsoft/callback";
+  env.MICROSOFT_TENANT_ID = "common";
   await prisma.user.create({ data: { id: userId, email: `${userId}@example.test`, vaultLocalPath: "", vaultEncryptionSalt: "test" } });
 });
 
@@ -34,10 +45,14 @@ after(async () => {
   env.GOOGLE_CLIENT_ID = originalGoogle.clientId;
   env.GOOGLE_CLIENT_SECRET = originalGoogle.clientSecret;
   env.GOOGLE_REDIRECT_URI = originalGoogle.redirectUri;
+  env.MICROSOFT_CLIENT_ID = originalMicrosoft.clientId;
+  env.MICROSOFT_CLIENT_SECRET = originalMicrosoft.clientSecret;
+  env.MICROSOFT_REDIRECT_URI = originalMicrosoft.redirectUri;
+  env.MICROSOFT_TENANT_ID = originalMicrosoft.tenantId;
 });
 
-test("Google OAuth uses PKCE and a one-time persisted state", async () => {
-  const started = await getConnectorStartState("google", userId);
+test("Google OAuth uses PKCE, preserves the client return path, and consumes state once", async () => {
+  const started = await getConnectorStartState("google", userId, undefined, "/connections/complete");
   assert.equal(started.status, "ready");
   const authorizationUrl = new URL(String(started.authorizationUrl));
   assert.equal(authorizationUrl.searchParams.get("code_challenge_method"), "S256");
@@ -56,6 +71,7 @@ test("Google OAuth uses PKCE and a one-time persisted state", async () => {
 
   const account = await completeGoogleOAuth({ code: "authorization-code", state });
   assert.equal(account.accountLabel, "oauth-user@example.test");
+  assert.equal(account.returnPath, "/connections/complete");
   assert.match(tokenBody, /code_verifier=/);
   await assert.rejects(() => completeGoogleOAuth({ code: "second-code", state }), /already used|invalid|expired/i);
 });
@@ -68,6 +84,28 @@ test("OAuth start supports least-privilege incremental scopes", async () => {
   assert.ok(started.scopes.includes("https://www.googleapis.com/auth/calendar.readonly"));
   assert.equal(started.scopes.includes("https://www.googleapis.com/auth/gmail.compose"), false);
   assert.equal(new URL(String(started.authorizationUrl)).searchParams.get("include_granted_scopes"), "true");
+});
+
+test("Microsoft OAuth uses PKCE and preserves the desktop completion path", async () => {
+  const started = await getConnectorStartState("microsoft", userId, ["calendar_read"], "/connections/complete");
+  assert.equal(started.status, "ready");
+  if (started.status !== "ready") throw new Error("Expected ready Microsoft OAuth state.");
+  const authorizationUrl = new URL(String(started.authorizationUrl));
+  assert.equal(authorizationUrl.searchParams.get("code_challenge_method"), "S256");
+  assert.ok(authorizationUrl.searchParams.get("scope")?.includes("Calendars.Read"));
+  const state = String(authorizationUrl.searchParams.get("state"));
+
+  setConnectorFetchForTest(async (url, init) => {
+    if (String(url).includes("oauth2/v2.0/token")) {
+      assert.match(String(init?.body), /code_verifier=/);
+      return new Response(JSON.stringify({ access_token: "microsoft-access", refresh_token: "microsoft-refresh", expires_in: 3600, scope: started.scopes.join(" ") }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ displayName: "OAuth User", mail: "microsoft-user@example.test" }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+
+  const account = await completeMicrosoftOAuth({ code: "microsoft-code", state });
+  assert.equal(account.accountLabel, "microsoft-user@example.test");
+  assert.equal(account.returnPath, "/connections/complete");
 });
 
 test("disconnect revokes Google at the provider and clears local tokens", async () => {

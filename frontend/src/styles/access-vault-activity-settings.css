@@ -781,7 +781,7 @@
 .memory-model-heading > div,
 .memory-type-grid article > div { align-items: start; flex-direction: column; gap: 4px; }
 .memory-model-heading > div > strong { color: var(--text); font-size: 17px; }
-.memory-model .eyebrow { align-items: center; color: var(--accent); display: flex; font-size: 11px; font-weight: 850; gap: 6px; letter-spacing: .04em; text-transform: uppercase; }
+.memory-model .eyebrow { align-items: center; color: var(--accent); display: flex; font-size: 12px; font-weight: 800; gap: 6px; letter-spacing: .04em; text-transform: uppercase; }
 .memory-private-badge { align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; color: var(--text); display: inline-flex; flex: 0 0 auto; font-size: 12px; font-weight: 800; gap: 6px; padding: 7px 10px; }
 .memory-type-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .memory-type-grid article { align-items: start; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; gap: 10px; padding: 12px; }
@@ -1199,7 +1199,7 @@
   border: 1px solid rgba(137, 163, 196, 0.1);
   border-radius: 7px;
   color: #cfe1f4;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
   margin: 0;
   max-height: 180px;

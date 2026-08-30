@@ -81,7 +81,7 @@ function createPkcePair() {
   return { verifier, challenge };
 }
 
-async function createOAuthAuthorization(input: { userId: string; provider: "google" | "microsoft"; scopes: string[] }) {
+async function createOAuthAuthorization(input: { userId: string; provider: "google" | "microsoft"; scopes: string[]; returnPath?: string }) {
   const state = randomBytes(32).toString("base64url");
   const pkce = createPkcePair();
   await prisma.oAuthAuthorization.create({
@@ -91,6 +91,7 @@ async function createOAuthAuthorization(input: { userId: string; provider: "goog
       stateHash: sha256(state),
       encryptedCodeVerifier: encryptConnectorToken(pkce.verifier),
       requestedScopes: encodeJson(input.scopes),
+      returnPath: input.returnPath ?? "/app/settings?view=connections",
       expiresAt: new Date(Date.now() + oauthLifetimeMs)
     }
   });
@@ -236,7 +237,7 @@ export async function disconnectConnectedAccount(input: { userId: string; accoun
   return result.count > 0;
 }
 
-export async function getConnectorStartState(provider: string, userId?: string, capabilities?: ConnectorCapabilityKey[]) {
+export async function getConnectorStartState(provider: string, userId?: string, capabilities?: ConnectorCapabilityKey[], returnPath?: string) {
   if (!isSupportedConnectorProvider(provider)) {
     return {
       status: "unsupported" as const,
@@ -249,7 +250,7 @@ export async function getConnectorStartState(provider: string, userId?: string, 
     const config = getMicrosoftConfigState();
     if (!config.configured || !userId) return { status: "not_configured" as const, provider, authorizationUrl: null, missing: config.missing, message: "Microsoft OAuth is not configured yet." };
     const scopes = requestedScopes("microsoft", capabilities);
-    const authorization = await createOAuthAuthorization({ userId, provider: "microsoft", scopes });
+    const authorization = await createOAuthAuthorization({ userId, provider: "microsoft", scopes, returnPath });
     const tenant = encodeURIComponent(env.MICROSOFT_TENANT_ID);
     const url = new URL(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize`);
     url.searchParams.set("client_id", String(env.MICROSOFT_CLIENT_ID)); url.searchParams.set("redirect_uri", config.redirectUri); url.searchParams.set("response_type", "code"); url.searchParams.set("response_mode", "query"); url.searchParams.set("scope", scopes.join(" ")); url.searchParams.set("state", authorization.state); url.searchParams.set("code_challenge", authorization.codeChallenge); url.searchParams.set("code_challenge_method", "S256");
@@ -274,7 +275,7 @@ export async function getConnectorStartState(provider: string, userId?: string, 
     };
   }
   const scopes = requestedScopes("google", capabilities);
-  const authorization = await createOAuthAuthorization({ userId, provider: "google", scopes });
+  const authorization = await createOAuthAuthorization({ userId, provider: "google", scopes, returnPath });
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", String(env.GOOGLE_CLIENT_ID));
   url.searchParams.set("redirect_uri", config.redirectUri);
@@ -312,7 +313,7 @@ export async function completeMicrosoftOAuth(input: { code: string; state: strin
   const accountLabel = profile.mail ?? profile.userPrincipalName ?? profile.displayName ?? "Microsoft account";
   const scopes = token.scope?.split(" ").filter(Boolean) ?? microsoftScopes;
   const account = await prisma.connectedAccount.upsert({ where: { userId_provider_accountLabel: { userId: authorization.userId, provider: "microsoft", accountLabel } }, update: { status: "active", scopes: encodeJson(scopes), encryptedAccessToken: encryptConnectorToken(String(token.access_token)), encryptedRefreshToken: token.refresh_token ? encryptConnectorToken(token.refresh_token) : undefined, expiresAt: token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null, refreshStartedAt: null, lastRefreshAt: new Date(), lastError: null }, create: { userId: authorization.userId, provider: "microsoft", accountLabel, status: "active", scopes: encodeJson(scopes), encryptedAccessToken: encryptConnectorToken(String(token.access_token)), encryptedRefreshToken: token.refresh_token ? encryptConnectorToken(token.refresh_token) : null, expiresAt: token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null, lastRefreshAt: new Date() } });
-  return serializeAccount(account);
+  return { ...serializeAccount(account), returnPath: authorization.returnPath };
 }
 
 export async function getValidMicrosoftConnectorToken(input: { userId: string; requiredScopes?: string[] }) {
@@ -405,7 +406,7 @@ export async function completeGoogleOAuth(input: { code: string; state: string }
       ,lastRefreshAt: new Date()
     }
   });
-  return serializeAccount(account);
+  return { ...serializeAccount(account), returnPath: authorization.returnPath };
 }
 
 export async function getValidConnectorToken(input: { userId: string; provider: "google"; requiredScopes?: string[] }) {

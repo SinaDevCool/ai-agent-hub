@@ -7,8 +7,11 @@ export function listConnectedAccounts() {
 
 export type ConnectorCapability = "email_read" | "email_write" | "calendar_read" | "calendar_write" | "files_read";
 
-export function startConnector(provider: string, capabilities?: ConnectorCapability[]) {
-  return apiPost<ConnectorStartResponse>(`/api/connectors/${provider}/start`, capabilities?.length ? { capabilities } : {});
+export function startConnector(provider: string, capabilities?: ConnectorCapability[], returnPath?: string) {
+  return apiPost<ConnectorStartResponse>(`/api/connectors/${provider}/start`, {
+    ...(capabilities?.length ? { capabilities } : {}),
+    ...(returnPath ? { returnPath } : {})
+  });
 }
 
 export function disconnectConnector(accountId: string) {

@@ -20,7 +20,8 @@ export const publicConnectorRoutes = Router();
 const providerParams = z.object({ provider: z.string().min(1).max(64) });
 const accountParams = z.object({ accountId: z.string().min(1) });
 const connectorStartSchema = z.object({
-  capabilities: z.array(z.enum(connectorCapabilityKeys)).min(1).max(connectorCapabilityKeys.length).optional()
+  capabilities: z.array(z.enum(connectorCapabilityKeys)).min(1).max(connectorCapabilityKeys.length).optional(),
+  returnPath: z.enum(["/app/settings?view=connections", "/connections/complete"]).optional()
 });
 const googleCallbackSchema = z.object({
   code: z.string().min(1).optional(),
@@ -28,12 +29,12 @@ const googleCallbackSchema = z.object({
   error: z.string().optional()
 });
 
-function frontendConnectorRedirect(status: "success" | "error", message: string) {
-  const base = env.FRONTEND_ORIGIN.split(",")[0]?.trim() || "http://localhost:5173";
-  const url = new URL(base);
-  url.pathname = "/settings";
+function frontendConnectorRedirect(status: "success" | "error", message: string, provider: "google" | "microsoft", returnPath = "/app/settings?view=connections") {
+  const base = env.FRONTEND_PUBLIC_URL ?? (env.FRONTEND_ORIGIN.split(",")[0]?.trim() || "http://localhost:5173");
+  const url = new URL(returnPath, base.endsWith("/") ? base : `${base}/`);
   url.searchParams.set("connector", status);
   url.searchParams.set("message", message);
+  url.searchParams.set("provider", provider);
   return url.toString();
 }
 
@@ -41,27 +42,27 @@ publicConnectorRoutes.get("/google/callback", async (req, res) => {
   try {
     const query = googleCallbackSchema.parse(req.query);
     if (query.error) {
-      return res.redirect(frontendConnectorRedirect("error", "Google connection was cancelled."));
+      return res.redirect(frontendConnectorRedirect("error", "Google connection was cancelled.", "google"));
     }
     if (!query.code || !query.state) {
-      return res.redirect(frontendConnectorRedirect("error", "Google connection response was incomplete."));
+      return res.redirect(frontendConnectorRedirect("error", "Google connection response was incomplete.", "google"));
     }
-    await completeGoogleOAuth({ code: query.code, state: query.state });
-    return res.redirect(frontendConnectorRedirect("success", "Google connected."));
+    const account = await completeGoogleOAuth({ code: query.code, state: query.state });
+    return res.redirect(frontendConnectorRedirect("success", "Google connected.", "google", account.returnPath));
   } catch {
-    return res.redirect(frontendConnectorRedirect("error", "Google could not be connected. Please try again."));
+    return res.redirect(frontendConnectorRedirect("error", "Google could not be connected. Please try again.", "google"));
   }
 });
 
 publicConnectorRoutes.get("/microsoft/callback", async (req, res) => {
   try {
     const query = googleCallbackSchema.parse(req.query);
-    if (query.error) return res.redirect(frontendConnectorRedirect("error", "Microsoft connection was cancelled."));
-    if (!query.code || !query.state) return res.redirect(frontendConnectorRedirect("error", "Microsoft connection response was incomplete."));
-    await completeMicrosoftOAuth({ code: query.code, state: query.state });
-    return res.redirect(frontendConnectorRedirect("success", "Microsoft connected."));
+    if (query.error) return res.redirect(frontendConnectorRedirect("error", "Microsoft connection was cancelled.", "microsoft"));
+    if (!query.code || !query.state) return res.redirect(frontendConnectorRedirect("error", "Microsoft connection response was incomplete.", "microsoft"));
+    const account = await completeMicrosoftOAuth({ code: query.code, state: query.state });
+    return res.redirect(frontendConnectorRedirect("success", "Microsoft connected.", "microsoft", account.returnPath));
   } catch {
-    return res.redirect(frontendConnectorRedirect("error", "Microsoft could not be connected. Please try again."));
+    return res.redirect(frontendConnectorRedirect("error", "Microsoft could not be connected. Please try again.", "microsoft"));
   }
 });
 
@@ -112,8 +113,8 @@ connectorRoutes.get("/providers/readiness/summary", async (req, res) => {
 connectorRoutes.post("/:provider/start", async (req, res) => {
   if (!req.userId) return res.status(401).json({ error: { message: "No user context" } });
   const { provider } = providerParams.parse(req.params);
-  const { capabilities } = connectorStartSchema.parse(req.body ?? {});
-  const state = await getConnectorStartState(provider, req.userId, capabilities);
+  const { capabilities, returnPath } = connectorStartSchema.parse(req.body ?? {});
+  const state = await getConnectorStartState(provider, req.userId, capabilities, returnPath);
   // Readiness is an expected product state, not a transport failure. Returning
   // 200 lets clients show the provider-specific setup guidance verbatim.
   res.json(state);

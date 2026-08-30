@@ -1,6 +1,6 @@
 export type RootSurface = "public" | "auth" | "workspace" | "desktop-auth";
 
-const publicExact = new Set(["/", "/agents", "/how-it-works", "/privacy", "/security", "/download"]);
+const publicExact = new Set(["/", "/agents", "/how-it-works", "/privacy", "/security", "/download", "/connections/complete"]);
 const authExact = new Set(["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email"]);
 const legacyWorkspace = new Map([
   ["/discover", "/app/discover"], ["/private-data", "/app/private-data"], ["/approvals", "/app/approvals"],

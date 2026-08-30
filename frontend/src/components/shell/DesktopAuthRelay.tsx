@@ -68,7 +68,7 @@ export function DesktopAuthRelay() {
         <form className="auth-form" onSubmit={resend}>
           <label>
             <span>Email</span>
-            <input autoComplete="email" inputMode="email" onChange={(event) => setEmail(event.currentTarget.value)} placeholder="you@example.com" required type="email" value={email} />
+            <input autoComplete="email" inputMode="email" name="email" onChange={(event) => setEmail(event.currentTarget.value)} placeholder="you@example.com" required spellCheck={false} type="email" value={email} />
           </label>
           <button disabled={isSending} type="submit">
             {isSending ? <RefreshCw className="spin" size={16} /> : <Mail size={16} />}

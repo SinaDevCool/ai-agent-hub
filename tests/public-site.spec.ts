@@ -32,3 +32,10 @@ test("public mobile navigation remains usable", async ({ page }) => {
   await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Privacy", exact: true })).toBeVisible();
 });
+
+test("desktop connector completion remains public and actionable", async ({ page }) => {
+  await page.goto("/connections/complete?connector=success&provider=microsoft&message=Microsoft%20connected.");
+  await expect(page.getByRole("heading", { name: "Microsoft is connected" })).toBeVisible();
+  await expect(page.getByText("Return to the desktop app", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open web settings" })).toHaveAttribute("href", "/app/settings?view=connections");
+});

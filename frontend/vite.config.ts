@@ -1,10 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
-  // Packaged Tauri builds load from an application protocol rather than a web
-  // server root. Relative assets work in both that environment and localhost.
-  base: "./",
+export default defineConfig(({ mode }) => ({
+  // Hosted deep links need root-relative assets, while packaged Tauri builds
+  // load from an application protocol and therefore need relative assets.
+  base: mode === "desktop" ? "./" : "/",
   plugins: [react()],
   build: {
     rollupOptions: {
@@ -26,4 +26,4 @@ export default defineConfig({
       "/health": "http://localhost:4141"
     }
   }
-});
+}));

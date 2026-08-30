@@ -86,7 +86,7 @@ function PublicMarketplacePage() {
   const visible = useMemo(() => source.agents.filter((agent) => { const haystack = `${agent.name} ${agent.tagline} ${agent.description} ${agent.category}`.toLowerCase(); return (!search || haystack.includes(search.toLowerCase())) && (category === "All" || agent.category === category); }), [category, search, source.agents]);
   useEffect(() => setMetadata("Explore personal AI agents — AI Agent Hub", "Browse privacy-focused personal AI agents and review their access and approval requirements before creating an account."), []);
   useEffect(() => { const query = new URLSearchParams(); if (search) query.set("q", search); if (category !== "All") query.set("category", category); window.history.replaceState({}, "", `/agents${query.size ? `?${query}` : ""}`); }, [category, search]);
-  return <section className="public-section public-marketplace-page"><div className="public-container"><div className="public-section-heading"><span className="public-eyebrow">Public marketplace</span><h1>Find an agent for everyday life</h1><p>Review what an agent can access and whether it may propose sensitive actions before you create an account.</p></div><div className="public-marketplace-controls"><label><Search size={17} /><span className="sr-only">Search agents</span><input aria-label="Search agents" onChange={(event) => setSearch(event.target.value)} placeholder="Search by task or agent…" value={search} /></label><label><span className="sr-only">Filter by category</span><select aria-label="Filter by category" onChange={(event) => setCategory(event.target.value)} value={category}>{categories.map((item) => <option key={item}>{item}</option>)}</select></label></div>{source.loading ? <p className="public-state">Loading published agents…</p> : source.error ? <p className="public-state error">{source.error}</p> : visible.length ? <div className="public-agent-grid">{visible.map((agent) => <AgentCard agent={agent} key={agent.id} />)}</div> : <div className="public-empty"><Search size={26} /><h2>No matching agents</h2><p>Try a broader task or another category.</p><button onClick={() => { setSearch(""); setCategory("All"); }} type="button">Clear filters</button></div>}</div></section>;
+  return <section className="public-section public-marketplace-page"><div className="public-container"><div className="public-section-heading"><span className="public-eyebrow">Public marketplace</span><h1>Find an agent for everyday life</h1><p>Review what an agent can access and whether it may propose sensitive actions before you create an account.</p></div><div className="public-marketplace-controls"><label><Search aria-hidden="true" size={17} /><span className="sr-only">Search agents</span><input aria-label="Search agents" autoComplete="off" name="public-agent-search" onChange={(event) => setSearch(event.target.value)} placeholder="Search by task or agent…" value={search} /></label><label><span className="sr-only">Filter by category</span><select aria-label="Filter by category" autoComplete="off" name="public-agent-category" onChange={(event) => setCategory(event.target.value)} value={category}>{categories.map((item) => <option key={item}>{item}</option>)}</select></label></div>{source.loading ? <p aria-live="polite" className="public-state" role="status">Loading published agents…</p> : source.error ? <p className="public-state error" role="alert">{source.error}</p> : visible.length ? <div className="public-agent-grid">{visible.map((agent) => <AgentCard agent={agent} key={agent.id} />)}</div> : <div className="public-empty"><Search aria-hidden="true" size={26} /><h2>No matching agents</h2><p>Try a broader task or another category.</p><button onClick={() => { setSearch(""); setCategory("All"); }} type="button">Clear filters</button></div>}</div></section>;
 }
 
 function PublicAgentPage({ slug }: { slug: string }) {
@@ -109,6 +109,15 @@ function InformationPage({ kind }: { kind: "how" | "privacy" | "security" | "dow
   return <><section className="public-page-hero"><div className="public-container"><span className="public-kicker"><ShieldCheck size={15} /> AI Agent Hub</span><h1>{content.title}</h1><p>{content.intro}</p></div></section>{content.body}</>;
 }
 
+function ConnectorCompletePage() {
+  const params = new URLSearchParams(window.location.search);
+  const provider = params.get("provider") === "microsoft" ? "Microsoft" : "Google";
+  const succeeded = params.get("connector") === "success";
+  const message = params.get("message") ?? (succeeded ? `${provider} connected.` : `${provider} could not be connected.`);
+  useEffect(() => setMetadata(`${provider} connection — AI Agent Hub`, message), [message, provider]);
+  return <section className="public-section public-agent-page"><div className="public-container public-prose"><span className="public-kicker"><ShieldCheck aria-hidden="true" size={15} /> Account connection</span><h1>{succeeded ? `${provider} is connected` : `${provider} was not connected`}</h1><p role={succeeded ? "status" : "alert"}>{message}</p><div className="public-disclosure"><Laptop aria-hidden="true" /><div><strong>Return to the desktop app</strong><p>Select <strong>Check connection</strong> in Settings. Your connected account will appear there without sharing its access token with this browser page.</p></div></div><div className="public-hero-actions"><a className="public-primary-link" href="/app/settings?view=connections">Open web settings</a><a className="public-secondary-link" href="/">Return home</a></div></div></section>;
+}
+
 export function PublicSite() {
   const path = window.location.pathname.replace(/\/$/, "") || "/";
   let page: ReactNode;
@@ -119,6 +128,7 @@ export function PublicSite() {
   else if (path === "/privacy") page = <InformationPage kind="privacy" />;
   else if (path === "/security") page = <InformationPage kind="security" />;
   else if (path === "/download") page = <InformationPage kind="download" />;
+  else if (path === "/connections/complete") page = <ConnectorCompletePage />;
   else page = <section className="public-section"><div className="public-container public-empty"><h1>Page not found</h1><a className="public-primary-link" href="/">Return home</a></div></section>;
   return <PublicLayout>{page}</PublicLayout>;
 }

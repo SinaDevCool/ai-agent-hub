@@ -349,7 +349,7 @@ test("connector returns land in settings and disconnect requires confirmation", 
   await page.goto("/app/settings?connector=error&message=Google+could+not+be+connected.+Please+try+again.");
   await expect(page.locator("#settings")).toBeVisible();
   await expect(page.locator("#settings")).toContainText("Google could not be connected. Please try again.");
-  await expect(page).toHaveURL(/\/app\/settings$/);
+  await expect(page).toHaveURL(/\/app\/settings\?view=connections$/);
   await expect(page.locator("#settings")).toContainText("journey@example.test connected");
 
   await page.getByRole("button", { name: "Connections", exact: true }).click();

@@ -272,7 +272,7 @@ textarea:focus-visible {
     min-height: 54px;
     justify-content: center;
     padding: 4px 6px;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.15;
     border-radius: 13px;
     width: 100%;
@@ -1205,7 +1205,7 @@ textarea:focus-visible {
     border-radius: 999px;
     color: #c7d7eb;
     display: inline-flex;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 850;
     justify-content: center;
     min-height: 20px;

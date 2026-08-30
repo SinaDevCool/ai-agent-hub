@@ -40,7 +40,12 @@ export function useConnectors(input: { formatError: (error: unknown) => string }
     setError("");
     setMessage("");
     try {
-      const result = await startConnector(provider);
+      const isDesktop = Boolean(window.__TAURI_INTERNALS__);
+      const result = await startConnector(
+        provider,
+        undefined,
+        isDesktop ? "/connections/complete" : "/app/settings?view=connections"
+      );
       if (result.status === "ready" && result.authorizationUrl) {
         await openExternalUrl(result.authorizationUrl);
         setMessage(`Finish connecting ${provider === "google" ? "Google" : "Microsoft"} in the browser, then return here and select Check connection.`);

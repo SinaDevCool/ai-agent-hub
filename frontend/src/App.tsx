@@ -348,7 +348,7 @@ export function App() {
     const message = params.get("message");
     if (message) connectors.setMessage(message);
     if (status === "success") void connectors.refreshConnectors();
-    window.history.replaceState(null, "", "/settings");
+    window.history.replaceState(null, "", "/app/settings?view=connections");
     scrollToSection("settings");
   }, []);
 

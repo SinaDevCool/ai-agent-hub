@@ -41,14 +41,18 @@ test("connector callback failures return users to frontend settings", async () =
   const incomplete = await fetch(`${baseUrl}/api/connectors/google/callback`, { redirect: "manual" });
   assert.equal(incomplete.status, 302);
   const incompleteLocation = new URL(incomplete.headers.get("location")!);
-  assert.equal(incompleteLocation.pathname, "/settings");
+  assert.equal(incompleteLocation.pathname, "/app/settings");
+  assert.equal(incompleteLocation.searchParams.get("view"), "connections");
   assert.equal(incompleteLocation.searchParams.get("connector"), "error");
+  assert.equal(incompleteLocation.searchParams.get("provider"), "google");
 
   const invalidState = await fetch(`${baseUrl}/api/connectors/microsoft/callback?code=test-code&state=invalid-state`, { redirect: "manual" });
   assert.equal(invalidState.status, 302);
   const invalidStateLocation = new URL(invalidState.headers.get("location")!);
-  assert.equal(invalidStateLocation.pathname, "/settings");
+  assert.equal(invalidStateLocation.pathname, "/app/settings");
+  assert.equal(invalidStateLocation.searchParams.get("view"), "connections");
   assert.equal(invalidStateLocation.searchParams.get("connector"), "error");
+  assert.equal(invalidStateLocation.searchParams.get("provider"), "microsoft");
   assert.match(invalidStateLocation.searchParams.get("message") ?? "", /try again/i);
 });
 

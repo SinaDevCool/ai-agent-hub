@@ -55,12 +55,22 @@ test("desktop Local AI lifecycle and external OAuth controls remain operable", a
     if (route.request().method() === "GET") return route.fulfill({ json: { accounts: [] } });
     return route.continue();
   });
-  await page.route("**/api/connectors/google/start", (route) => route.fulfill({
-    json: { status: "ready", provider: "google", authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth?client_id=test", scopes: [], message: "Open Google." }
-  }));
-  await page.route("**/api/connectors/microsoft/start", (route) => route.fulfill({
-    json: { status: "ready", provider: "microsoft", authorizationUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=test", scopes: [], message: "Open Microsoft." }
-  }));
+  for (const provider of ["google", "microsoft"] as const) {
+    await page.route(`**/api/connectors/${provider}/start`, (route) => {
+      expect(route.request().postDataJSON()).toEqual({ returnPath: "/connections/complete" });
+      return route.fulfill({
+        json: {
+          status: "ready",
+          provider,
+          authorizationUrl: provider === "google"
+            ? "https://accounts.google.com/o/oauth2/v2/auth?client_id=test"
+            : "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=test",
+          scopes: [],
+          message: `Open ${provider}.`
+        }
+      });
+    });
+  }
 
   await page.goto("/app/settings");
   await page.getByRole("button", { name: "Local AI", exact: true }).click();
